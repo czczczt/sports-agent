@@ -1,0 +1,6 @@
+requests
+beautifulsoup4
+lxml
+pdfplumber
+pydantic>=2
+pandas
