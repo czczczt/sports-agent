@@ -12,7 +12,7 @@ from pathlib import Path
 
 import requests
 
-from normalize import GENDER_RR, STATUS_RR, to_seconds
+from normalize import GENDER_RR, STATUS_RR, is_sber_club, to_seconds
 
 SOURCES = {
     "russiarunning": "https://results.russiarunning.com/api",
@@ -61,14 +61,17 @@ class RRClient:
     def race_options(self, race_id: str) -> dict:
         return self._call("GET", "/results/options/get", params={"RaceId": race_id, "Language": "ru"})
 
-    def individual_results(self, event_id: str, race_id: str) -> tuple[list[dict], int]:
-        """Все страницы протокола + totalCount, который заявляет площадка."""
+    def individual_results(self, event_id: str, race_id: str, club_code: str | None = None) -> tuple[list[dict], int]:
+        """Все страницы протокола + totalCount, который заявляет площадка.
+        club_code — фильтр по клубу (ключ `clubCode` из JS сайта): находит и тех, у кого в протоколе
+        поле клуба пустое (E35)."""
         out, total, skip = [], None, 0
+        flt = {"clubCode": club_code} if club_code else {}
         while total is None or skip < total:
             # E5: page = {skip, take<=100}, поле search не передаём
             j = self._call("POST", "/results/individual/get",
                            {"eventId": event_id, "raceId": race_id, "page": {"skip": skip, "take": PAGE},
-                            "filter": {}, "isStagesOn": False, "language": "ru"})
+                            "filter": flt, "isStagesOn": False, "language": "ru"})
             total = j["totalCount"]
             out += j["results"]
             if not j["results"]:
@@ -104,7 +107,11 @@ class RRConnector:
                  "race_type": "relay" if r.get("isRelay") else "individual",
                  # RR enum {Individual:0, Absolute:1}: места по чистому или по грязному времени (E12)
                  "place_by": "gun" if r.get("resultsCalculationMethod") == 1 else "chip",
-                 "timing_type": r.get("timingType"), "sport": r.get("disciplineCode")} for r in ev["races"]]
+                 "timing_type": r.get("timingType"), "sport": r.get("disciplineCode"),
+                 # клубы Сбера на этой дистанции — из списка клубов забега (filters.raceClubs)
+                 "_sber_clubs": [(c.get("code"), c.get("title")) for c in (r.get("filters") or {}).get("raceClubs") or []
+                                 if is_sber_club(c.get("title"), c.get("code"))]}
+                for r in ev["races"]]
 
     def results(self, comp: dict, race: dict) -> tuple[list[dict], int]:
         """HTTPError 404 = протокола на платформе нет (E13) — пробрасываем, решает run.py."""
@@ -118,6 +125,7 @@ class RRConnector:
                 "full_name_raw": r.get("fullName"), "gender": GENDER_RR.get(r.get("gender")), "age": r.get("age"),
                 "country": r.get("countryCode"), "region": r.get("region"), "city": r.get("city"),
                 "club_raw": (r.get("raceClub") or "").strip() or None,
+                "club_source": "protocol" if (r.get("raceClub") or "").strip() else None,
                 "status": STATUS_RR.get(r.get("status"), f"RR_{r.get('status')}"),
                 # E7: отрицательные позиции = скрыты; E10: у нефинишёров «место» — номер в списке
                 "place_abs": r.get("position") if fin and (r.get("position") or 0) > 0 else None,
@@ -126,4 +134,22 @@ class RRConnector:
                 "age_group": r.get("genderAgeNominationName"),
                 "chip_time_s": to_seconds(r.get("individualResult")), "gun_time_s": to_seconds(r.get("absoluteResult")),
             })
+        self._mark_sber_by_filter(comp, race, out)
         return out, total
+
+    def _mark_sber_by_filter(self, comp: dict, race: dict, rows: list[dict]) -> None:
+        """E35: фильтр clubCode находит участников клуба, у которых в протоколе клуб не показан.
+        Таким строкам ставим клуб из фильтра и помечаем club_source = 'filter'."""
+        by_pid = {r["external_participant_id"]: r for r in rows}
+        found = only_filter = 0
+        for code, title in race.get("_sber_clubs", []):
+            members, _ = self.cli.individual_results(comp["_rr_event_id"], race["external_id"], club_code=code)
+            for m in members:
+                row = by_pid.get(m.get("participantId"))
+                if row is None:
+                    continue
+                found += 1
+                if not row["club_raw"]:
+                    row["club_raw"], row["club_source"] = title or code, "filter"
+                    only_filter += 1
+        race["_sber_found"], race["_sber_only_filter"] = found, only_filter

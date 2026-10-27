@@ -10,3 +10,5 @@ env/
 *.env
 
 /!info/
+
+data/

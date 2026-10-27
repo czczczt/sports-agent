@@ -5,6 +5,7 @@
 | **Опирается на** | [architecture.md](../architecture.md), ТЗ заказчика от 2026-10-20 |
 | **Прототип** | [running/](../running/) — парсеры russiarunning, timerman, runc, grom + дедупликация, SQLite |
 | **Роль** | DS: сбор, обработка данных, метрики |
+| **Агент** | [agent-spec.md](agent-spec.md) — спецификация агента сбора; [agent-guide.md](agent-guide.md) — путеводитель для разработчика агента |
 | **Статус** | Черновик для согласования с командой |
 | **Охват** | Только бег (биатлон на паузе; лыжи, триатлон, трейл — позже) |
 
@@ -40,7 +41,7 @@
 | 12 | Баллы | Только итоговый `RATING` | Карточка атлета показывает баллы **за каждый старт**; нормативы меняются по годам | ➕ `score` (баллы за результат), `norm` (нормативы по году) |
 | 13 | Дубли стартов | `content_hash` от повторной загрузки | Один старт на двух площадках (Казанский полумарафон: russiarunning и timerman, 9277 общих участников) | ➕ `competition.canonical_competition_id` + `result.duplicate_of` (раздел 7) |
 | 14 | Статусы | DNF, DSQ | Реальный набор: FIN, DNF, DSQ, DNS, **NC** (не уложился в лимит), **LAP** (обогнан на круг) | 🔧 расширить перечень |
-| 15 | Наблюдаемость | JSON-логи, отчёт о сборе | Ошибки нужны и в БД — для метрик и повторного прогона | ➕ `crawl_error` (дополняет логи, не заменяет) |
+| 15 | Наблюдаемость | JSON-логи, отчёт о сборе | Ошибки нужны в БД как **очередь**, которую разбирает агент или человек | ➕ `issue` (fingerprint, статусы, исполнитель), `known_exception`, позже `agent_run` (дополняют логи, не заменяют) |
 | 16 | Метрики качества | «Доля успешных парсингов, дубли» | Для честных метрик нужен эталон | ➕ `gold_result`, `gold_match_pair` |
 | 17 | Риски (раздел 9) | Блокировки, rate limit | **Гео-блок**: runc, grom, myfinish не открывались с турецкого IP (E1); протоколы myfinish (`new.myfinish.info`) — не открываются и с американского (E19). grom под нагрузкой начинает рвать соединения (E29) | ➕ риск: запуск только из российской сети; щадящий темп для медленных площадок |
 | 18 | По какому времени места | — | RR сообщает это полем; runc и grom — нет. У runc элиту ранжируют по грязному времени, остальных — по чистому (E22) | ➕ для площадок без этого поля `place_by` определяется по данным: берётся то время, с которым порядок мест согласован |
@@ -64,7 +65,7 @@ flowchart LR
     EX --> N["normalize"]
     N --> V{"validate"}
     V -->|ok| DB[("competition / race / result")]
-    V -->|провал| ERR["crawl_error\n+ отчёт"]
+    V -->|провал| ERR["issue\nочередь для агента"]
 ```
 
 | Скилл из architecture.md | Реализация | Статус |
@@ -77,7 +78,7 @@ flowchart LR
 | `normalize` | `running/normalize.py` + нормализация внутри коннектора | ✅ |
 | `validate` | `running/store.py: checks()` — одни проверки для всех площадок | ✅ |
 | — (новый) `dedup` | `running/dedup.py` (раздел 7) | ✅ прототип |
-| Ветка `Validate → Normalize` (≤ 2 повтора) | Для L0 смысла нет: ответ API детерминирован. Провал → сразу `crawl_error` | 🔧 повтор только для L1/L2 с LLM-правилом |
+| Ветка `Validate → Normalize` (≤ 2 повтора) | Для L0 смысла нет: ответ API детерминирован. Провал → сразу задача в `issue` | 🔧 повтор только для L1/L2 с LLM-правилом |
 
 ### 3.1 Реестр источников (`config/sources.yaml`)
 Формат из `architecture.md` 3.2, плюс поля `platform` и `priority`. Заполнение по разведке ([running/SOURCES.md](../running/SOURCES.md)):
@@ -160,7 +161,8 @@ erDiagram
     RESULT ||--o{ SCORE : "баллы"
     NORM ||--o{ SCORE : "норматив"
     ATHLETE ||--o{ RATING : "рейтинг"
-    SOURCE ||--o{ CRAWL_ERROR : "ошибки"
+    SOURCE ||--o{ ISSUE : "проблемы"
+    ISSUE ||--o{ AGENT_RUN : "попытки агента"
     RACE ||--o{ GOLD_RESULT : "эталон"
     RESULT ||--o{ GOLD_MATCH_PAIR : "эталон"
 
@@ -238,6 +240,7 @@ erDiagram
         real chip_time_s
         real gun_time_s
         int duplicate_of FK "есть: та же строка на другой площадке"
+        text club_source "есть: protocol или filter (клуб найден фильтром площадки, E35)"
         real match_score
         text match_method "exact, fuzzy, manual"
     }
@@ -301,13 +304,39 @@ erDiagram
         int rank
         datetime computed_at
     }
-    CRAWL_ERROR {
-        int id PK "есть"
+    ISSUE {
+        int id PK "есть: очередь проблем для агента и человека"
         int source_id FK
-        text stage "list, race, results, check"
+        text stage "fetch, parse, check, store, dedup, match"
+        text kind "fetch_failed, zero_rows, check_failed, geo_block, ..."
         text object_ref
-        text error
-        datetime at
+        text fingerprint UK "одна проблема = одна строка"
+        text details
+        text status "new, known, agent_working, proposed, approved, rejected, resolved, blocked"
+        text assignee "agent, human, infra"
+        text journal_ref "E-номер журнала"
+        int occurrences
+        datetime first_seen
+        datetime last_seen
+        datetime resolved_at
+    }
+    KNOWN_EXCEPTION {
+        int id PK "есть: особенности данных, которые не надо чинить"
+        text source
+        text kind
+        text pattern
+        text reason
+        text journal_ref
+    }
+    AGENT_RUN {
+        int id PK "позже: попытка агента разобрать issue"
+        int issue_id FK
+        text model
+        int tokens_in
+        int tokens_out
+        text result "fixed, cannot_fix, escalate"
+        text patch
+        text test_report
     }
     GOLD_RESULT {
         int id PK
@@ -357,7 +386,7 @@ erDiagram
 ---
 
 ## 6. Проверки качества (validate)
-Выполняются на каждой дистанции. При провале дистанция загружается, но помечается, а провалы пишутся в `crawl_error`.
+Выполняются на каждой дистанции. При провале дистанция загружается, но помечается, а провал становится задачей в `issue`. Если он совпал с `known_exception` (например, спринт с финалом, E28), задача получает статус `known` и агенту не уходит.
 
 | # | Проверка | Ловит |
 |:-:|---|---|
@@ -389,7 +418,7 @@ erDiagram
 |---|---|
 | Дублей стартов | 2 (Казанский и Альметьевский полумарафоны: russiarunning ↔ timerman) |
 | Склеено строк | 9 670 → уникальных записей 282 402 |
-| Precision / recall склейки строк по эталону `participantId` RR | **100% / 99,98%** (9670 из 9672) |
+| Precision / recall склейки строк по эталону `participantId` RR | **100% / 99,98%** (9670 из 9672). Относится только к зеркалам одного старта на двух сайтах RR (E34) |
 | Пары стартов одного дня с разных платформ | 25, все — действительно разные старты; ложных склеек 0 |
 | Полнота склейки между **разными** платформами | Не проверена: совпадающего старта в выборке не было |
 
@@ -398,7 +427,7 @@ erDiagram
 2. Жёсткие условия: пол совпадает; год рождения совпадает с допуском ±1 (когда он есть только из возраста).
 3. Нечёткое сходство ФИО + город и клуб как дополнительные признаки. Порог подбирается на `gold_match_pair`, а не фиксируется заранее на 80–90%.
 4. Без года рождения автоматически не склеиваем: отправляем в отчёт на ручную проверку. Иначе одна ложная склейка с тёзкой затянет в рейтинг Сбера чужие результаты.
-5. Внутри одной платформы есть бесплатный эталон: `participantId` RR совпадает у одного человека на разных сайтах платформы.
+5. ~~Внутри одной платформы есть бесплатный эталон: `participantId` RR.~~ **Исправлено (E34):** `participantId` привязан к старту — из 178 727 id ни один не встречается в двух разных стартах. Он годится только для склейки зеркал одного старта (russiarunning ↔ timerman), а для сопоставления атлета между стартами нужна ручная разметка пар (`gold_match_pair`).
 
 ---
 
@@ -408,7 +437,7 @@ erDiagram
 | Сбор | Покрытие: дистанций с протоколом / всех; доля ошибок загрузки | Календарь площадки |
 | Парсинг | Доля дистанций, прошедших проверки 1–6; точность по полям | `gold_result` (20–30 протоколов вручную) |
 | Дедуп стартов | Precision / recall пар «тот же старт» | Пары, размеченные вручную |
-| Дедуп атлетов | Pairwise F1, B-cubed F1 | `gold_match_pair` + `participantId` внутри RR |
+| Дедуп атлетов | Pairwise F1, B-cubed F1 | `gold_match_pair` (ручная разметка; `participantId` не годится, E34) |
 | Отбор Сбера | Precision / recall клубов по маске | Список клубов от заказчика |
 | Баллы | Совпадение с ручным расчётом (цель — 100%) | Ручной рейтинг заказчика |
 | Рейтинг | Spearman ρ, совпадение топ-10 | Ручной рейтинг заказчика |

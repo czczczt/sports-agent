@@ -28,6 +28,8 @@ def main() -> None:
     ap.add_argument("--source", choices=CONNECTORS, default="russiarunning")
     ap.add_argument("--events", type=int, default=30, help="сколько стартов обработать")
     ap.add_argument("--skip", type=int, default=0, help="пропустить первые N стартов списка")
+    ap.add_argument("--sber-only", action="store_true",
+                    help="RR: протокол качать только у дистанций, где в списке клубов есть Сбер (стратегия SPEC)")
     args = ap.parse_args()
 
     conn = CONNECTORS[args.source]()
@@ -39,7 +41,7 @@ def main() -> None:
         try:
             races = conn.races(comp)
         except Exception as ex:  # noqa: BLE001 — фиксируем и идём дальше
-            db.log_error(con, src, "event", comp["code"], repr(ex)); stats["event_error"] += 1
+            db.report_issue(con, src, "fetch", "fetch_failed", comp["code"], repr(ex)); stats["event_error"] += 1
             continue
         event_id = store.save_competition(con, src, comp)
         stats["events"] += 1
@@ -52,6 +54,9 @@ def main() -> None:
             if race["race_type"] == "relay":  # правил для эстафет в беге ТЗ не задаёт (E14)
                 stats["races_relay_skipped"] += 1
                 continue
+            if args.sber_only and "_sber_clubs" in race and not race["_sber_clubs"]:
+                stats["races_without_sber_skipped"] += 1
+                continue
             try:
                 rows, total = conn.results(comp, race)
             except requests.HTTPError as ex:
@@ -59,11 +64,11 @@ def main() -> None:
                     stats["races_no_protocol"] += 1
                     report.append({"race": ref, "name": race.get("name_raw"), "status": "нет протокола"})
                     continue
-                db.log_error(con, src, "results", ref, repr(ex)); stats["race_error"] += 1
+                db.report_issue(con, src, "fetch", "fetch_failed", ref, repr(ex)); stats["race_error"] += 1
                 report.append({"race": ref, "status": f"ошибка: {ex!r}"[:300]})
                 continue
             except Exception as ex:  # noqa: BLE001
-                db.log_error(con, src, "results", ref, repr(ex)); stats["race_error"] += 1
+                db.report_issue(con, src, "parse", "parse_failed", ref, repr(ex)); stats["race_error"] += 1
                 report.append({"race": ref, "status": f"ошибка: {ex!r}"[:300]})
                 continue
             # вид спорта и тип гонки у grom становятся известны только по протоколу
@@ -73,8 +78,9 @@ def main() -> None:
             if race["race_type"] == "relay":
                 stats["races_relay_skipped"] += 1
                 continue
-            if not rows:
+            if not rows:  # частый признак того, что площадка поменяла формат — задача агенту
                 stats["races_empty"] += 1
+                db.report_issue(con, src, "parse", "zero_rows", ref, {"name": race.get("name_raw")})
                 report.append({"race": ref, "name": race.get("name_raw"), "status": "пустой протокол"})
                 continue
             race["total_count"] = total
@@ -85,12 +91,20 @@ def main() -> None:
             ok = all(c.values())
             stats["races_ok" if ok else "races_with_issues"] += 1
             stats["results"] += len(rows)
+            stats["sber_by_filter"] += race.get("_sber_found", 0)
+            stats["sber_only_via_filter"] += race.get("_sber_only_filter", 0)
             report.append({"race": ref, "name": race.get("name_raw"), "distance_km": race.get("distance_km"),
                            "n": len(rows), "total": total, "place_by": race["place_by"],
+                           "sber_clubs": [t or c for c, t in race.get("_sber_clubs", [])],
+                           "sber_by_filter": race.get("_sber_found"), "sber_only_via_filter": race.get("_sber_only_filter"),
                            "status": "ok" if ok else "есть проблемы", "checks": c})
             if not ok:
-                db.log_error(con, src, "check", ref,
-                             json.dumps({k: v for k, v in c.items() if not v}, ensure_ascii=False))
+                st = db.report_issue(con, src, "check", "check_failed", ref,
+                                     {"name": race.get("name_raw"), "failed": [k for k, v in c.items() if not v]})
+                if st == "known":  # известная особенность данных (known_exception), а не ошибка парсера
+                    stats["races_with_issues"] -= 1
+                    stats["races_known_exception"] += 1
+                    report[-1]["status"] = "известное исключение"
         con.commit()
 
     summary = {"stats": dict(stats), "statuses": dict(statuses), "races": report}

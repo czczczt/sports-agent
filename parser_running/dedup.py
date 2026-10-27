@@ -10,7 +10,9 @@
    Основным (canonical) становится старт площадки с меньшим PRIORITY.
 2. Результаты. В дубле строка неосновной площадки получает duplicate_of = id строки основной.
    Ничего не удаляем: дубли просто исключаются из подсчётов.
-Оценка: на парах russiarunning ↔ timerman participantId совпадает у одного человека — это эталон.
+Оценка: в зеркале одного старта на russiarunning ↔ timerman participantId совпадает у одного человека — это эталон.
+Только для зеркал: participantId привязан к старту, между разными стартами он не повторяется (E34),
+поэтому эталоном сопоставления атлета между стартами он не служит.
 """
 from __future__ import annotations
 
@@ -39,7 +41,7 @@ def norm_title(s: str | None) -> str:
 
 
 def load(con):
-    events = con.execute("""SELECT e.id, s.name, e.external_id, e.title, substr(e.date_begin,1,10)
+    events = con.execute("""SELECT e.id, s.name, e.external_id, e.title, substr(e.date_begin,1,10), s.platform
                             FROM event e JOIN source s ON s.id = e.source_id""").fetchall()
     races = defaultdict(list)
     for rid, eid, dist in con.execute("SELECT id, event_id, distance_m FROM race"):
@@ -89,7 +91,9 @@ def main() -> None:
             for b in evs[i + 1:]:
                 if a[1] == b[1]:
                     continue  # внутри одной площадки дублей не ищем
-                same_ext = a[2] == b[2]
+                # E33: external_id сравниваем только внутри одной платформы (у runc/grom это коды и слаги,
+                # совпадение с id другой платформы ничего не значит)
+                same_ext = a[5] == b[5] and a[2] == b[2]
                 title_sim = SequenceMatcher(None, norm_title(a[3]), norm_title(b[3])).ratio()
                 if not same_ext and title_sim < TITLE_CANDIDATE:
                     continue

@@ -13,7 +13,7 @@ from normalize import km_to_m, norm_distance
 
 STATUSES = {"FIN", "DNF", "DSQ", "DNS", "NC", "LAP"}
 RESULT_FIELDS = ("external_participant_id", "bib", "full_name_raw", "gender", "age", "birth_year", "country",
-                 "region", "city", "club_raw", "status", "place_abs", "place_gender", "age_group",
+                 "region", "city", "club_raw", "club_source", "status", "place_abs", "place_gender", "age_group",
                  "chip_time_s", "gun_time_s")
 
 
@@ -46,6 +46,8 @@ def save_race(con: sqlite3.Connection, event_id: int, r: dict) -> int:
 
 def save_results(con: sqlite3.Connection, race_id: int, rows: list[dict]) -> None:
     con.execute("DELETE FROM result WHERE race_id=?", (race_id,))  # протокол перезаписывается целиком
+    for r in rows:  # откуда клуб: из протокола (по умолчанию) или из фильтра площадки (E35)
+        r.setdefault("club_source", "protocol" if r.get("club_raw") else None)
     con.executemany(f"INSERT INTO result(race_id, {', '.join(RESULT_FIELDS)}) "
                     f"VALUES (?, {', '.join('?' * len(RESULT_FIELDS))})",
                     [(race_id, *(r.get(k) for k in RESULT_FIELDS)) for r in rows])
