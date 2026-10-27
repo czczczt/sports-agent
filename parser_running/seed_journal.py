@@ -68,15 +68,15 @@ def main() -> None:
         status = status_of(status_cell, jid)
         con.execute("""INSERT INTO issue(stage, kind, object_ref, fingerprint, details, status, assignee,
                        journal_ref, resolved_at)
-                       VALUES (?,?,?,?,?,?,?,?, CASE WHEN ?='resolved' THEN CURRENT_TIMESTAMP END)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s, CASE WHEN %s='resolved' THEN now() END)
                        ON CONFLICT(fingerprint) DO UPDATE SET details=excluded.details, status=excluded.status,
                        stage=excluded.stage, kind=excluded.kind, assignee=excluded.assignee""",
                     (stage, kind, where, f"journal|{jid}",
                      f"Что: {what}\nПричина: {cause}\nСделано: {done}\nСтатус: {status_cell}",
                      status, assignee, jid, status))
         n += 1
-    con.executemany("INSERT OR IGNORE INTO known_exception(source, kind, pattern, reason, journal_ref) "
-                    "VALUES (?,?,?,?,?)", KNOWN)
+    con.cursor().executemany("INSERT INTO known_exception(source, kind, pattern, reason, journal_ref) "
+                             "VALUES (%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING", KNOWN)
     con.commit()
     print(f"журнал: {n} записей; по статусам:",
           dict(con.execute("SELECT status, count(*) FROM issue WHERE fingerprint LIKE 'journal|%' "

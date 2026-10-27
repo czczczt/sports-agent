@@ -12,6 +12,7 @@ from pathlib import Path
 
 import requests
 
+from http_cache import log_fetch
 from normalize import GENDER_RR, STATUS_RR, is_sber_club, to_seconds
 
 SOURCES = {
@@ -33,7 +34,9 @@ class RRClient:
               cache: bool = True):
         key = hashlib.sha1(json.dumps([method, path, body, params], sort_keys=True).encode()).hexdigest()[:20]
         f = RAW / self.name / f"{key}.json"
+        req = json.dumps([method, path, body, params], sort_keys=True, ensure_ascii=False)
         if cache and f.exists():
+            log_fetch(self.name, req, self.base + path, f, True)
             return json.loads(f.read_text(encoding="utf-8"))
         for attempt in range(3):  # E2: разовые таймауты
             try:
@@ -48,6 +51,7 @@ class RRClient:
         if cache:
             f.parent.mkdir(parents=True, exist_ok=True)
             f.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+            log_fetch(self.name, req, self.base + path, f, False)
         return data
 
     def list_events(self, skip: int, take: int) -> list[dict]:

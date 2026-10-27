@@ -1,18 +1,27 @@
 # Парсер беговых протоколов
 
-Источники → SQLite (`data/running.db`). Целевая схема БД и правила — [docs/parser-db-spec.md](../docs/parser-db-spec.md).
+Источники → PostgreSQL (Docker). Схема БД и правила — [docs/parser-db-spec.md](../docs/parser-db-spec.md).
 Разведка площадок — [SOURCES.md](SOURCES.md), журнал ошибок — [ERRORS.md](ERRORS.md) (E1–E35).
+Баллы и рейтинг по собранным данным — [docs/scoring-spec.md](../docs/scoring-spec.md) (issue [#8](https://github.com/czczczt/sports-agent/issues/8)).
 
 ## Запуск
+База — PostgreSQL 16 в Docker (как в architecture.md 5.1). Один раз из корня репозитория:
 ```bash
-pip install requests beautifulsoup4 lxml
+cp .env.example .env        # задать свой POSTGRES_PASSWORD и тот же пароль в DATABASE_URL
+docker compose up -d db     # порт 5434; в DATABASE_URL — 127.0.0.1, не localhost (на Windows localhost виснет на IPv6)
+pip install requests beautifulsoup4 lxml "psycopg[binary]"
+```
+Дальше из `parser_running/`:
+```bash
 python seed_journal.py                              # журнал ERRORS.md → очередь issue + known_exception
 python run.py --source russiarunning --events 40   # также: timerman, runc, grom
 python run.py --source russiarunning --events 300 --sber-only   # RR: протоколы только там, где в клубах есть Сбер
 python dedup.py                                     # дедупликация стартов и результатов
 python recon_blocked.py                             # разведка гео-заблокированных площадок (запускать из РФ)
+python run.py --source runc --events 20 --offline   # повторный прогон только из кеша, сеть запрещена
+python migrate_sqlite.py                            # перенос старой SQLite: пересборка из кеша + построчная сверка
 ```
-Ответы площадок кешируются в `data/raw/<площадка>/`, повторный прогон идёт без сети и ничего не задваивает.
+Ответы площадок кешируются в `data/raw/<площадка>/`, повторный прогон идёт без сети и ничего не задваивает. Таблица `raw` хранит, какой ответ (файл кеша) к какому старту и дистанции относится; `raw.object_ref` совпадает с `issue.object_ref`.
 `data/` в git не попадает (персональные данные).
 
 > Часть площадок не открывается с некоторых зарубежных IP (E1, E19). Запускать из российской сети.
@@ -81,9 +90,10 @@ python recon_blocked.py                             # разведка гео-з
 | `http_cache.py` | GET с кешем на диске, ретраи с нарастающей паузой, починка кодировки |
 | `normalize.py` | Время; дистанция из названия (км, мили, метры) → зачётный норматив (±2%); даты на русском; пол; статусы; `place_by` по данным; детектор клуба Сбера |
 | `store.py` | Общая запись в БД (upsert) и проверки 1–6 |
-| `db.py` | Таблицы `source`, `event`, `race`, `result`, `issue`, `known_exception` + колонки дедупа и `club_source`; `report_issue()` |
+| `db.py` | PostgreSQL: `source`, `competition`, `race`, `raw`, `club`, `result`, `issue`, `known_exception`, `agent_run`; `report_issue()` |
 | `seed_journal.py` | Перенос журнала ERRORS.md в очередь `issue` и стартовые `known_exception` |
 | `evals/` | Протокол агента-ремонтника, проверяющий модуль и тест-кейсы (см. [evals/README.md](evals/README.md); спека агента — [docs/agent-spec.md](../docs/agent-spec.md), путеводитель — [docs/agent-guide.md](../docs/agent-guide.md)) |
 | `run.py` | Общий прогон для всех площадок, отчёт `data/report_<площадка>.json` |
 | `dedup.py` | Дедуп стартов и результатов, отчёт `data/report_dedup.json` |
+| `migrate_sqlite.py` | Перенос прототипа SQLite → PostgreSQL повторным прогоном из кеша и построчная сверка, отчёт `data/report_migration.json` |
 | `recon_blocked.py` | Разведка площадок, недоступных с зарубежных IP |
