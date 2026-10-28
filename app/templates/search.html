@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Поиск спортсмена — СберСпорт Бег{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-8">
+    <div class="text-center space-y-2">
+        <h1 class="text-3xl font-extrabold text-slate-800">Поиск спортсмена в базе результатов</h1>
+        <p class="text-slate-600 text-sm">
+            Введите фамилию и примерный год рождения. Система учитывает погрешность расчёта года из возраста (допуск &plusmn;1 год) и поиск без учёта регистра (е/ё).
+        </p>
+    </div>
+
+    <!-- Форма поиска -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <form method="GET" action="/" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+            <div class="md:col-span-6 space-y-1">
+                <label for="last_name" class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Фамилия *</label>
+                <input 
+                    type="text" 
+                    id="last_name" 
+                    name="last_name" 
+                    value="{{ query_last_name }}" 
+                    placeholder="Например: Иванов или Петров" 
+                    required 
+                    class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition text-sm"
+                >
+            </div>
+            <div class="md:col-span-3 space-y-1">
+                <label for="birth_year" class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Год рождения</label>
+                <input 
+                    type="number" 
+                    id="birth_year" 
+                    name="birth_year" 
+                    value="{{ query_birth_year or '' }}" 
+                    placeholder="1990" 
+                    min="1920" 
+                    max="2020" 
+                    class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition text-sm"
+                >
+            </div>
+            <div class="md:col-span-3">
+                <button 
+                    type="submit" 
+                    class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-4 rounded-lg shadow-sm transition flex items-center justify-center space-x-2 text-sm"
+                >
+                    <span>🔍</span>
+                    <span>Найти</span>
+                </button>
+            </div>
+        </form>
+
+        <!-- Быстрые примеры для проверки -->
+        <div class="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <span class="font-medium">Быстрый тест:</span>
+            <a href="/?last_name=Иванов&birth_year=1985" class="bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-full text-slate-700">Иванов 1985</a>
+            <a href="/?last_name=Смирнов" class="bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-full text-slate-700">Смирнов (все)</a>
+            <a href="/?last_name=Кузнецова&birth_year=1992" class="bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-full text-slate-700">Кузнецова 1992</a>
+            <a href="/?last_name=Федоров" class="bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-full text-slate-700">Федоров (проверка е/ё)</a>
+        </div>
+    </div>
+
+    <!-- Результаты поиска (Список кандидатов) -->
+    {% if query_last_name %}
+        <div class="space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg font-bold text-slate-800">
+                    Найдено кандидатов: {{ candidates|length }}
+                </h2>
+                {% if query_birth_year %}
+                    <span class="text-xs bg-slate-200 text-slate-700 px-2 py-1 rounded">
+                        Фильтр по году: {{ query_birth_year }} (&plusmn;1 год)
+                    </span>
+                {% endif %}
+            </div>
+
+            {% if candidates %}
+                <div class="grid grid-cols-1 gap-3">
+                    {% for cand in candidates %}
+                        <div class="bg-white p-5 rounded-xl border border-slate-200 hover:border-emerald-500 hover:shadow-md transition flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div class="space-y-1">
+                                <div class="flex items-center space-x-2">
+                                    <span class="font-bold text-lg text-slate-900">{{ cand.display_name }}</span>
+                                    {% if cand.gender %}
+                                        <span class="text-xs font-semibold px-2 py-0.5 rounded {% if cand.gender == 'M' %}bg-blue-100 text-blue-800{% else %}bg-pink-100 text-pink-800{% endif %}">
+                                            {{ cand.gender }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
+                                    <span>📅 <strong>{{ cand.birth_year or 'Год не указан' }}</strong> г.р.</span>
+                                    {% if cand.city or cand.region %}
+                                        <span>📍 {{ cand.city or cand.region }}</span>
+                                    {% endif %}
+                                    {% if cand.club %}
+                                        <span>🏃 Клуб: <strong class="text-slate-700">{{ cand.club }}</strong></span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-4">
+                                <div class="text-right hidden md:block">
+                                    <div class="text-base font-extrabold text-emerald-700">{{ cand.starts_count }}</div>
+                                    <div class="text-[11px] text-slate-500 uppercase tracking-wider">стартов (FIN)</div>
+                                </div>
+                                <a 
+                                    href="/athletes-view/{{ cand.id }}" 
+                                    class="bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-300 hover:border-transparent font-medium px-4 py-2 rounded-lg transition text-sm flex items-center space-x-1"
+                                >
+                                    <span>Выбрать профиль</span>
+                                    <span>&rarr;</span>
+                                </a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="bg-white p-8 rounded-xl border border-slate-200 text-center space-y-2">
+                    <div class="text-3xl">🤷‍♂️</div>
+                    <div class="text-slate-800 font-semibold">Спортсмен не найден</div>
+                    <p class="text-xs text-slate-500">Попробуйте изменить написание фамилии или убрать фильтр года рождения.</p>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

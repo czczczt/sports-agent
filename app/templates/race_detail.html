@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}{{ race.name_raw }} — Протокол и Конкуренция{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <div>
+        <a href="/events-view/{{ event.id }}" class="text-xs text-slate-500 hover:text-emerald-600 flex items-center space-x-1">
+            <span>&larr;</span>
+            <span>К дистанциям старта: {{ event.title }}</span>
+        </a>
+    </div>
+
+    <!-- Заголовок дистанции -->
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <div class="text-xs text-emerald-700 font-bold uppercase tracking-wider mb-1">
+                {{ event.title }} • {{ event.date_begin[:10] if event.date_begin else '' }}
+            </div>
+            <h1 class="text-3xl font-black text-slate-900">{{ race.name_raw }}</h1>
+            <div class="text-xs text-slate-500 mt-1">
+                {% if race.norm_distance %}Нормализованный зачёт: <strong>{{ race.norm_distance }}</strong>{% endif %}
+                {% if race.distance_m %} • Длина: {{ race.distance_m }} м{% endif %}
+            </div>
+        </div>
+
+        <div class="bg-slate-50 px-5 py-3 rounded-xl border border-slate-100 text-center">
+            <div class="text-2xl font-black text-emerald-700">{{ competition.total_finishers if competition else results|length }}</div>
+            <div class="text-[11px] text-slate-500 font-medium uppercase tracking-wider">Финишеров (FIN)</div>
+        </div>
+    </div>
+
+    <!-- БЛОК "КОНКУРЕНЦИЯ" (Распределение времен и положение спортсмена) -->
+    {% if competition %}
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="space-y-0.5">
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+                        <span>📊</span>
+                        <span>Блок «Конкуренция»: Распределение финишных времен</span>
+                    </h2>
+                    <p class="text-xs text-slate-500">
+                        Гистограмма плотности результатов всех участников дистанции (деление на 10 интервалов).
+                    </p>
+                </div>
+
+                <!-- Быстрые квантили -->
+                <div class="flex items-center space-x-3 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    <div>Медиана: <strong class="text-slate-900 font-mono" id="median-val"></strong></div>
+                    <div class="text-slate-300">|</div>
+                    <div>Топ 25%: <strong class="text-emerald-700 font-mono" id="p25-val"></strong></div>
+                </div>
+            </div>
+
+            <!-- Подсветка выбранного спортсмена, если он участвовал -->
+            {% if competition.athlete_result %}
+                <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                    <div class="space-y-1">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-emerald-700 font-bold text-sm">📍 Положение выбранного спортсмена</span>
+                            <span class="bg-emerald-200 text-emerald-900 text-xs px-2 py-0.5 rounded font-bold">
+                                Топ {{ competition.athlete_result.top_percent }}%
+                            </span>
+                        </div>
+                        <p class="text-xs text-emerald-800">
+                            {{ competition.athlete_result.summary_text }}
+                        </p>
+                    </div>
+                    <div class="flex items-center space-x-4 bg-white/80 px-4 py-2 rounded-lg border border-emerald-100 text-xs font-mono">
+                        <div>Чистое: <strong>{{ competition.athlete_result.time_formatted }}</strong></div>
+                        <div>Темп: <strong class="text-emerald-700">{{ competition.athlete_result.pace_formatted }}</strong></div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- График гистограммы распределения -->
+            <div class="h-64 w-full">
+                <canvas id="distributionChart"></canvas>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- ПРОТОКОЛ ДИСТАНЦИИ С ПОИСКОМ -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden space-y-4 p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h2 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+                <span>📑</span>
+                <span>Итоговый протокол забега</span>
+            </h2>
+
+            <!-- Форма поиска в протоколе -->
+            <form method="GET" action="/races-view/{{ race.id }}" class="flex items-center space-x-2 w-full sm:w-auto">
+                {% if athlete_id %}
+                    <input type="hidden" name="athlete_id" value="{{ athlete_id }}">
+                {% endif %}
+                <input 
+                    type="text" 
+                    name="search" 
+                    value="{{ search_query }}" 
+                    placeholder="Поиск по фамилии или номеру bib..." 
+                    class="px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 outline-none w-full sm:w-64"
+                >
+                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-3 py-2 rounded-lg text-xs transition">
+                    Найти
+                </button>
+                {% if search_query %}
+                    <a href="/races-view/{{ race.id }}{% if athlete_id %}?athlete_id={{ athlete_id }}{% endif %}" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-2.5 py-2 rounded-lg text-xs">
+                        ✕
+                    </a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="overflow-x-auto -mx-6 -mb-6">
+            <table class="w-full text-left text-sm text-slate-700">
+                <thead class="bg-slate-50 text-[11px] uppercase font-bold text-slate-500 tracking-wider border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-3 w-16">Место</th>
+                        <th class="px-6 py-3 w-16">Bib</th>
+                        <th class="px-6 py-3">Участник</th>
+                        <th class="px-6 py-3 text-center">Пол / Возраст</th>
+                        <th class="px-6 py-3">Клуб</th>
+                        <th class="px-6 py-3">Чистое</th>
+                        <th class="px-6 py-3">Пистолетное</th>
+                        <th class="px-6 py-3">Темп</th>
+                        <th class="px-6 py-3 text-center">Статус</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for r in results %}
+                        <tr class="hover:bg-slate-50/80 transition {% if athlete_id and r.athlete_id == athlete_id %}bg-emerald-50/70 font-semibold{% endif %}">
+                            <td class="px-6 py-3.5 font-bold text-slate-900">
+                                {{ r.place_abs or '-' }}
+                            </td>
+                            <td class="px-6 py-3.5 font-mono text-xs text-slate-500">
+                                {{ r.bib or '-' }}
+                            </td>
+                            <td class="px-6 py-3.5 font-medium text-slate-900">
+                                {% if r.athlete_id %}
+                                    <a href="/athletes-view/{{ r.athlete_id }}" class="hover:text-emerald-600 transition flex items-center space-x-1">
+                                        <span>{{ r.full_name_raw }}</span>
+                                        <span class="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">профиль</span>
+                                    </a>
+                                {% else %}
+                                    {{ r.full_name_raw }}
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-3.5 text-center text-xs text-slate-600">
+                                {{ r.gender or '-' }} {% if r.age %}({{ r.age }}){% endif %}
+                            </td>
+                            <td class="px-6 py-3.5 text-xs text-slate-600">
+                                {{ r.club_raw or '-' }}
+                            </td>
+                            <td class="px-6 py-3.5 font-mono font-bold text-slate-900 whitespace-nowrap">
+                                {{ r.time_formatted }}
+                            </td>
+                            <td class="px-6 py-3.5 font-mono text-xs text-slate-500 whitespace-nowrap">
+                                {% if r.gun_time_s %}{{ r.gun_time_s|round|int }} с{% else %}-{% endif %}
+                            </td>
+                            <td class="px-6 py-3.5 font-mono text-xs text-emerald-700 whitespace-nowrap font-medium">
+                                {{ r.pace_formatted }}
+                            </td>
+                            <td class="px-6 py-3.5 text-center text-xs">
+                                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold 
+                                    {% if r.status == 'FIN' %}bg-emerald-100 text-emerald-800
+                                    {% elif r.status == 'DNF' %}bg-amber-100 text-amber-800
+                                    {% elif r.status == 'DSQ' %}bg-red-100 text-red-800
+                                    {% else %}bg-slate-100 text-slate-600{% endif %}">
+                                    {{ r.status }}
+                                </span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if competition %}
+<script>
+const comp = {{ competition.model_dump() | tojson }};
+
+function formatSeconds(s) {
+    if (!s) return '-';
+    const total = Math.round(s);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const sec = total % 60;
+    if (h > 0) {
+        return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
+    }
+    return (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+
+document.getElementById('median-val').innerText = formatSeconds(comp.median_time_s);
+document.getElementById('p25-val').innerText = formatSeconds(comp.p25_time_s);
+
+// Построение графика распределения (Гистограмма)
+const labels = comp.distribution_bins.map(b => b.label);
+const counts = comp.distribution_bins.map(b => b.count);
+
+// Цвет столбца: подсвечиваем бин, в который попал выбранный спортсмен
+let backgroundColors = counts.map(() => 'rgba(16, 185, 129, 0.4)');
+let borderColors = counts.map(() => '#10b981');
+
+if (comp.athlete_result && comp.athlete_result.time_s) {
+    const aTime = comp.athlete_result.time_s;
+    comp.distribution_bins.forEach((b, idx) => {
+        if (aTime >= b.bin_start_s && aTime <= b.bin_end_s) {
+            backgroundColors[idx] = 'rgba(239, 68, 68, 0.85)'; // Красный акцент на бине спортсмена
+            borderColors[idx] = '#dc2626';
+        }
+    });
+}
+
+const ctx = document.getElementById('distributionChart').getContext('2d');
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: labels,
+        datasets: [{
+            label: 'Количество финишеров в интервале времени',
+            data: counts,
+            backgroundColor: backgroundColors,
+            borderColor: borderColors,
+            borderWidth: 1.5,
+            borderRadius: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                title: {
+                    display: true,
+                    text: 'Участников (чел)'
+                }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'Интервал времени (ЧЧ:ММ:СС)'
+                }
+            }
+        },
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    afterLabel: function(context) {
+                        if (comp.athlete_result && comp.athlete_result.time_s) {
+                            const b = comp.distribution_bins[context.dataIndex];
+                            if (comp.athlete_result.time_s >= b.bin_start_s && comp.athlete_result.time_s <= b.bin_end_s) {
+                                return '★ Здесь финишировал выбранный спортсмен!';
+                            }
+                        }
+                        return '';
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

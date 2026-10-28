@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}{{ event.title }} — Карточка старта{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-4xl mx-auto">
+    <div>
+        <a href="/events-view" class="text-xs text-slate-500 hover:text-emerald-600 flex items-center space-x-1">
+            <span>&larr;</span>
+            <span>К каталогу стартов</span>
+        </a>
+    </div>
+
+    <!-- Карточка старта -->
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+        <div class="flex items-center space-x-3">
+            <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider bg-slate-100 text-slate-800">
+                {{ event.source_name }}
+            </span>
+            <span class="text-xs text-slate-500 font-mono">
+                {{ event.date_begin[:10] if event.date_begin else '' }}
+            </span>
+        </div>
+
+        <h1 class="text-3xl font-black text-slate-900">{{ event.title }}</h1>
+
+        {% if event.place or event.address %}
+            <div class="text-sm text-slate-600 flex items-center space-x-2">
+                <span>📍</span>
+                <span>{{ event.place or event.address }}</span>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Список дистанций старта -->
+    <div class="space-y-3">
+        <h2 class="text-lg font-bold text-slate-900">Дистанции и протоколы ({{ event.races|length }})</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {% for r in event.races %}
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
+                    <div class="space-y-1">
+                        <div class="text-base font-bold text-slate-900">{{ r.name_raw }}</div>
+                        <div class="text-xs text-slate-500">
+                            {% if r.norm_distance %}Норматив: <span class="font-mono text-emerald-600">{{ r.norm_distance }}</span>{% endif %}
+                            {% if r.distance_m %} • {{ r.distance_m }} м{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <span class="text-xs text-slate-500">
+                            {% if r.total_count %}Участников: <strong>{{ r.total_count }}</strong>{% else %}Протокол доступен{% endif %}
+                        </span>
+                        <a 
+                            href="/races-view/{{ r.id }}" 
+                            class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg text-xs transition"
+                        >
+                            Открыть протокол &rarr;
+                        </a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Каталог стартов — СберСпорт Бег{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-black text-slate-900">Каталог беговых стартов</h1>
+            <p class="text-xs text-slate-500 mt-1">Все собранные соревнования и официальные протоколы дистанций.</p>
+        </div>
+        <div class="text-xs text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200">
+            Всего в каталоге: <strong>{{ events|length }}</strong> стартов на странице
+        </div>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+        <form method="GET" action="/events-view" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 items-end">
+            <div class="md:col-span-3 space-y-1">
+                <label class="block text-[11px] font-bold uppercase text-slate-500">Дата от</label>
+                <input 
+                    type="date" 
+                    name="date_from" 
+                    value="{{ filters.date_from or '' }}" 
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                >
+            </div>
+            <div class="md:col-span-3 space-y-1">
+                <label class="block text-[11px] font-bold uppercase text-slate-500">Дата до</label>
+                <input 
+                    type="date" 
+                    name="date_to" 
+                    value="{{ filters.date_to or '' }}" 
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                >
+            </div>
+            <div class="md:col-span-2 space-y-1">
+                <label class="block text-[11px] font-bold uppercase text-slate-500">Город</label>
+                <input 
+                    type="text" 
+                    name="city" 
+                    value="{{ filters.city or '' }}" 
+                    placeholder="Москва, Казань..." 
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                >
+            </div>
+            <div class="md:col-span-2 space-y-1">
+                <label class="block text-[11px] font-bold uppercase text-slate-500">Площадка</label>
+                <select name="source" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
+                    <option value="">Все площадки</option>
+                    <option value="russiarunning" {% if filters.source == 'russiarunning' %}selected{% endif %}>RussiaRunning</option>
+                    <option value="timerman" {% if filters.source == 'timerman' %}selected{% endif %}>Timerman</option>
+                    <option value="runc" {% if filters.source == 'runc' %}selected{% endif %}>Беговое сообщество (RUNC)</option>
+                    <option value="grom" {% if filters.source == 'grom' %}selected{% endif %}>Grom</option>
+                </select>
+            </div>
+            <div class="md:col-span-2 flex space-x-2">
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-3 rounded-lg text-xs transition">
+                    Применить
+                </button>
+                <a href="/events-view" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2 rounded-lg text-xs transition flex items-center justify-center">
+                    ✕
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Список стартов -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% for ev in events %}
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 hover:border-emerald-400 hover:shadow-md transition flex flex-col justify-between space-y-4">
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider 
+                            {% if ev.source_name == 'russiarunning' %}bg-sky-100 text-sky-800
+                            {% elif ev.source_name == 'timerman' %}bg-purple-100 text-purple-800
+                            {% elif ev.source_name == 'runc' %}bg-emerald-100 text-emerald-800
+                            {% else %}bg-amber-100 text-amber-800{% endif %}">
+                            {{ ev.source_name }}
+                        </span>
+                        <span class="text-xs text-slate-500 font-mono">
+                            {{ ev.date_begin[:10] if ev.date_begin else '' }}
+                        </span>
+                    </div>
+
+                    <h2 class="text-lg font-bold text-slate-900 leading-snug">
+                        <a href="/events-view/{{ ev.id }}" class="hover:text-emerald-600 transition">
+                            {{ ev.title }}
+                        </a>
+                    </h2>
+
+                    {% if ev.place or ev.address %}
+                        <div class="text-xs text-slate-500 flex items-center space-x-1">
+                            <span>📍</span>
+                            <span>{{ ev.place or ev.address }}</span>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="border-t border-slate-100 pt-3 space-y-2">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Дистанции старта:</div>
+                    <div class="flex flex-wrap gap-1.5">
+                        {% for r in ev.races %}
+                            <a 
+                                href="/races-view/{{ r.id }}" 
+                                class="text-xs bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300 px-2.5 py-1 rounded-md transition flex items-center space-x-1"
+                            >
+                                <span>{{ r.name_raw }}</span>
+                                {% if r.total_count %}
+                                    <span class="text-[10px] text-slate-400">({{ r.total_count }})</span>
+                                {% endif %}
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
