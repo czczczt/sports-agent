@@ -170,19 +170,19 @@ class TestSportsAgentMVP(unittest.TestCase):
         # Поиск
         resp_search = client.get("/")
         self.assertEqual(resp_search.status_code, 200)
-        self.assertIn("СберСпорт", resp_search.text)
+        self.assertIn("Найти себя", resp_search.text)
 
         # Каталог стартов
         resp_events = client.get("/events-view")
         self.assertEqual(resp_events.status_code, 200)
-        self.assertIn("Каталог беговых стартов", resp_events.text)
+        self.assertIn("<h1 class=\"h1\">Старты</h1>", resp_events.text)
 
         # Профиль первого спортсмена
         cur = self.conn.cursor()
         aid = cur.execute("SELECT id FROM athlete LIMIT 1").fetchone()["id"]
         resp_profile = client.get(f"/athletes-view/{aid}")
         self.assertEqual(resp_profile.status_code, 200)
-        self.assertIn("Профиль спортсмена", resp_profile.text)
+        self.assertIn("ИИ-оценка спортсмена", resp_profile.text)
 
 
 if __name__ == "__main__":

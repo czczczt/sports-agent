@@ -1,319 +1,253 @@
 {% extends "base.html" %}
+{% import "_ui.html" as ui %}
 
-{% block title %}{{ summary.athlete.display_name }} — Профиль спортсмена{% endblock %}
+{% block title %}{{ summary.athlete.display_name }} — Рейтинг спортсменов{% endblock %}
 
 {% block content %}
-<div class="space-y-8">
-    <!-- Хлебные крошки и возврат -->
-    <div>
-        <a href="/" class="text-xs text-slate-500 hover:text-emerald-600 flex items-center space-x-1">
-            <span>&larr;</span>
-            <span>Вернуться к поиску</span>
-        </a>
-    </div>
+{% set a = summary.athlete %}
+{{ ui.back('/', 'Найти себя') }}
 
-    <!-- Заголовок профиля -->
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div class="space-y-2">
-            <div class="flex items-center space-x-3">
-                <h1 class="text-3xl font-black text-slate-900">{{ summary.athlete.display_name }}</h1>
-                {% if summary.athlete.gender %}
-                    <span class="text-xs font-bold px-2.5 py-1 rounded-full {% if summary.athlete.gender == 'M' %}bg-blue-100 text-blue-800{% else %}bg-pink-100 text-pink-800{% endif %}">
-                        {{ summary.athlete.gender }}
-                    </span>
-                {% endif %}
+<section class="card" style="padding: 24px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between;">
+    <div class="row" style="flex-wrap: nowrap; gap: 20px; min-width: 0;">
+        <span class="avatar avatar--lg" aria-hidden="true">{{ ui.initials(a.display_name) }}</span>
+        <div style="min-width: 0;">
+            <h1 class="h1 h1-sm">{{ a.display_name }}</h1>
+            <div class="muted num" style="margin-top: 6px;">
+                {{ a.birth_year or 'год не указан' }}{% if a.city or a.region %} · {{ a.city or a.region }}{% endif %}{% if a.gender %} · {{ ui.gender(a.gender) }}{% endif %}
             </div>
-            <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
-                <span>📅 <strong>{{ summary.athlete.birth_year or 'Год не указан' }}</strong> г.р.</span>
-                {% if summary.athlete.city or summary.athlete.region %}
-                    <span>📍 {{ summary.athlete.city or summary.athlete.region }}</span>
-                {% endif %}
-                {% if summary.athlete.club %}
-                    <span>🏃 Клуб: <strong class="text-slate-800">{{ summary.athlete.club }}</strong></span>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="flex items-center space-x-6 bg-slate-50 px-6 py-3 rounded-xl border border-slate-100">
-            <div class="text-center">
-                <div class="text-2xl font-black text-emerald-700">{{ summary.total_starts }}</div>
-                <div class="text-xs text-slate-500 font-medium">Финишей</div>
-            </div>
-            <div class="h-8 w-px bg-slate-200"></div>
-            <div class="text-center">
-                <div class="text-2xl font-black text-slate-700">{{ summary.personal_bests|length }}</div>
-                <div class="text-xs text-slate-500 font-medium">Рекордов (PB)</div>
-            </div>
+            {% if a.club %}<div class="small muted" style="margin-top: 2px;">Клуб в протоколах: {{ a.club }}</div>{% endif %}
         </div>
     </div>
+    <a href="#agent" class="btn btn--primary btn--stretch-mobile">{{ ui.icon('spark') }}Оценка ИИ-агента</a>
+</section>
 
-    <!-- Блок рейтинга (Заготовка по ТЗ) -->
-    <div class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-5 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div class="space-y-1">
-            <div class="flex items-center space-x-2">
-                <span class="text-lg">📊</span>
-                <span class="font-bold text-amber-900">Рейтинг спортсмена</span>
-                <span class="bg-amber-200 text-amber-900 text-xs px-2 py-0.5 rounded font-medium">На согласовании</span>
+<div class="cols">
+    <div class="cols__side">
+        <div class="grid-2">
+            <div class="card card--accent stat">
+                <span class="stat__label stat__label--run">{{ ui.icon('run', 'icon-sm') }}Бег</span>
+                <span class="display-num num">{{ summary.total_starts }}</span>
+                <span class="small muted">{{ ui.plural(summary.total_starts, 'финиш', 'финиша', 'финишей') }}</span>
             </div>
-            <p class="text-xs text-amber-800">
-                {{ summary.rating.message }}. Подсчет рейтинга ведется бэкендом (не агентом) и будет активирован после утверждения методики.
-            </p>
+            <div class="card stat">
+                <span class="stat__label stat__label--brand">{{ ui.icon('trophy', 'icon-sm') }}Рекорды</span>
+                <span class="display-num num">{{ summary.personal_bests|length }}</span>
+                <span class="small muted">{{ ui.plural(summary.personal_bests|length, 'дистанция', 'дистанции', 'дистанций') }} с PB</span>
+            </div>
         </div>
-        <div class="text-xs font-mono text-amber-700 bg-white/70 px-3 py-1.5 rounded-lg border border-amber-200">
-            formula: pending_curator_formula
-        </div>
-    </div>
 
-    <!-- ИИ-Агент для спортсмена (Вызов по кнопке + кэширование) -->
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div class="space-y-0.5">
-                <div class="flex items-center space-x-2">
-                    <span class="text-xl">🤖</span>
-                    <h2 class="text-lg font-bold text-slate-900">ИИ-агент спортсмена</h2>
-                    <span class="text-xs bg-indigo-100 text-indigo-800 font-semibold px-2 py-0.5 rounded">GigaChat</span>
+        <section class="card card--pad card--pending">
+            <div class="row row--between">
+                <h2 class="h2">Место в рейтинге</h2>
+                <span class="chip chip--sm chip--pending">на согласовании</span>
+            </div>
+            <p class="small">{{ summary.rating.message }}. Рейтинг считает бэкенд по формуле куратора — блок включится после утверждения методики.</p>
+        </section>
+
+        <section class="card card--clip">
+            <div class="card__head"><h2 class="h2">Личные рекорды</h2></div>
+            {% for pb in summary.personal_bests %}
+                <div class="list-row">
+                    <div style="min-width: 0;">
+                        <div class="list-row__title strong">{{ pb.distance_title }}</div>
+                        <div class="list-row__meta" title="{{ pb.event_title }}">{{ ui.date_ru(pb.event_date) }} · {{ pb.event_title }}</div>
+                    </div>
+                    <div class="list-row__end">
+                        <div class="num strong" style="font-size: 16px;">{{ pb.time_formatted }}</div>
+                        <div class="list-row__meta num">{{ pb.pace_formatted }}</div>
+                    </div>
                 </div>
-                <p class="text-xs text-slate-500">
-                    Агент анализирует прогресс, соревновательные процентили, стабильность темпа и формирует персональный отчет.
-                </p>
-            </div>
+            {% else %}
+                <div class="empty" style="padding-top: 8px;"><p class="small muted">Рекорды на нормализованных дистанциях пока не сформированы.</p></div>
+            {% endfor %}
+        </section>
+
+        <section class="card card--pad">
             <div>
-                <button 
-                    id="btn-generate-assessment" 
-                    onclick="requestAssessment({{ summary.athlete.id }})" 
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm shadow-sm flex items-center space-x-2"
-                >
-                    <span id="btn-icon">⚡</span>
-                    <span id="btn-text">{% if summary.has_cached_assessment %}Показать оценку агента{% else %}Получить оценку агента{% endif %}</span>
+                <h2 class="h2">Темп по стартам</h2>
+                <p class="small muted" style="margin-top: 4px;">мин/км · выше — быстрее</p>
+            </div>
+            {% if summary.dynamics %}
+                <div class="chart-box chart-box--sm"><canvas id="dynamicsChart" role="img" aria-label="График темпа спортсмена по датам стартов"></canvas></div>
+            {% else %}
+                <p class="small muted">Недостаточно данных для графика.</p>
+            {% endif %}
+        </section>
+    </div>
+
+    <div class="cols__main">
+        <section id="agent" class="card card--pad">
+            <div class="row row--between" style="align-items: flex-start;">
+                <div style="min-width: 0; flex: 1 1 260px;">
+                    <h2 class="h2">ИИ-оценка спортсмена</h2>
+                    <p class="small muted" style="margin-top: 4px;">Прогресс, процентили в протоколах и стабильность темпа. Метрики считает бэкенд, текст пишет GigaChat.</p>
+                </div>
+                <button type="button" id="btn-generate-assessment" class="btn btn--primary btn--stretch-mobile" data-athlete-id="{{ a.id }}">
+                    {{ ui.icon('spark') }}<span id="btn-text">{% if summary.has_cached_assessment %}Показать оценку{% else %}Получить оценку{% endif %}</span>
                 </button>
             </div>
-        </div>
-
-        <!-- Контейнер для текста оценки -->
-        <div id="assessment-container" class="hidden pt-4 border-t border-slate-100">
-            <div id="assessment-loading" class="hidden text-center py-8 space-y-2">
-                <div class="inline-block animate-spin text-2xl">⏳</div>
-                <div class="text-xs text-slate-600 font-medium">Агент обрабатывает метрики и формирует персональный отчет...</div>
+            <div id="assessment-container" hidden>
+                <div id="assessment-loading" class="row" hidden style="padding: 12px 0;">
+                    <span class="spinner" aria-hidden="true"></span>
+                    <span class="small muted">Агент обрабатывает метрики и пишет отчёт…</span>
+                </div>
+                <div id="assessment-content" class="assessment" aria-live="polite"></div>
+                <div id="assessment-meta" class="row row--between small muted" style="margin-top: 10px;">
+                    <span id="assessment-model">Модель: GigaChat</span>
+                    <span style="color: var(--status-pending);">Оценка носит исключительно справочный характер</span>
+                </div>
             </div>
-            <div id="assessment-content" class="bg-slate-50 p-6 rounded-xl border border-slate-200 text-slate-800 text-sm leading-relaxed whitespace-pre-line font-sans"></div>
-            <div id="assessment-meta" class="mt-3 flex justify-between items-center text-[11px] text-slate-500">
-                <span id="assessment-model">Модель: GigaChat</span>
-                <span class="text-amber-600 font-medium">⚠️ Оценка носит исключительно справочный характер</span>
+        </section>
+
+        <section class="card card--clip">
+            <div class="card__head">
+                <h2 class="h2">Результаты</h2>
+                <span class="chip chip--sm chip--brand">{{ results|length }} · только финиши, без дублей</span>
             </div>
-        </div>
-    </div>
 
-    <!-- Личные рекорды (PB) -->
-    <div class="space-y-3">
-        <h2 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
-            <span>🏆</span>
-            <span>Личные рекорды (Personal Bests)</span>
-        </h2>
-        {% if summary.personal_bests %}
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {% for pb in summary.personal_bests %}
-                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2">
-                        <div class="text-xs font-bold text-emerald-700 uppercase tracking-wider">{{ pb.distance_title }}</div>
-                        <div class="text-2xl font-black text-slate-900">{{ pb.time_formatted }}</div>
-                        <div class="text-xs text-slate-500 flex justify-between">
-                            <span>Темп: <strong>{{ pb.pace_formatted }}</strong></span>
-                            <span>{{ pb.event_date[:10] if pb.event_date else '' }}</span>
-                        </div>
-                        <div class="text-[11px] text-slate-600 truncate border-t border-slate-100 pt-2" title="{{ pb.event_title }}">
-                            {{ pb.event_title }}
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <div class="bg-white p-6 rounded-xl border border-slate-200 text-center text-sm text-slate-500">
-                Рекорды на нормализованных дистанциях пока не сформированы.
-            </div>
-        {% endif %}
-    </div>
+            {% if results %}
+                <div class="table-wrap only-desktop">
+                    <table class="table" style="min-width: 680px;">
+                        <thead>
+                            <tr>
+                                <th scope="col">Дата</th>
+                                <th scope="col">Старт</th>
+                                <th scope="col" class="right">Время</th>
+                                <th scope="col" class="right">Темп</th>
+                                <th scope="col" class="center">Место<br><span class="small">абс / пол</span></th>
+                                <th scope="col"><span class="sr-only">Протокол</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in results %}
+                                <tr>
+                                    <td class="num muted nowrap">{{ ui.date_ru(r.event_date) }}</td>
+                                    <td>
+                                        <a href="/events-view/{{ r.event_id }}" class="cell-title">{{ r.event_title }}</a>
+                                        <div class="cell-sub">{{ r.distance_name }}{% if r.norm_distance %} · {{ r.norm_distance }}{% endif %} · {{ ui.source(r.source_name) }}</div>
+                                    </td>
+                                    <td class="num right strong nowrap">{{ r.time_formatted }}{% if r.gun_time_s %}<div class="cell-sub">пист. {{ ui.hms(r.gun_time_s) }}</div>{% endif %}</td>
+                                    <td class="num right nowrap">{{ r.pace_formatted }}</td>
+                                    <td class="num center nowrap"><span class="strong">{{ r.place_abs or '—' }}</span> <span class="muted">/ {{ r.place_gender or '—' }}</span></td>
+                                    <td class="right nowrap"><a href="/races-view/{{ r.race_id }}?athlete_id={{ a.id }}" class="text-link small">Конкуренция →</a></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
 
-    <!-- График динамики результатов -->
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-        <div class="flex justify-between items-center">
-            <h2 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
-                <span>📈</span>
-                <span>Динамика результатов по времени</span>
-            </h2>
-            <span class="text-xs text-slate-500">Показаны завершенные старты</span>
-        </div>
-        <div class="h-64 w-full">
-            <canvas id="dynamicsChart"></canvas>
-        </div>
-    </div>
-
-    <!-- Таблица всех результатов -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden space-y-2">
-        <div class="p-6 border-b border-slate-100 flex justify-between items-center">
-            <h2 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
-                <span>📋</span>
-                <span>Все результаты финишера ({{ results|length }})</span>
-            </h2>
-            <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">Только FIN, без дублей</span>
-        </div>
-
-        <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm text-slate-700">
-                <thead class="bg-slate-50 text-[11px] uppercase font-bold text-slate-500 tracking-wider border-b border-slate-200">
-                    <tr>
-                        <th class="px-6 py-3">Дата</th>
-                        <th class="px-6 py-3">Старт</th>
-                        <th class="px-6 py-3">Дистанция</th>
-                        <th class="px-6 py-3">Чистое</th>
-                        <th class="px-6 py-3">Пистолетное</th>
-                        <th class="px-6 py-3">Темп</th>
-                        <th class="px-6 py-3 text-center">Место (абс / пол)</th>
-                        <th class="px-6 py-3 text-right">Протокол</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
+                <div class="only-mobile">
                     {% for r in results %}
-                        <tr class="hover:bg-slate-50/80 transition">
-                            <td class="px-6 py-3.5 whitespace-nowrap text-xs text-slate-500">
-                                {{ r.event_date[:10] if r.event_date else '-' }}
-                            </td>
-                            <td class="px-6 py-3.5 font-medium text-slate-900">
-                                <a href="/events-view/{{ r.event_id }}" class="hover:text-emerald-600 transition">
-                                    {{ r.event_title }}
-                                </a>
-                                <span class="block text-[11px] text-slate-400 font-normal">{{ r.source_name }}</span>
-                            </td>
-                            <td class="px-6 py-3.5 whitespace-nowrap">
-                                <span class="font-semibold text-slate-800">{{ r.distance_name }}</span>
-                                {% if r.norm_distance %}
-                                    <span class="block text-[10px] text-emerald-600 font-mono">{{ r.norm_distance }}</span>
-                                {% endif %}
-                            </td>
-                            <td class="px-6 py-3.5 whitespace-nowrap font-mono font-bold text-slate-900">
-                                {{ r.time_formatted }}
-                            </td>
-                            <td class="px-6 py-3.5 whitespace-nowrap font-mono text-xs text-slate-500">
-                                {% if r.gun_time_s %}{{ r.gun_time_s|round|int }} с{% else %}-{% endif %}
-                            </td>
-                            <td class="px-6 py-3.5 whitespace-nowrap font-mono text-xs text-emerald-700 font-medium">
-                                {{ r.pace_formatted }}
-                            </td>
-                            <td class="px-6 py-3.5 whitespace-nowrap text-center text-xs">
-                                <span class="font-bold text-slate-800">{{ r.place_abs or '-' }}</span>
-                                <span class="text-slate-400">/</span>
-                                <span class="text-slate-600">{{ r.place_gender or '-' }}</span>
-                            </td>
-                            <td class="px-6 py-3.5 whitespace-nowrap text-right">
-                                <a 
-                                    href="/races-view/{{ r.race_id }}?athlete_id={{ summary.athlete.id }}" 
-                                    class="text-xs bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-800 px-3 py-1.5 rounded-lg transition"
-                                >
-                                    Конкуренция &rarr;
-                                </a>
-                            </td>
-                        </tr>
+                        <a href="/races-view/{{ r.race_id }}?athlete_id={{ a.id }}" class="list-row" style="text-decoration: none;">
+                            <div style="min-width: 0;">
+                                <div class="list-row__title">{{ r.event_title }}</div>
+                                <div class="list-row__meta num">{{ ui.date_ru(r.event_date) }} · {{ r.distance_name }} · {{ r.place_abs or '—' }} место</div>
+                            </div>
+                            <div class="list-row__end">
+                                <div class="num strong">{{ r.time_formatted }}</div>
+                                <div class="list-row__meta num">{{ r.pace_formatted }}</div>
+                            </div>
+                        </a>
                     {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                </div>
+            {% else %}
+                <div class="empty"><p class="small muted">Завершённых стартов пока нет.</p></div>
+            {% endif %}
+        </section>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Данные динамики для Chart.js
-const dynamicsData = {{ dynamics_json | safe }};
+// График темпа (Chart.js) — цвета берутся из токенов темы и перерисовываются при её смене
+(function () {
+    const data = {{ dynamics_json | safe }};
+    const el = document.getElementById('dynamicsChart');
+    if (!el || !data || !data.length) return;
+    let chart = null;
 
-if (dynamicsData && dynamicsData.length > 0) {
-    const labels = dynamicsData.map(d => d.date + ' (' + d.distance_name + ')');
-    const paceValues = dynamicsData.map(d => {
-        if (!d.pace_s_per_km) return null;
-        return (d.pace_s_per_km / 60.0).toFixed(2); // темп в минутах на км (например 4.25 мин/км)
-    });
-
-    const ctx = document.getElementById('dynamicsChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Темп бега (мин/км, меньше = быстрее)',
-                data: paceValues,
-                borderColor: '#059669',
-                backgroundColor: 'rgba(5, 150, 105, 0.1)',
-                borderWidth: 2,
-                pointBackgroundColor: '#059669',
-                pointRadius: 4,
-                tension: 0.2,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    reverse: true, // Меньший темп наверху (быстрее)
-                    title: {
-                        display: true,
-                        text: 'Темп (мин / км)'
-                    }
-                }
+    function render() {
+        const tok = window.themeToken;
+        const brand = tok('--brand'), muted = tok('--text-muted'), grid = tok('--border-soft'), surface = tok('--surface');
+        const font = { family: "'Golos Text', system-ui, sans-serif", size: 11 };
+        if (chart) chart.destroy();
+        chart = new Chart(el, {
+            type: 'line',
+            data: {
+                labels: data.map(d => d.date),
+                datasets: [{
+                    label: 'Темп, мин/км',
+                    data: data.map(d => d.pace_s_per_km ? +(d.pace_s_per_km / 60).toFixed(2) : null),
+                    borderColor: brand,
+                    backgroundColor: brand,
+                    pointBackgroundColor: brand,
+                    pointBorderColor: surface,
+                    pointRadius: 4,
+                    borderWidth: 2.5,
+                    tension: 0.25,
+                    spanGaps: true
+                }]
             },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const pt = dynamicsData[context.dataIndex];
-                            return ' ' + pt.time_formatted + ' (' + pt.pace_formatted + ')';
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: items => { const p = data[items[0].dataIndex]; return p.date + ' · ' + p.event_title; },
+                            label: ctx => { const p = data[ctx.dataIndex]; return ' ' + p.distance_name + ': ' + p.time_formatted + ' (' + p.pace_formatted + ')'; }
                         }
                     }
+                },
+                scales: {
+                    x: { ticks: { color: muted, font, maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }, grid: { display: false } },
+                    y: { reverse: true, ticks: { color: muted, font }, grid: { color: grid } }
                 }
             }
-        }
-    });
-}
+        });
+    }
 
-// Запрос оценки ИИ-агента
-async function requestAssessment(athleteId) {
+    render();
+    document.addEventListener('themechange', render);
+})();
+
+// Запрос оценки ИИ-агента (по кнопке, ответ кэшируется на бэкенде)
+(function () {
+    const btn = document.getElementById('btn-generate-assessment');
+    if (!btn) return;
     const container = document.getElementById('assessment-container');
     const loading = document.getElementById('assessment-loading');
     const content = document.getElementById('assessment-content');
     const meta = document.getElementById('assessment-meta');
     const modelText = document.getElementById('assessment-model');
     const btnText = document.getElementById('btn-text');
-    const btnIcon = document.getElementById('btn-icon');
 
-    container.classList.remove('hidden');
-    loading.classList.remove('hidden');
-    content.classList.add('hidden');
-    meta.classList.add('hidden');
-    btnText.innerText = "Формирование оценки...";
-    btnIcon.innerText = "⏳";
-
-    try {
-        const response = await fetch('/athletes/' + athleteId + '/assessment', {
-            method: 'POST'
-        });
-        if (!response.ok) {
-            throw new Error('Ошибка сервера: ' + response.status);
+    btn.addEventListener('click', async function () {
+        container.hidden = false;
+        loading.hidden = false;
+        content.hidden = true;
+        meta.hidden = true;
+        btn.disabled = true;
+        btnText.textContent = 'Формируем оценку…';
+        try {
+            const response = await fetch('/athletes/' + btn.dataset.athleteId + '/assessment', { method: 'POST' });
+            if (!response.ok) throw new Error('ошибка сервера ' + response.status);
+            const data = await response.json();
+            content.textContent = data.assessment_text;
+            modelText.textContent = 'Модель: ' + data.model + (data.cached ? ' (из кэша)' : '');
+            meta.hidden = false;
+            btnText.textContent = 'Обновить';
+        } catch (err) {
+            content.textContent = 'Не удалось сформировать оценку: ' + err.message;
+            btnText.textContent = 'Попробовать снова';
+        } finally {
+            loading.hidden = true;
+            content.hidden = false;
+            btn.disabled = false;
         }
-        const data = await response.json();
-        loading.classList.add('hidden');
-        content.classList.remove('hidden');
-        meta.classList.remove('hidden');
-
-        content.innerText = data.assessment_text;
-        modelText.innerText = "Модель: " + data.model + (data.cached ? " (из кэша)" : "");
-        btnText.innerText = "Обновить отображение";
-        btnIcon.innerText = "✅";
-    } catch (err) {
-        loading.classList.add('hidden');
-        content.classList.remove('hidden');
-        content.innerText = "Не удалось сформировать оценку: " + err.message;
-        btnText.innerText = "Попробовать снова";
-        btnIcon.innerText = "⚠️";
-    }
-}
+    });
+})();
 </script>
 {% endblock %}
