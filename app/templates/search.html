@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+
+{% block title %}Найти себя — Рейтинг спортсменов{% endblock %}
+{% block page_class %}page--narrow{% endblock %}
+
+{% block content %}
+<div class="page-head__text">
+    <h1 class="h1">Найти себя</h1>
+    <p class="lead">Введите фамилию и год рождения. Поиск не учитывает регистр и разницу е/ё, а год рождения сверяется с допуском ±1 год — он рассчитывается из возраста в протоколе.</p>
+</div>
+
+<form method="GET" action="/" class="card card--pad">
+    <div class="form-search">
+        <label class="field">Фамилия
+            <input class="input" type="text" id="last_name" name="last_name" value="{{ query_last_name }}" placeholder="Например: Иванов" required autocomplete="family-name">
+        </label>
+        <label class="field">Год рождения
+            <input class="input" type="number" inputmode="numeric" id="birth_year" name="birth_year" value="{{ query_birth_year or '' }}" placeholder="1990" min="1920" max="2020">
+        </label>
+        <button type="submit" class="btn btn--primary btn--lg">Найти</button>
+    </div>
+    <div class="row small">
+        <span class="muted">Быстрый тест:</span>
+        <a class="chip" href="/?last_name=Иванов&birth_year=1985">Иванов 1985</a>
+        <a class="chip" href="/?last_name=Смирнов">Смирнов</a>
+        <a class="chip" href="/?last_name=Кузнецова&birth_year=1992">Кузнецова 1992</a>
+        <a class="chip" href="/?last_name=Федоров">Федоров (е/ё)</a>
+    </div>
+</form>
+
+{% if query_last_name %}
+    <div class="row row--between">
+        <h2 class="strong" style="font-size: 16px;">
+            {% if candidates %}Нашли {{ candidates|length }} {{ ui.plural(candidates|length, 'спортсмена', 'спортсменов', 'спортсменов') }}{% else %}Никого не нашли{% endif %}
+        </h2>
+        {% if query_birth_year %}
+            <span class="chip chip--sm num">Год: {{ query_birth_year }} ±1</span>
+        {% endif %}
+    </div>
+
+    {% if candidates %}
+        <div class="grid-cards">
+            {% for cand in candidates %}
+                <div class="card card--pad">
+                    <div class="row" style="flex-wrap: nowrap; gap: 14px;">
+                        <span class="avatar" aria-hidden="true">{{ ui.initials(cand.display_name) }}</span>
+                        <div style="min-width: 0;">
+                            <div class="strong" style="font-size: 17px;">{{ cand.display_name }}</div>
+                            <div class="small muted num">
+                                {{ cand.birth_year or 'год не указан' }}{% if cand.city or cand.region %} · {{ cand.city or cand.region }}{% endif %}{% if cand.gender %} · {{ ui.gender(cand.gender) }}{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chips">
+                        <span class="chip chip--run">{{ ui.icon('run', 'icon-sm') }}Бег · {{ cand.starts_count }} финиш.</span>
+                        {% if cand.club %}<span class="chip">{{ cand.club }}</span>{% endif %}
+                    </div>
+                    <a href="/athletes-view/{{ cand.id }}" class="btn {% if loop.first %}btn--primary{% endif %} btn--block">Это я</a>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card empty">
+            <span class="empty__icon">{{ ui.icon('empty', 'icon') }}</span>
+            <div class="strong">Спортсмен не найден</div>
+            <p class="small muted">Проверьте написание фамилии или уберите год рождения.</p>
+        </div>
+    {% endif %}
+{% endif %}
+{% endblock %}

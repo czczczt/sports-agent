@@ -1,0 +1,22 @@
+# Локальная база для разработки (architecture.md 5.1). Сервис agent добавит инфраструктура.
+#   docker compose up -d db
+# Пароль и порт — в .env (не коммитится), образец — .env.example.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sports_agent
+      POSTGRES_USER: agent
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в .env}
+    ports:
+      - "127.0.0.1:${DB_PORT:-5434}:5432"   
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent -d sports_agent"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pgdata:

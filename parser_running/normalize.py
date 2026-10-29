@@ -43,12 +43,43 @@ def ru_date(text: str | None) -> str | None:
     return f"{m.group(3)}-{month:02d}-{int(m.group(1)):02d}" if month else None
 
 
+MILE_KM = 1.609344
+
+
 def km_from_name(name: str | None) -> float | None:
-    """'10 км - любители' -> 10.0, '21,1 км' -> 21.1, '1.8km' -> 1.8; нет числа с км -> None."""
+    """Дистанция из названия, в км: '10 км - любители' -> 10.0, '21,1 км' -> 21.1, '1.8km' -> 1.8,
+    '1 миля (муж.)' -> 1.609, '100 м (жен.)' -> 0.1 (E32: стадион в метрах раньше не распознавался).
+    Нет числа с единицей -> None."""
     if not name:
         return None
-    m = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:км|km)\b", name.lower())
-    return float(m.group(1).replace(",", ".")) if m else None
+    s = name.lower()
+    num = r"(\d+(?:[.,]\d+)?)"
+    if m := re.search(num + r"\s*(?:км|km)\b", s):
+        return float(m.group(1).replace(",", "."))
+    if m := re.search(num + r"?\s*(?:миля|мили|миль|mile)", s):
+        return round(float((m.group(1) or "1").replace(",", ".")) * MILE_KM, 3)
+    # метры: число + «м»/«m», за которым не идёт буква («мин», «муж» без числа сюда не попадут)
+    if m := re.search(num + r"\s*(?:м|m)(?![а-яёa-z])", s):
+        return float(m.group(1).replace(",", ".")) / 1000
+    return None
+
+
+# Детектор клуба Сбера по SPEC руководителя §8.1: подстрока «сбер/sber», аббревиатуры целым словом,
+# стоп-лист. Проверяем и название, и код клуба: у RR название бывает пустым (title = null),
+# а в коде «Айсберг» транслитом — «aysberg», тоже содержит «sber» (E16).
+SBER_SUBSTR = ("сбер", "sber")
+SBER_WORDS = re.compile(r"(?<![a-zа-яё])(стт|stt|сбт)(?![a-zа-яё])")
+SBER_STOP = ("айсберг", "aysberg", "aisberg", "iceberg")
+
+
+def is_sber_club(*names: str | None) -> bool:
+    for name in names:
+        low = (name or "").lower()
+        if not low or any(s in low for s in SBER_STOP):
+            continue
+        if any(s in low for s in SBER_SUBSTR) or SBER_WORDS.search(low):
+            return True
+    return False
 
 
 def infer_place_by(rows: list[dict]) -> str:

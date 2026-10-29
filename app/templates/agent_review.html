@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Правки агента · Рейтинг спортсменов{% endblock %}
+
+{% block content %}
+{# Стили только этой страницы; цвета — через токены theme.css (ADR-0001), поэтому тёмная тема работает сама. #}
+<style>
+  .diff { margin: 0; padding: 12px 0; background: var(--surface-2); border-radius: var(--radius-sm);
+          font: 13px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; overflow-x: auto; }
+  .diff span { display: block; padding: 0 14px; white-space: pre; }
+  .diff .add { background: var(--brand-soft); color: var(--status-counted); }
+  .diff .del { background: var(--status-error-soft); color: var(--status-error); }
+  .diff .meta { color: var(--text-muted); }
+  .report { margin: 0; padding: 12px 14px; background: var(--surface-2); border-radius: var(--radius-sm);
+            font: 13px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; }
+  .label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }
+  .review-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+  .review-filters .field { width: 200px; }
+  .decide-grid { display: grid; grid-template-columns: 220px 1fr; gap: 12px; width: 100%; }
+  .msg-error { color: var(--status-error); font-size: 14px; }
+  @media (max-width: 760px) { .decide-grid { grid-template-columns: 1fr; } .review-filters .field { width: 100%; } }
+</style>
+
+<div class="page-head">
+  <div class="page-head__text">
+    <h1 class="h1 h1-sm">Правки агента</h1>
+    <p class="lead">Предложения агента-ремонтника по очереди проблем парсера ждут решения человека.
+      То же, что <code>agent_queue.py review / decide / apply</code>.</p>
+  </div>
+  <form method="get" class="review-filters">
+    <label class="field">Статус
+      <select name="status" class="input input--sm">
+        {% for st in statuses %}<option value="{{ st }}" {% if st == status %}selected{% endif %}>{{ st }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="field">Площадка
+      <select name="source" class="input input--sm">
+        <option value="">все</option>
+        {% for s in sources %}<option value="{{ s }}" {% if s == source %}selected{% endif %}>{{ ui.source(s) }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="btn btn--primary">Показать</button>
+  </form>
+</div>
+
+{% if not items %}
+<div class="card empty">
+  <span class="empty__icon">{{ ui.icon('empty') }}</span>
+  <p class="strong">Предложений нет{% if status != "all" %} в статусе «{{ status }}»{% endif %}</p>
+  <p class="muted small">Агент запускается командой <code>agent_queue.py process &lt;номер задачи&gt;</code></p>
+</div>
+{% endif %}
+
+{% for it in items %}
+{% set run = it.run or {} %}
+<article class="card card--clip" id="issue-{{ it.issue_id }}">
+  <div class="card__head">
+    <div class="stack" style="gap:4px">
+      <h2 class="h2">Задача #{{ it.issue_id }} · {{ ui.source(it.source) }} · {{ it.object_ref }}</h2>
+      <span class="muted small">{{ it.kind }} · что упало: {{ it.details }}</span>
+    </div>
+    <div class="chips">
+      <span class="chip chip--sm chip--run">{{ run.action }}</span>
+      {% if it.status == 'proposed' %}<span class="chip chip--sm chip--pending">ждёт решения</span>
+      {% elif it.status in ['approved', 'resolved', 'known'] %}<span class="chip chip--sm chip--brand">{{ it.status }}</span>
+      {% elif it.status == 'rejected' %}<span class="chip chip--sm chip--error">rejected</span>
+      {% else %}<span class="chip chip--sm chip--muted">{{ it.status }}</span>{% endif %}
+    </div>
+  </div>
+
+  <div class="card--pad" style="padding-top:0">
+    <div class="stack" style="gap:4px">
+      <span class="label">Обоснование агента</span>
+      <p>{{ it.reason or "—" }}</p>
+      <span class="muted small num">agent_run #{{ run.run_id }} · {{ run.model }} · токены {{ run.tokens_in or 0 }} / {{ run.tokens_out or 0 }} · {{ run.seconds }} с</span>
+    </div>
+
+    <div class="stack" style="gap:6px">
+      <span class="label">Правка</span>
+      <pre class="diff">{% for line in it.diff.splitlines() %}<span class="{% if line.startswith('+++') or line.startswith('---') or line.startswith('@@') %}meta{% elif line.startswith('+') %}add{% elif line.startswith('-') %}del{% endif %}">{{ line }}</span>{% endfor %}</pre>
+    </div>
+
+    <div class="stack" style="gap:6px">
+      <span class="label">Отчёт проверок</span>
+      <pre class="report">{{ it.report_text }}</pre>
+    </div>
+
+    {% if it.reviews %}
+    <div class="stack" style="gap:6px">
+      <span class="label">Решения</span>
+      {% for rv in it.reviews %}
+      <p class="small"><span class="strong">{{ rv.decision }}</span> — {{ rv.author }}, {{ rv.decided_at.strftime('%d.%m.%Y %H:%M') }}{% if rv.comment %}: {{ rv.comment }}{% endif %}
+        {%- if rv.applied_result %} <span class="muted">· применение: {{ rv.applied_result }}</span>{% endif %}
+        {%- if rv.pr_url and rv.pr_url.startswith('http') %} · <a href="{{ rv.pr_url }}" target="_blank" rel="noopener">PR {{ ui.icon('external', 'icon-sm') }}</a>
+        {%- elif rv.pr_url %} <span class="muted">· {{ rv.pr_url }}</span>{% endif %}</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  {% if it.status == 'proposed' %}
+  <div class="card__foot">
+    <div class="decide-grid">
+      <label class="field">Автор
+        <input class="input input--sm" value="{{ default_author }}" data-author="{{ it.issue_id }}">
+      </label>
+      <label class="field">Комментарий (обязателен при отклонении)
+        <input class="input input--sm" data-comment="{{ it.issue_id }}">
+      </label>
+    </div>
+    <div class="row">
+      <button type="button" class="btn btn--primary" onclick="decide({{ it.issue_id }}, 'approve', this)">Подтвердить</button>
+      <button type="button" class="btn btn--ghost" onclick="decide({{ it.issue_id }}, 'reject', this)">Отклонить</button>
+      <label class="row small muted" style="gap:6px"><input type="checkbox" data-retry="{{ it.issue_id }}"> вернуть агенту с комментарием</label>
+      <span class="msg-error" data-msg="{{ it.issue_id }}" role="status"></span>
+    </div>
+  </div>
+  {% elif it.status == 'approved' %}
+  <div class="card__foot">
+    <div class="row">
+      <button type="button" class="btn btn--primary" onclick="applyFix({{ it.issue_id }}, this)">Применить</button>
+      <label class="row small muted" style="gap:6px"><input type="checkbox" data-push="{{ it.issue_id }}"> push и PR (иначе только локальная ветка)</label>
+      <span class="small" data-msg="{{ it.issue_id }}" role="status"></span>
+    </div>
+  </div>
+  {% endif %}
+</article>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const field = (attr, id) => document.querySelector(`[data-${attr}="${id}"]`);
+
+  async function post(url, body, id, btn) {
+    const msg = field('msg', id);
+    msg.textContent = 'выполняется…';
+    btn.disabled = true;
+    try {
+      const r = await fetch(url, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) { msg.textContent = data.detail || `ошибка ${r.status}`; return null; }
+      return data;
+    } finally { btn.disabled = false; }
+  }
+
+  async function decide(id, decision, btn) {
+    const data = await post(`/agent-review/api/${id}/decide`, {
+      decision, author: field('author', id).value, comment: field('comment', id).value,
+      retry: field('retry', id).checked}, id, btn);
+    if (data) location.reload();
+  }
+
+  async function applyFix(id, btn) {
+    const data = await post(`/agent-review/api/${id}/apply`, {push: field('push', id).checked}, id, btn);
+    if (data) {
+      field('msg', id).textContent = `${data.result} → ${data.status}` + (data.pr_url ? ` · ${data.pr_url}` : '');
+      setTimeout(() => location.reload(), 2500);
+    }
+  }
+</script>
+{% endblock %}

@@ -1,12 +1,47 @@
+# Байт-код Python и кэш
 __pycache__/
 *.py[cod]
+*$py.class
 
+# Виртуальные окружения
 venv/
 .venv/
 env/
+ENV/
+
+# IDE и редакторы
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
+# Секреты и переменные окружения (.env с токенами GigaChat)
+.env
 *.env
+.env.*
+!.env.example
 
+# Служебная документация заказчика
 /!info/
+
+# Базы данных и файлы блокировок
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.bak
+*.sqlite
+*.sqlite3
+
+# Логи и кэш тестов
+*.log
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Системные файлы ОС
+.DS_Store
+Thumbs.db
+Desktop.ini

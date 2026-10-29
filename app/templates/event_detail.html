@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+
+{% block title %}{{ event.title }} — Старты{% endblock %}
+
+{% block content %}
+{{ ui.back('/events-view', 'Старты') }}
+
+<section class="card card--clip">
+    <div class="finish-flag"></div>
+    <div class="card--pad" style="display: flex; flex-direction: column; gap: 12px; padding: 20px;">
+        <div class="chips">
+            <span class="chip chip--run">{{ ui.icon('run', 'icon-sm') }}Бег</span>
+            <span class="chip">{{ ui.source(event.source_name) }}</span>
+        </div>
+        <h1 class="h1 h1-sm">{{ event.title }}</h1>
+        <div class="muted num">
+            {{ ui.date_ru(event.date_begin) }}{% if event.date_end and event.date_end[:10] != (event.date_begin or '')[:10] %} — {{ ui.date_ru(event.date_end) }}{% endif %}{% if event.place or event.address %} · {{ event.place or event.address }}{% endif %}
+        </div>
+        {% set finishers = event.races|map(attribute='total_count')|select|sum %}
+        <div class="grid-2" style="max-width: 420px;">
+            <div class="tile"><div class="tile__value num">{{ event.races|length }}</div><div class="tile__label">{{ ui.plural(event.races|length, 'дистанция', 'дистанции', 'дистанций') }}</div></div>
+            <div class="tile"><div class="tile__value num">{{ finishers or '—' }}</div><div class="tile__label">участников в протоколах</div></div>
+        </div>
+    </div>
+</section>
+
+<div class="track-divider"></div>
+
+<section class="card card--clip">
+    <div class="card__head">
+        <h2 class="h2">Дистанции и протоколы</h2>
+    </div>
+    {% for r in event.races %}
+        <a href="/races-view/{{ r.id }}" class="list-row" style="text-decoration: none; padding: 14px 20px;">
+            <div style="min-width: 0;">
+                <div class="list-row__title strong">{{ r.name_raw }}</div>
+                <div class="list-row__meta num">
+                    {% if r.norm_distance %}зачёт {{ r.norm_distance }}{% endif %}{% if r.norm_distance and r.distance_m %} · {% endif %}{% if r.distance_m %}{{ r.distance_m }} м{% endif %}{% if not r.norm_distance and not r.distance_m %}протокол{% endif %}
+                </div>
+            </div>
+            <div class="row" style="flex-wrap: nowrap; color: var(--text-muted);">
+                {% if r.total_count %}<span class="num strong" style="color: var(--text-primary);">{{ r.total_count }}</span><span class="small">уч.</span>{% endif %}
+                {{ ui.icon('chevron', 'icon') }}
+            </div>
+        </a>
+    {% else %}
+        <div class="empty"><p class="small muted">Дистанций у старта пока нет.</p></div>
+    {% endfor %}
+</section>
+{% endblock %}

@@ -11,6 +11,15 @@ RAW = Path(__file__).parent / "data" / "raw"
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"}
 DELAY_S = 0.5
 
+# Журнал обращений: какой ответ (файл кеша) использован. run.py переносит его в таблицу raw,
+# чтобы по старту/дистанции и по задаче из очереди находились её сохранённые ответы.
+FETCH_LOG: list[dict] = []
+
+
+def log_fetch(source: str, request_key: str, url: str, path: Path, from_cache: bool) -> None:
+    FETCH_LOG.append({"source": source, "request_key": request_key, "url": url, "path": path,
+                      "from_cache": from_cache})
+
 _session = requests.Session()
 _session.headers.update(UA)
 
@@ -18,6 +27,7 @@ _session.headers.update(UA)
 def get(source: str, url: str, cache: bool = True, timeout: int = 60) -> str:
     f = RAW / source / (hashlib.sha1(url.encode()).hexdigest()[:20] + ".html")
     if cache and f.exists():
+        log_fetch(source, url, url, f, True)
         return f.read_text(encoding="utf-8")
     for attempt in range(3):
         try:
@@ -34,4 +44,5 @@ def get(source: str, url: str, cache: bool = True, timeout: int = 60) -> str:
     if cache:
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text(r.text, encoding="utf-8")
+        log_fetch(source, url, url, f, False)
     return r.text

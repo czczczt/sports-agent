@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+
+{% block title %}Старты — Рейтинг спортсменов{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div class="page-head__text">
+        <h1 class="h1">Старты</h1>
+        <p class="small muted">Собранные соревнования и протоколы дистанций · на странице {{ events|length }} {{ ui.plural(events|length, 'старт', 'старта', 'стартов') }}</p>
+    </div>
+</div>
+
+<form method="GET" action="/events-view" class="card card--pad">
+    <div class="form-filters">
+        <label class="field">Дата от
+            <input class="input input--sm" type="date" name="date_from" value="{{ filters.date_from or '' }}">
+        </label>
+        <label class="field">Дата до
+            <input class="input input--sm" type="date" name="date_to" value="{{ filters.date_to or '' }}">
+        </label>
+        <label class="field">Город
+            <input class="input input--sm" type="text" name="city" value="{{ filters.city or '' }}" placeholder="Москва, Казань…">
+        </label>
+        <label class="field">Площадка
+            <select class="input input--sm" name="source">
+                <option value="">Все площадки</option>
+                {% for key in ['russiarunning', 'timerman', 'runc', 'grom'] %}
+                    <option value="{{ key }}" {% if filters.source == key %}selected{% endif %}>{{ ui.source(key) }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <div class="row" style="flex-wrap: nowrap;">
+            <button type="submit" class="btn btn--primary btn--stretch-mobile" style="min-height: 40px;">Применить</button>
+            {% if filters.date_from or filters.date_to or filters.city or filters.source %}
+                <a href="/events-view" class="btn btn--ghost" style="min-height: 40px;">Сбросить</a>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+{% if events %}
+    {# Десктоп: таблица, сгруппированная по месяцам #}
+    <section class="card card--clip only-desktop">
+        <div class="table-wrap">
+            <table class="table" style="min-width: 760px;">
+                <thead>
+                    <tr>
+                        <th scope="col" style="width: 110px;">Дата</th>
+                        <th scope="col">Старт</th>
+                        <th scope="col">Площадка</th>
+                        <th scope="col">Место</th>
+                        <th scope="col" class="right">Дистанций</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ev in events %}
+                        {% set ym = (ev.date_begin or '')[:7] %}
+                        {% if loop.first or ym != (loop.previtem.date_begin or '')[:7] %}
+                            <tr class="group-row"><th scope="rowgroup" colspan="5" class="muted">{{ ui.month_title(ev.date_begin) }}</th></tr>
+                        {% endif %}
+                        <tr>
+                            <td class="num muted nowrap">{{ ui.date_ru(ev.date_begin) }}</td>
+                            <td>
+                                <a href="/events-view/{{ ev.id }}" class="cell-title">{{ ev.title }}</a>
+                                {% if ev.races %}
+                                    <div class="chips" style="margin-top: 6px;">
+                                        {% for r in ev.races %}
+                                            <a href="/races-view/{{ r.id }}" class="chip chip--sm">{{ r.name_raw }}{% if r.total_count %} <span class="chip__count num">{{ r.total_count }}</span>{% endif %}</a>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td><span class="chip chip--sm">{{ ui.source(ev.source_name) }}</span></td>
+                            <td class="muted">{{ ev.place or ev.address or '—' }}</td>
+                            <td class="num right strong">{{ ev.races|length }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    {# Телефон: список строк #}
+    <section class="card card--clip only-mobile">
+        {% for ev in events %}
+            {% set ym = (ev.date_begin or '')[:7] %}
+            {% if loop.first or ym != (loop.previtem.date_begin or '')[:7] %}
+                <div class="small muted strong" style="padding: 14px 16px 6px; text-transform: uppercase; letter-spacing: .04em; {% if not loop.first %}border-top: 1px solid var(--border);{% endif %}">{{ ui.month_title(ev.date_begin) }}</div>
+            {% endif %}
+            <a href="/events-view/{{ ev.id }}" class="list-row" style="text-decoration: none;">
+                <div style="min-width: 0;">
+                    <div class="list-row__title">{{ ev.title }}</div>
+                    <div class="list-row__meta num">{{ ui.date_ru(ev.date_begin) }}{% if ev.place or ev.address %} · {{ ev.place or ev.address }}{% endif %}</div>
+                </div>
+                <div class="list-row__end">
+                    <span class="chip chip--sm">{{ ui.source(ev.source_name) }}</span>
+                    <div class="list-row__meta num">{{ ev.races|length }} {{ ui.plural(ev.races|length, 'дистанция', 'дистанции', 'дистанций') }}</div>
+                </div>
+            </a>
+        {% endfor %}
+    </section>
+{% else %}
+    <div class="card empty">
+        <span class="empty__icon">{{ ui.icon('calendar', 'icon') }}</span>
+        <div class="strong">Стартов не найдено</div>
+        <p class="small muted">Измените даты, город или площадку.</p>
+    </div>
+{% endif %}
+{% endblock %}

@@ -3,8 +3,10 @@
 | | |
 |---|---|
 | **Опирается на** | [architecture.md](../architecture.md), ТЗ заказчика от 2026-10-20 |
-| **Прототип** | [running/](../running/) — парсеры russiarunning, timerman, runc, grom + дедупликация, SQLite |
+| **Прототип** | [parser_running/](../parser_running/) — парсеры russiarunning, timerman, runc, grom + дедупликация, PostgreSQL 16 в Docker (`docker-compose.yaml` в корне) |
 | **Роль** | DS: сбор, обработка данных, метрики |
+| **Агент** | [agent-spec.md](agent-spec.md) — спецификация агента сбора; [agent-guide.md](agent-guide.md) — путеводитель для разработчика агента |
+| **Баллы и рейтинг** | [scoring-spec.md](scoring-spec.md) — нормативы, классификатор дистанций, баллы, рейтинг (issue [#8](https://github.com/czczczt/sports-agent/issues/8)) |
 | **Статус** | Черновик для согласования с командой |
 | **Охват** | Только бег (биатлон на паузе; лыжи, триатлон, трейл — позже) |
 
@@ -27,9 +29,9 @@
 | # | Тема | В architecture.md | Что показали данные / ТЗ | Решение |
 |:-:|---|---|---|---|
 | 1 | Пайплайн | Источники → сбор → raw → extract → normalize → validate → баллы → рейтинг | Подходит без изменений | ✅ |
-| 2 | Хранилище | SQLite для прототипа, Postgres в проде | Прототип на SQLite | ✅ |
+| 2 | Хранилище | SQLite для прототипа, Postgres в проде | Прототип переведён на PostgreSQL 16 в Docker (2026-10-28), данные пересобраны из кеша и сверены построчно | ✅ |
 | 3 | Уровни сбора | L1 `httpx + BS4`, L2 `Playwright` | 4 из 13 площадок (russiarunning, timerman; лыжные legkovrace, pionercup) отдают **JSON API**: HTML и браузер не нужны | ➕ уровень **L0 `api`** — самый дешёвый: ни разметки, ни браузера, ни LLM |
-| 4 | Название сущности старта | `COMPETITION` | В прототипе — `event` | 🔧 принимаем `competition`, прототип переименовать |
+| 4 | Название сущности старта | `COMPETITION` | Было `event` | ✅ `competition` |
 | 5 | Ключ raw-слоя | Дубли по `url` | У API все запросы на один URL (`POST /results/individual/get`), различается тело | 🔧 ключ = `request_key` (метод + URL + тело) + `content_hash` |
 | 6 | Время результата | Одно поле `time_seconds` | Есть **чистое и грязное** время; место на дистанции считается то по одному, то по другому (поле `resultsCalculationMethod`, ошибки E9/E12) | 🔧 два поля `chip_time_s`, `gun_time_s` + `race.place_by` |
 | 7 | Пол | Только в `ATHLETE` | Норматив зависит от пола **в конкретном протоколе**, а баллы нужны до сопоставления атлетов | 🔧 `gender` хранится и в `result` |
@@ -40,7 +42,7 @@
 | 12 | Баллы | Только итоговый `RATING` | Карточка атлета показывает баллы **за каждый старт**; нормативы меняются по годам | ➕ `score` (баллы за результат), `norm` (нормативы по году) |
 | 13 | Дубли стартов | `content_hash` от повторной загрузки | Один старт на двух площадках (Казанский полумарафон: russiarunning и timerman, 9277 общих участников) | ➕ `competition.canonical_competition_id` + `result.duplicate_of` (раздел 7) |
 | 14 | Статусы | DNF, DSQ | Реальный набор: FIN, DNF, DSQ, DNS, **NC** (не уложился в лимит), **LAP** (обогнан на круг) | 🔧 расширить перечень |
-| 15 | Наблюдаемость | JSON-логи, отчёт о сборе | Ошибки нужны и в БД — для метрик и повторного прогона | ➕ `crawl_error` (дополняет логи, не заменяет) |
+| 15 | Наблюдаемость | JSON-логи, отчёт о сборе | Ошибки нужны в БД как **очередь**, которую разбирает агент или человек | ➕ `issue` (fingerprint, статусы, исполнитель), `known_exception`, позже `agent_run` (дополняют логи, не заменяют) |
 | 16 | Метрики качества | «Доля успешных парсингов, дубли» | Для честных метрик нужен эталон | ➕ `gold_result`, `gold_match_pair` |
 | 17 | Риски (раздел 9) | Блокировки, rate limit | **Гео-блок**: runc, grom, myfinish не открывались с турецкого IP (E1); протоколы myfinish (`new.myfinish.info`) — не открываются и с американского (E19). grom под нагрузкой начинает рвать соединения (E29) | ➕ риск: запуск только из российской сети; щадящий темп для медленных площадок |
 | 18 | По какому времени места | — | RR сообщает это полем; runc и grom — нет. У runc элиту ранжируют по грязному времени, остальных — по чистому (E22) | ➕ для площадок без этого поля `place_by` определяется по данным: берётся то время, с которым порядок мест согласован |
@@ -64,23 +66,23 @@ flowchart LR
     EX --> N["normalize"]
     N --> V{"validate"}
     V -->|ok| DB[("competition / race / result")]
-    V -->|провал| ERR["crawl_error\n+ отчёт"]
+    V -->|провал| ERR["issue\nочередь для агента"]
 ```
 
 | Скилл из architecture.md | Реализация | Статус |
 |---|---|---|
-| — (новый) `fetch_api` | `running/rr_platform.py`: клиент платформы RR, ретраи, пауза 0,5 с, страницы по 100 записей | ✅ прототип |
-| `fetch_html` | `running/http_cache.py`: GET с кешем, ретраи с нарастающей паузой, починка кодировки | ✅ прототип |
+| — (новый) `fetch_api` | `parser_running/rr_platform.py`: клиент платформы RR, ретраи, пауза 0,5 с, страницы по 100 записей | ✅ прототип |
+| `fetch_html` | `parser_running/http_cache.py`: GET с кешем, ретраи с нарастающей паузой, починка кодировки | ✅ прототип |
 | `fetch_browser` | Не понадобился: у SPA-площадок нашлись API (RR, myfinish) или данные внутри HTML (grom) | — |
 | `save_raw` | Прототип: файлы `data/raw/<source>/…`. Цель: таблица `raw` | 🔧 перенести в БД |
 | `extract_table` | Коннектор на площадку: `rr_platform.py` (JSON), `runc.py` (HTML), `grom.py` (JSON из атрибута страницы) | ✅ |
-| `normalize` | `running/normalize.py` + нормализация внутри коннектора | ✅ |
-| `validate` | `running/store.py: checks()` — одни проверки для всех площадок | ✅ |
-| — (новый) `dedup` | `running/dedup.py` (раздел 7) | ✅ прототип |
-| Ветка `Validate → Normalize` (≤ 2 повтора) | Для L0 смысла нет: ответ API детерминирован. Провал → сразу `crawl_error` | 🔧 повтор только для L1/L2 с LLM-правилом |
+| `normalize` | `parser_running/normalize.py` + нормализация внутри коннектора | ✅ |
+| `validate` | `parser_running/store.py: checks()` — одни проверки для всех площадок | ✅ |
+| — (новый) `dedup` | `parser_running/dedup.py` (раздел 7) | ✅ прототип |
+| Ветка `Validate → Normalize` (≤ 2 повтора) | Для L0 смысла нет: ответ API детерминирован. Провал → сразу задача в `issue` | 🔧 повтор только для L1/L2 с LLM-правилом |
 
 ### 3.1 Реестр источников (`config/sources.yaml`)
-Формат из `architecture.md` 3.2, плюс поля `platform` и `priority`. Заполнение по разведке ([running/SOURCES.md](../running/SOURCES.md)):
+Формат из `architecture.md` 3.2, плюс поля `platform` и `priority`. Заполнение по разведке ([parser_running/SOURCES.md](../parser_running/SOURCES.md)):
 
 ```yaml
 sources:
@@ -142,7 +144,12 @@ sources:
 
 ## 4. Схема БД
 
-Таблицы, отмеченные `[есть]`, уже создаются в прототипе (`running/db.py`).
+Таблицы, отмеченные «есть», уже создаются в прототипе (`parser_running/db.py`, PostgreSQL): `source`, `competition`, `race`, `raw`, `club`, `result`, `issue`, `known_exception`, `agent_run`. Вычисляемые слои (`athlete`, `norm`, `score`, `rating`) появятся со своими задачами ([scoring-spec.md](scoring-spec.md), спека сопоставления спортсменов).
+
+Отличия прототипа от диаграммы:
+- `raw`: тело ответа лежит файлом в `data/raw` (architecture.md 5.1: большие объёмы — вне БД), в таблице — путь `storage_path`, хеш, размер, а также `competition_id`, `race_id` и `object_ref` (= `issue.object_ref`), чтобы по задаче из очереди находились её ответы;
+- `result.raw_id` заполнен, только если протокол дистанции пришёл одним ответом; иначе связь — через `raw.race_id`;
+- `race.distance_m` (целые метры) вместо `distance_km`; `result.bib` — текст (бывает с буквами); `result.athlete_id` пока без внешнего ключа.
 
 ```mermaid
 erDiagram
@@ -160,7 +167,8 @@ erDiagram
     RESULT ||--o{ SCORE : "баллы"
     NORM ||--o{ SCORE : "норматив"
     ATHLETE ||--o{ RATING : "рейтинг"
-    SOURCE ||--o{ CRAWL_ERROR : "ошибки"
+    SOURCE ||--o{ ISSUE : "проблемы"
+    ISSUE ||--o{ AGENT_RUN : "попытки агента"
     RACE ||--o{ GOLD_RESULT : "эталон"
     RESULT ||--o{ GOLD_MATCH_PAIR : "эталон"
 
@@ -175,7 +183,7 @@ erDiagram
         bool enabled
     }
     RAW {
-        int id PK "позже, в прототипе файлы"
+        int id PK "есть: метаданные, тело — файлом в data/raw"
         int source_id FK
         text url
         text request_key "метод + URL + тело"
@@ -186,7 +194,7 @@ erDiagram
         datetime fetched_at
     }
     COMPETITION {
-        int id PK "есть, в прототипе event"
+        int id PK "есть"
         int source_id FK
         text external_id
         text code
@@ -197,7 +205,7 @@ erDiagram
         text address
         text sport_type
         text source_url
-        int canonical_competition_id FK "есть, в прототипе canonical_event_id"
+        int canonical_competition_id FK "есть"
         datetime fetched_at
     }
     RACE {
@@ -238,6 +246,7 @@ erDiagram
         real chip_time_s
         real gun_time_s
         int duplicate_of FK "есть: та же строка на другой площадке"
+        text club_source "есть: protocol или filter (клуб найден фильтром площадки, E35)"
         real match_score
         text match_method "exact, fuzzy, manual"
     }
@@ -301,13 +310,39 @@ erDiagram
         int rank
         datetime computed_at
     }
-    CRAWL_ERROR {
-        int id PK "есть"
+    ISSUE {
+        int id PK "есть: очередь проблем для агента и человека"
         int source_id FK
-        text stage "list, race, results, check"
+        text stage "fetch, parse, check, store, dedup, match"
+        text kind "fetch_failed, zero_rows, check_failed, geo_block, ..."
         text object_ref
-        text error
-        datetime at
+        text fingerprint UK "одна проблема = одна строка"
+        text details
+        text status "new, known, agent_working, proposed, approved, rejected, resolved, blocked"
+        text assignee "agent, human, infra"
+        text journal_ref "E-номер журнала"
+        int occurrences
+        datetime first_seen
+        datetime last_seen
+        datetime resolved_at
+    }
+    KNOWN_EXCEPTION {
+        int id PK "есть: особенности данных, которые не надо чинить"
+        text source
+        text kind
+        text pattern
+        text reason
+        text journal_ref
+    }
+    AGENT_RUN {
+        int id PK "есть (пустая): попытка агента разобрать issue"
+        int issue_id FK
+        text model
+        int tokens_in
+        int tokens_out
+        text result "fixed, cannot_fix, escalate"
+        text patch
+        text test_report
     }
     GOLD_RESULT {
         int id PK
@@ -339,7 +374,7 @@ erDiagram
 
 ---
 
-## 5. Нормализация (`running/normalize.py`)
+## 5. Нормализация (`parser_running/normalize.py`)
 | Поле | Правило | Откуда правило |
 |---|---|---|
 | Время | `ч:мм:сс`, `мм:сс`, дробные секунды (`0:39:25,52`), запятая → секунды; мусор → NULL | — |
@@ -357,7 +392,7 @@ erDiagram
 ---
 
 ## 6. Проверки качества (validate)
-Выполняются на каждой дистанции. При провале дистанция загружается, но помечается, а провалы пишутся в `crawl_error`.
+Выполняются на каждой дистанции. При провале дистанция загружается, но помечается, а провал становится задачей в `issue`. Если он совпал с `known_exception` (например, спринт с финалом, E28), задача получает статус `known` и агенту не уходит.
 
 | # | Проверка | Ловит |
 |:-:|---|---|
@@ -375,7 +410,7 @@ erDiagram
 ---
 
 ## 7. Дедупликация
-Реализовано в `running/dedup.py`. Ничего не удаляется: у дубля старта заполняется `canonical_competition_id`, у дубля строки — `duplicate_of`, и такие строки исключаются из подсчётов.
+Реализовано в `parser_running/dedup.py`. Ничего не удаляется: у дубля старта заполняется `canonical_competition_id`, у дубля строки — `duplicate_of`, и такие строки исключаются из подсчётов.
 
 **Стартов.**
 1. Внутри одной платформы — по `external_id`: на RR он одинаковый на всех её сайтах (E18).
@@ -389,7 +424,7 @@ erDiagram
 |---|---|
 | Дублей стартов | 2 (Казанский и Альметьевский полумарафоны: russiarunning ↔ timerman) |
 | Склеено строк | 9 670 → уникальных записей 282 402 |
-| Precision / recall склейки строк по эталону `participantId` RR | **100% / 99,98%** (9670 из 9672) |
+| Precision / recall склейки строк по эталону `participantId` RR | **100% / 99,98%** (9670 из 9672). Относится только к зеркалам одного старта на двух сайтах RR (E34) |
 | Пары стартов одного дня с разных платформ | 25, все — действительно разные старты; ложных склеек 0 |
 | Полнота склейки между **разными** платформами | Не проверена: совпадающего старта в выборке не было |
 
@@ -398,7 +433,7 @@ erDiagram
 2. Жёсткие условия: пол совпадает; год рождения совпадает с допуском ±1 (когда он есть только из возраста).
 3. Нечёткое сходство ФИО + город и клуб как дополнительные признаки. Порог подбирается на `gold_match_pair`, а не фиксируется заранее на 80–90%.
 4. Без года рождения автоматически не склеиваем: отправляем в отчёт на ручную проверку. Иначе одна ложная склейка с тёзкой затянет в рейтинг Сбера чужие результаты.
-5. Внутри одной платформы есть бесплатный эталон: `participantId` RR совпадает у одного человека на разных сайтах платформы.
+5. ~~Внутри одной платформы есть бесплатный эталон: `participantId` RR.~~ **Исправлено (E34):** `participantId` привязан к старту — из 178 727 id ни один не встречается в двух разных стартах. Он годится только для склейки зеркал одного старта (russiarunning ↔ timerman), а для сопоставления атлета между стартами нужна ручная разметка пар (`gold_match_pair`).
 
 ---
 
@@ -408,34 +443,46 @@ erDiagram
 | Сбор | Покрытие: дистанций с протоколом / всех; доля ошибок загрузки | Календарь площадки |
 | Парсинг | Доля дистанций, прошедших проверки 1–6; точность по полям | `gold_result` (20–30 протоколов вручную) |
 | Дедуп стартов | Precision / recall пар «тот же старт» | Пары, размеченные вручную |
-| Дедуп атлетов | Pairwise F1, B-cubed F1 | `gold_match_pair` + `participantId` внутри RR |
+| Дедуп атлетов | Pairwise F1, B-cubed F1 | `gold_match_pair` (ручная разметка; `participantId` не годится, E34) |
 | Отбор Сбера | Precision / recall клубов по маске | Список клубов от заказчика |
 | Баллы | Совпадение с ручным расчётом (цель — 100%) | Ручной рейтинг заказчика |
 | Рейтинг | Spearman ρ, совпадение топ-10 | Ручной рейтинг заказчика |
 
+Наборы и пороги для баллов и рейтинга (G1, G2, G9) — [scoring-spec.md](scoring-spec.md), раздел Testing Decisions.
+
 ---
 
 ## 9. Состояние прототипа
+База — PostgreSQL 16 в Docker. 2026-10-28 прототип перенесён с SQLite: данные не копировались, а собраны заново тем же кодом из кеша ответов при запрещённой сети и сверены со старой базой построчно (`parser_running/migrate_sqlite.py`). Совпали все старты, дистанции, 297 225 строк протоколов, все 9 670 склеек дубликатов, 214 результатов сберовцев.
+
 | Площадка | Как парсим | Стартов | Прошли проверки | Записей | После дедупа |
 |---|---|---|---|---|---|
-| russiarunning | JSON API | 40 | 175 / 175 | 108 641 | 108 641 |
+| russiarunning | JSON API | 40 | 175 / 175 | 113 794 | 113 794 |
 | timerman | JSON API (та же платформа) | 20 | 61 / 61 | 80 795 | 71 125 |
-| runc | HTML | 20 | 53 / 55 (2 спринта с финалом, E28) | 94 851 | 94 851 |
+| runc | HTML | 20 | 53 / 55 (2 спринта с финалом — известное исключение, E28) | 94 851 | 94 851 |
 | grom | JSON внутри HTML | 7 (сайт тормозил, E29) | 6 / 6 | 7 785 | 7 785 |
-| **Итого** | | **87** | **295 / 297** | **292 072** | **282 402** |
+| **Итого** | | **87** | **295 / 297** | **297 225** | **287 555** |
 
-Ещё 16 дистанций — «нет протокола» (внешний хронометраж). Журнал всех найденных проблем — [running/ERRORS.md](../running/ERRORS.md) (E1–E31).
+Ещё 8 дистанций russiarunning — «нет протокола» (внешний хронометраж, E13). Журнал всех найденных проблем — [parser_running/ERRORS.md](../parser_running/ERRORS.md) (E1–E35). Это пробная выборка: собраны последние N стартов каждой площадки, а не весь год.
 
-**Что сделать, чтобы прототип соответствовал спеке:**
-1. Переименовать `event` → `competition`; добавить `raw` в БД вместо файлов.
-2. Вынести площадки в `config/sources.yaml`.
-3. Разложить код по структуре `architecture.md` 11 (`src/skills`, `src/parsers`, `src/storage`).
-4. Добавить `club`, затем `athlete` + сопоставление, `norm` + `score`.
-5. Подключить myfinish (после разведки из РФ, E19) и probeg.
+**Сделано из плана перехода:**
+- ✅ PostgreSQL вместо SQLite; `event` → `competition`;
+- ✅ `raw` — метаданные всех 2 759 использованных ответов площадок (735 МБ файлов в `data/raw`), связь со стартом, дистанцией и задачей из очереди (`object_ref`);
+- ✅ справочник `club` с признаком Сбера по детектору (3 172 клуба, 12 сберовских);
+- ✅ `agent_run` (пока пустая).
+
+**Осталось:**
+1. Вынести площадки в `config/sources.yaml`.
+2. Разложить код по структуре `architecture.md` 11 (`src/skills`, `src/parsers`, `src/storage`).
+3. `athlete` + сопоставление; `norm` + `score` + `rating` ([scoring-spec.md](scoring-spec.md)).
+4. Собрать весь год с подключённых площадок; подключить probeg, myfinish (после разведки из РФ, E19).
 
 ---
 
 ## 10. Открытые вопросы
+
+Вопросы 1–3 и 10 про баллы и рейтинг перенесены в [scoring-spec.md](scoring-spec.md) (Further Notes): вопрос 1 закрыт перепиской с заказчиком (сумма всех стартов, скользящие 365 дней), у остальных есть значение по умолчанию.
+
 | # | Вопрос | Кому | Блокирует |
 |:-:|---|---|---|
 | 1 | Как баллы стартов складываются в рейтинг сезона (сумма / лучшие N)? Границы сезона бега? | Заказчик | `rating` |

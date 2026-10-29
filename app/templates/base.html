@@ -1,0 +1,75 @@
+{% import "_ui.html" as ui %}
+{%- set path = request.url.path -%}
+{%- set section = 'events' if (path.startswith('/events-view') or path.startswith('/races-view')) else ('agent' if path.startswith('/agent-review') else 'search') -%}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{% block title %}Рейтинг спортсменов{% endblock %}</title>
+    <!-- Тема применяется до отрисовки, чтобы не мигала светлая -->
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('theme');
+                if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+            } catch (e) {}
+        })();
+    </script>
+    <meta name="color-scheme" content="light dark">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700&family=Golos+Text:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="/static/css/theme.css">
+    <script src="/static/js/theme.js"></script>
+    <!-- Chart.js для графиков динамики и распределения -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <header class="app-header">
+        <div class="app-header__inner">
+            <div class="app-header__left">
+                <a href="/" class="brand">
+                    <span class="brand__mark" aria-hidden="true">{{ ui.icon('logo') }}</span>
+                    <span class="brand__name">Рейтинг <br class="br">спортсменов</span>
+                </a>
+                <nav class="top-nav" aria-label="Разделы">
+                    <a href="/events-view" {% if section == 'events' %}aria-current="page"{% endif %}>Старты</a>
+                    <a href="/" {% if section == 'search' %}aria-current="page"{% endif %}>Найти себя</a>
+                    <a href="/agent-review" {% if section == 'agent' %}aria-current="page"{% endif %}>Правки агента</a>
+                </nav>
+            </div>
+            <div class="app-header__right">
+                <div class="theme-switch" role="group" aria-label="Тема">
+                    <button type="button" data-theme-choice="system" aria-pressed="true">Системная</button>
+                    <button type="button" data-theme-choice="light" aria-pressed="false">Светлая</button>
+                    <button type="button" data-theme-choice="dark" aria-pressed="false">Тёмная</button>
+                </div>
+                <a href="/docs" target="_blank" rel="noopener" class="header-link">Swagger API</a>
+                <button type="button" class="theme-toggle" data-theme-toggle aria-label="Сменить тему" aria-pressed="false">
+                    <span class="icon-moon">{{ ui.icon('moon', 'icon') }}</span>
+                    <span class="icon-sun">{{ ui.icon('sun', 'icon') }}</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="page {% block page_class %}{% endblock %}">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="app-footer">
+        <div class="app-footer__inner">
+            <span>Платформа рейтинга спортсменов · беговой прототип</span>
+            <span>Оценка ИИ-агента носит исключительно справочный характер.</span>
+        </div>
+    </footer>
+
+    <nav class="bottom-nav" aria-label="Разделы">
+        <a href="/events-view" {% if section == 'events' %}aria-current="page"{% endif %}>{{ ui.icon('calendar') }}Старты</a>
+        <a href="/" {% if section == 'search' %}aria-current="page"{% endif %}>{{ ui.icon('user') }}Найти себя</a>
+    </nav>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+
+{% block title %}{{ race.name_raw }} — {{ event.title }}{% endblock %}
+
+{% block content %}
+{% set me = competition.athlete_result if competition else None %}
+{% set q_athlete = ('athlete_id=' ~ athlete_id) if athlete_id else '' %}
+{{ ui.back('/events-view/' ~ event.id, event.title) }}
+
+<section class="card card--clip">
+    <div class="finish-flag"></div>
+    <div style="padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+        <div class="chips">
+            <span class="chip chip--run">{{ ui.icon('run', 'icon-sm') }}Бег</span>
+            {% if race.norm_distance %}<span class="chip">зачёт {{ race.norm_distance }}</span>{% endif %}
+        </div>
+        <h1 class="h1 h1-sm">{{ race.name_raw }}</h1>
+        <div class="muted num">
+            <a href="/events-view/{{ event.id }}" style="text-decoration: none;">{{ event.title }}</a> · {{ ui.date_ru(event.date_begin) }}{% if event.place or event.address %} · {{ event.place or event.address }}{% endif %}
+        </div>
+        <div class="grid-2" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));">
+            <div class="tile"><div class="tile__value num">{{ competition.total_finishers if competition else results|length }}</div><div class="tile__label">финишёров</div></div>
+            {% if competition %}
+                <div class="tile"><div class="tile__value num">{{ ui.hms(competition.median_time_s) }}</div><div class="tile__label">медиана</div></div>
+                <div class="tile"><div class="tile__value num">{{ ui.hms(competition.p25_time_s) }}</div><div class="tile__label">граница топ-25%</div></div>
+            {% endif %}
+            {% if race.distance_m %}
+                <div class="tile"><div class="tile__value num">{{ race.distance_m }} м</div><div class="tile__label">длина</div></div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+{% if event.races|length > 1 %}
+    <nav class="pills" aria-label="Дистанции старта">
+        {% for r in event.races %}
+            <a href="/races-view/{{ r.id }}{% if q_athlete %}?{{ q_athlete }}{% endif %}" class="pill" {% if r.id == race.id %}aria-current="page"{% endif %}>{{ r.name_raw }}</a>
+        {% endfor %}
+    </nav>
+{% endif %}
+
+<div class="track-divider"></div>
+
+<div class="cols">
+    <div class="cols__side">
+        {% if me %}
+            <section class="card card--pad me-row" style="border-color: transparent;">
+                <div class="row row--between">
+                    <h2 class="h2">Ваш результат</h2>
+                    {% if me.top_percent %}<span class="chip chip--brand">топ {{ me.top_percent }}%</span>{% endif %}
+                </div>
+                <div class="row" style="align-items: baseline; gap: 8px;">
+                    <span class="display-num num">{{ me.place_abs or '—' }}</span>
+                    <span class="muted">место из {{ competition.total_finishers }}</span>
+                </div>
+                <div class="grid-2">
+                    <div class="tile" style="background: var(--surface);"><div class="tile__value num">{{ me.time_formatted }}</div><div class="tile__label">чистое время</div></div>
+                    <div class="tile" style="background: var(--surface);"><div class="tile__value num">{{ me.pace_formatted }}</div><div class="tile__label">темп</div></div>
+                </div>
+            </section>
+        {% endif %}
+
+        {% if not search_query and results and results[0].place_abs == 1 %}
+            <section class="card card--clip">
+                <div class="card__head"><h2 class="h2">Топ-3</h2></div>
+                {% for r in results[:3] if r.place_abs and r.place_abs <= 3 %}
+                    <div class="list-row list-row--place">
+                        <span class="medal medal--{{ r.place_abs }} num">{{ r.place_abs }}</span>
+                        <span style="min-width: 0;">
+                            {% if r.athlete_id %}<a href="/athletes-view/{{ r.athlete_id }}" class="list-row__title">{{ r.full_name_raw }}</a>{% else %}<span class="list-row__title">{{ r.full_name_raw }}</span>{% endif %}
+                        </span>
+                        <span class="num strong">{{ r.time_formatted }}</span>
+                    </div>
+                {% endfor %}
+            </section>
+        {% endif %}
+
+        {% if competition %}
+            <section class="card card--pad">
+                <div>
+                    <h2 class="h2">Конкуренция</h2>
+                    <p class="small muted" style="margin-top: 4px;">Распределение финишных времён по 10 интервалам{% if me %} · ваш интервал выделен{% endif %}</p>
+                </div>
+                <div class="chart-box chart-box--sm"><canvas id="distributionChart" role="img" aria-label="Гистограмма финишных времён участников дистанции"></canvas></div>
+            </section>
+        {% endif %}
+    </div>
+
+    <section class="cols__main card card--clip" style="gap: 0;">
+        <div class="card__head">
+            <h2 class="h2">Протокол</h2>
+            <form method="GET" action="/races-view/{{ race.id }}" class="form-inline" role="search" style="flex: 1 1 280px; justify-content: flex-end;">
+                {% if athlete_id %}<input type="hidden" name="athlete_id" value="{{ athlete_id }}">{% endif %}
+                <label class="sr-only" for="protocol-search">Поиск в протоколе</label>
+                <input id="protocol-search" class="input input--sm" type="search" name="search" value="{{ search_query }}" placeholder="Фамилия или номер">
+                <button type="submit" class="btn btn--primary" style="min-height: 40px;">Найти</button>
+                {% if search_query %}
+                    <a href="/races-view/{{ race.id }}{% if q_athlete %}?{{ q_athlete }}{% endif %}" class="btn btn--ghost" style="min-height: 40px;">Сбросить</a>
+                {% endif %}
+            </form>
+        </div>
+
+        {% if results %}
+            {# Десктоп: полная таблица #}
+            <div class="table-wrap only-desktop">
+                <table class="table" style="min-width: 760px;">
+                    <thead>
+                        <tr>
+                            <th scope="col">Место</th>
+                            <th scope="col">Участник</th>
+                            <th scope="col" class="center">Пол / возр.</th>
+                            <th scope="col" class="right">Чистое</th>
+                            <th scope="col" class="right">Пистолетное</th>
+                            <th scope="col" class="right">Темп</th>
+                            <th scope="col">Статус</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in results %}
+                            <tr {% if athlete_id and r.athlete_id == athlete_id %}class="me-row"{% endif %}>
+                                <td class="num strong">{{ r.place_abs or '—' }}</td>
+                                <td>
+                                    {% if r.athlete_id %}<a href="/athletes-view/{{ r.athlete_id }}" class="cell-title">{{ r.full_name_raw }}</a>{% else %}<span class="cell-title">{{ r.full_name_raw }}</span>{% endif %}
+                                    {% if athlete_id and r.athlete_id == athlete_id %}<span class="small strong" style="color: var(--brand-text); margin-left: 6px;">это вы</span>{% endif %}
+                                    <div class="cell-sub num">{% if r.bib %}№ {{ r.bib }}{% endif %}{% if r.bib and r.club_raw %} · {% endif %}{{ r.club_raw or '' }}</div>
+                                </td>
+                                <td class="center muted num nowrap">{{ ui.gender(r.gender) or '—' }}{% if r.age %} · {{ r.age }}{% endif %}</td>
+                                <td class="num right strong nowrap">{{ r.time_formatted }}</td>
+                                <td class="num right muted nowrap">{{ ui.hms(r.gun_time_s) }}</td>
+                                <td class="num right nowrap">{{ r.pace_formatted }}</td>
+                                <td>{{ ui.status_chip(r.status) }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {# Телефон: компактные строки #}
+            <div class="only-mobile">
+                {% for r in results %}
+                    <div class="list-row list-row--place {% if athlete_id and r.athlete_id == athlete_id %}me-row{% endif %}">
+                        <span class="num strong muted">{{ r.place_abs or '—' }}</span>
+                        <div style="min-width: 0;">
+                            <div class="row" style="gap: 8px;">
+                                {% if r.athlete_id %}<a href="/athletes-view/{{ r.athlete_id }}" class="list-row__title">{{ r.full_name_raw }}</a>{% else %}<span class="list-row__title">{{ r.full_name_raw }}</span>{% endif %}
+                                {% if athlete_id and r.athlete_id == athlete_id %}<span class="small strong" style="color: var(--brand-text);">это вы</span>{% endif %}
+                            </div>
+                            <div class="list-row__meta num">{{ r.pace_formatted }}{% if r.gender %} · {{ ui.gender(r.gender) }}{% endif %}{% if r.age %} {{ r.age }}{% endif %}{% if r.club_raw %} · {{ r.club_raw }}{% endif %}</div>
+                        </div>
+                        <div class="list-row__end">
+                            <div class="num strong">{{ r.time_formatted }}</div>
+                            {% if r.status != 'FIN' %}{{ ui.status_chip(r.status) }}{% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty">
+                <span class="empty__icon">{{ ui.icon('empty', 'icon') }}</span>
+                <p class="small muted">{% if search_query %}По запросу «{{ search_query }}» никого нет.{% else %}Протокол пуст.{% endif %}</p>
+            </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if competition %}
+<script>
+(function () {
+    const comp = {{ competition.model_dump() | tojson }};
+    const meTime = comp.athlete_result && comp.athlete_result.time_s;
+    const isMine = b => meTime && meTime >= b.bin_start_s && meTime <= b.bin_end_s;
+    let chart = null;
+
+    function render() {
+        const tok = window.themeToken;
+        const brand = tok('--brand'), soft = tok('--brand-soft'), run = tok('--sport-run');
+        const muted = tok('--text-muted'), grid = tok('--border-soft');
+        const font = { family: "'Golos Text', system-ui, sans-serif", size: 11 };
+        if (chart) chart.destroy();
+        chart = new Chart(document.getElementById('distributionChart'), {
+            type: 'bar',
+            data: {
+                labels: comp.distribution_bins.map(b => b.label.split(' - ')[0]),
+                datasets: [{
+                    label: 'Финишёров в интервале',
+                    data: comp.distribution_bins.map(b => b.count),
+                    backgroundColor: comp.distribution_bins.map(b => isMine(b) ? run : soft),
+                    borderColor: comp.distribution_bins.map(b => isMine(b) ? run : brand),
+                    borderWidth: 1.5,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: items => comp.distribution_bins[items[0].dataIndex].label,
+                            afterLabel: ctx => isMine(comp.distribution_bins[ctx.dataIndex]) ? 'Здесь ваш финиш' : ''
+                        }
+                    }
+                },
+                scales: {
+                    x: { ticks: { color: muted, font, maxRotation: 0, autoSkip: true }, grid: { display: false } },
+                    y: { beginAtZero: true, ticks: { color: muted, font, precision: 0 }, grid: { color: grid } }
+                }
+            }
+        });
+    }
+
+    render();
+    document.addEventListener('themechange', render);
+})();
+</script>
+{% endif %}
+{% endblock %}

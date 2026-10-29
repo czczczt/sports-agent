@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+
+{% block title %}{{ summary.athlete.display_name }} — Рейтинг спортсменов{% endblock %}
+
+{% block content %}
+{% set a = summary.athlete %}
+{{ ui.back('/', 'Найти себя') }}
+
+<section class="card" style="padding: 24px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between;">
+    <div class="row" style="flex-wrap: nowrap; gap: 20px; min-width: 0;">
+        <span class="avatar avatar--lg" aria-hidden="true">{{ ui.initials(a.display_name) }}</span>
+        <div style="min-width: 0;">
+            <h1 class="h1 h1-sm">{{ a.display_name }}</h1>
+            <div class="muted num" style="margin-top: 6px;">
+                {{ a.birth_year or 'год не указан' }}{% if a.city or a.region %} · {{ a.city or a.region }}{% endif %}{% if a.gender %} · {{ ui.gender(a.gender) }}{% endif %}
+            </div>
+            {% if a.club %}<div class="small muted" style="margin-top: 2px;">Клуб в протоколах: {{ a.club }}</div>{% endif %}
+        </div>
+    </div>
+    <a href="#agent" class="btn btn--primary btn--stretch-mobile">{{ ui.icon('spark') }}Оценка ИИ-агента</a>
+</section>
+
+<div class="cols">
+    <div class="cols__side">
+        <div class="grid-2">
+            <div class="card card--accent stat">
+                <span class="stat__label stat__label--run">{{ ui.icon('run', 'icon-sm') }}Бег</span>
+                <span class="display-num num">{{ summary.total_starts }}</span>
+                <span class="small muted">{{ ui.plural(summary.total_starts, 'финиш', 'финиша', 'финишей') }}</span>
+            </div>
+            <div class="card stat">
+                <span class="stat__label stat__label--brand">{{ ui.icon('trophy', 'icon-sm') }}Рекорды</span>
+                <span class="display-num num">{{ summary.personal_bests|length }}</span>
+                <span class="small muted">{{ ui.plural(summary.personal_bests|length, 'дистанция', 'дистанции', 'дистанций') }} с PB</span>
+            </div>
+        </div>
+
+        <section class="card card--pad card--pending">
+            <div class="row row--between">
+                <h2 class="h2">Место в рейтинге</h2>
+                <span class="chip chip--sm chip--pending">на согласовании</span>
+            </div>
+            <p class="small">{{ summary.rating.message }}. Рейтинг считает бэкенд по формуле куратора — блок включится после утверждения методики.</p>
+        </section>
+
+        <section class="card card--clip">
+            <div class="card__head"><h2 class="h2">Личные рекорды</h2></div>
+            {% for pb in summary.personal_bests %}
+                <div class="list-row">
+                    <div style="min-width: 0;">
+                        <div class="list-row__title strong">{{ pb.distance_title }}</div>
+                        <div class="list-row__meta" title="{{ pb.event_title }}">{{ ui.date_ru(pb.event_date) }} · {{ pb.event_title }}</div>
+                    </div>
+                    <div class="list-row__end">
+                        <div class="num strong" style="font-size: 16px;">{{ pb.time_formatted }}</div>
+                        <div class="list-row__meta num">{{ pb.pace_formatted }}</div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="empty" style="padding-top: 8px;"><p class="small muted">Рекорды на нормализованных дистанциях пока не сформированы.</p></div>
+            {% endfor %}
+        </section>
+
+        <section class="card card--pad">
+            <div>
+                <h2 class="h2">Темп по стартам</h2>
+                <p class="small muted" style="margin-top: 4px;">мин/км · выше — быстрее</p>
+            </div>
+            {% if summary.dynamics %}
+                <div class="chart-box chart-box--sm"><canvas id="dynamicsChart" role="img" aria-label="График темпа спортсмена по датам стартов"></canvas></div>
+            {% else %}
+                <p class="small muted">Недостаточно данных для графика.</p>
+            {% endif %}
+        </section>
+    </div>
+
+    <div class="cols__main">
+        <section id="agent" class="card card--pad">
+            <div class="row row--between" style="align-items: flex-start;">
+                <div style="min-width: 0; flex: 1 1 260px;">
+                    <h2 class="h2">ИИ-оценка спортсмена</h2>
+                    <p class="small muted" style="margin-top: 4px;">Прогресс, процентили в протоколах и стабильность темпа. Метрики считает бэкенд, текст пишет GigaChat.</p>
+                </div>
+                <button type="button" id="btn-generate-assessment" class="btn btn--primary btn--stretch-mobile" data-athlete-id="{{ a.id }}">
+                    {{ ui.icon('spark') }}<span id="btn-text">{% if summary.has_cached_assessment %}Показать оценку{% else %}Получить оценку{% endif %}</span>
+                </button>
+            </div>
+            <div id="assessment-container" hidden>
+                <div id="assessment-loading" class="row" hidden style="padding: 12px 0;">
+                    <span class="spinner" aria-hidden="true"></span>
+                    <span class="small muted">Агент обрабатывает метрики и пишет отчёт…</span>
+                </div>
+                <div id="assessment-content" class="assessment" aria-live="polite"></div>
+                <div id="assessment-meta" class="row row--between small muted" style="margin-top: 10px;">
+                    <span id="assessment-model">Модель: GigaChat</span>
+                    <span style="color: var(--status-pending);">Оценка носит исключительно справочный характер</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="card card--clip">
+            <div class="card__head">
+                <h2 class="h2">Результаты</h2>
+                <span class="chip chip--sm chip--brand">{{ results|length }} · только финиши, без дублей</span>
+            </div>
+
+            {% if results %}
+                <div class="table-wrap only-desktop">
+                    <table class="table" style="min-width: 680px;">
+                        <thead>
+                            <tr>
+                                <th scope="col">Дата</th>
+                                <th scope="col">Старт</th>
+                                <th scope="col" class="right">Время</th>
+                                <th scope="col" class="right">Темп</th>
+                                <th scope="col" class="center">Место<br><span class="small">абс / пол</span></th>
+                                <th scope="col"><span class="sr-only">Протокол</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in results %}
+                                <tr>
+                                    <td class="num muted nowrap">{{ ui.date_ru(r.event_date) }}</td>
+                                    <td>
+                                        <a href="/events-view/{{ r.event_id }}" class="cell-title">{{ r.event_title }}</a>
+                                        <div class="cell-sub">{{ r.distance_name }}{% if r.norm_distance %} · {{ r.norm_distance }}{% endif %} · {{ ui.source(r.source_name) }}</div>
+                                    </td>
+                                    <td class="num right strong nowrap">{{ r.time_formatted }}{% if r.gun_time_s %}<div class="cell-sub">пист. {{ ui.hms(r.gun_time_s) }}</div>{% endif %}</td>
+                                    <td class="num right nowrap">{{ r.pace_formatted }}</td>
+                                    <td class="num center nowrap"><span class="strong">{{ r.place_abs or '—' }}</span> <span class="muted">/ {{ r.place_gender or '—' }}</span></td>
+                                    <td class="right nowrap"><a href="/races-view/{{ r.race_id }}?athlete_id={{ a.id }}" class="text-link small">Конкуренция →</a></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="only-mobile">
+                    {% for r in results %}
+                        <a href="/races-view/{{ r.race_id }}?athlete_id={{ a.id }}" class="list-row" style="text-decoration: none;">
+                            <div style="min-width: 0;">
+                                <div class="list-row__title">{{ r.event_title }}</div>
+                                <div class="list-row__meta num">{{ ui.date_ru(r.event_date) }} · {{ r.distance_name }} · {{ r.place_abs or '—' }} место</div>
+                            </div>
+                            <div class="list-row__end">
+                                <div class="num strong">{{ r.time_formatted }}</div>
+                                <div class="list-row__meta num">{{ r.pace_formatted }}</div>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty"><p class="small muted">Завершённых стартов пока нет.</p></div>
+            {% endif %}
+        </section>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// График темпа (Chart.js) — цвета берутся из токенов темы и перерисовываются при её смене
+(function () {
+    const data = {{ dynamics_json | safe }};
+    const el = document.getElementById('dynamicsChart');
+    if (!el || !data || !data.length) return;
+    let chart = null;
+
+    function render() {
+        const tok = window.themeToken;
+        const brand = tok('--brand'), muted = tok('--text-muted'), grid = tok('--border-soft'), surface = tok('--surface');
+        const font = { family: "'Golos Text', system-ui, sans-serif", size: 11 };
+        if (chart) chart.destroy();
+        chart = new Chart(el, {
+            type: 'line',
+            data: {
+                labels: data.map(d => d.date),
+                datasets: [{
+                    label: 'Темп, мин/км',
+                    data: data.map(d => d.pace_s_per_km ? +(d.pace_s_per_km / 60).toFixed(2) : null),
+                    borderColor: brand,
+                    backgroundColor: brand,
+                    pointBackgroundColor: brand,
+                    pointBorderColor: surface,
+                    pointRadius: 4,
+                    borderWidth: 2.5,
+                    tension: 0.25,
+                    spanGaps: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: items => { const p = data[items[0].dataIndex]; return p.date + ' · ' + p.event_title; },
+                            label: ctx => { const p = data[ctx.dataIndex]; return ' ' + p.distance_name + ': ' + p.time_formatted + ' (' + p.pace_formatted + ')'; }
+                        }
+                    }
+                },
+                scales: {
+                    x: { ticks: { color: muted, font, maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }, grid: { display: false } },
+                    y: { reverse: true, ticks: { color: muted, font }, grid: { color: grid } }
+                }
+            }
+        });
+    }
+
+    render();
+    document.addEventListener('themechange', render);
+})();
+
+// Запрос оценки ИИ-агента (по кнопке, ответ кэшируется на бэкенде)
+(function () {
+    const btn = document.getElementById('btn-generate-assessment');
+    if (!btn) return;
+    const container = document.getElementById('assessment-container');
+    const loading = document.getElementById('assessment-loading');
+    const content = document.getElementById('assessment-content');
+    const meta = document.getElementById('assessment-meta');
+    const modelText = document.getElementById('assessment-model');
+    const btnText = document.getElementById('btn-text');
+
+    btn.addEventListener('click', async function () {
+        container.hidden = false;
+        loading.hidden = false;
+        content.hidden = true;
+        meta.hidden = true;
+        btn.disabled = true;
+        btnText.textContent = 'Формируем оценку…';
+        try {
+            const response = await fetch('/athletes/' + btn.dataset.athleteId + '/assessment', { method: 'POST' });
+            if (!response.ok) throw new Error('ошибка сервера ' + response.status);
+            const data = await response.json();
+            content.textContent = data.assessment_text;
+            modelText.textContent = 'Модель: ' + data.model + (data.cached ? ' (из кэша)' : '');
+            meta.hidden = false;
+            btnText.textContent = 'Обновить';
+        } catch (err) {
+            content.textContent = 'Не удалось сформировать оценку: ' + err.message;
+            btnText.textContent = 'Попробовать снова';
+        } finally {
+            loading.hidden = true;
+            content.hidden = false;
+            btn.disabled = false;
+        }
+    });
+})();
+</script>
+{% endblock %}
