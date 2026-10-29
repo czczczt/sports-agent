@@ -62,8 +62,10 @@ class GigaChat:
         self.verify = ca if ca else os.environ.get("GIGACHAT_VERIFY_SSL", "true").lower() != "false"
         self.use_cache = os.environ.get("GIGACHAT_CACHE", "1") != "0"
         self._token, self._token_expires = None, 0.0
-        self.tokens_used = 0       
-        self.calls = 0         
+        self.tokens_used = 0       # всего токенов за жизнь клиента (без учёта ответов из кеша)
+        self.calls = 0             # реальных запросов к API
+        self.prompt_tokens = 0     # входящие токены (запросы)
+        self.completion_tokens = 0 # исходящие токены (ответы модели)
 
     # --- авторизация -------------------------------------------------------
     def _get_token(self) -> str:
@@ -111,13 +113,17 @@ class GigaChat:
                                headers={"Authorization": f"Bearer {self._get_token()}", "Accept": "application/json"})
                 break
             except GigaChatError as ex:
+                # 429 и 5xx — подождать и повторить; остальное сразу наверх
                 if attempt == 2 or not str(ex)[:3] in {"429", "500", "502", "503", "504"}:
                     raise
                 time.sleep(5 * (attempt + 1))
         body = r.json()
         content = body["choices"][0]["message"]["content"]
-        tokens = body.get("usage", {}).get("total_tokens", 0)
+        usage = body.get("usage", {})
+        tokens = usage.get("total_tokens", 0)
         self.tokens_used += tokens
+        self.prompt_tokens += usage.get("prompt_tokens", 0)
+        self.completion_tokens += usage.get("completion_tokens", 0)
         self.calls += 1
         if self.use_cache:
             CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -126,8 +132,30 @@ class GigaChat:
         return content, tokens
 
 
+def _diagnose_key() -> None:
+    """Проверяем форму ключа, не печатая сам секрет."""
+    import base64
+    key = os.environ.get("GIGACHAT_CREDENTIALS", "")
+    print(f"Длина ключа: {len(key)} символов")
+    if key != key.strip() or key.startswith(("'", '"')):
+        print("  ВНИМАНИЕ: в ключе пробелы или кавычки по краям")
+    if key.lower().startswith("basic"):
+        print("  ВНИМАНИЕ: ключ начинается со слова Basic — уберите его, клиент добавляет сам")
+    try:
+        decoded = base64.b64decode(key.removeprefix("Basic ").strip(), validate=True).decode()
+        parts = decoded.split(":")
+        ok = len(parts) == 2 and all(len(p) >= 30 for p in parts)
+        print(f"  base64: да; внутри «id:секрет»: {'да' if ok else 'НЕТ — похоже, вставлен не тот ключ'}")
+    except Exception:  # noqa: BLE001
+        print("  base64: НЕТ — похоже, вставлен Client ID или Client Secret, а нужен «Ключ авторизации»")
+    proxies = {k: v for k, v in os.environ.items() if k.lower() in ("https_proxy", "http_proxy", "all_proxy")}
+    print(f"Прокси в окружении: {proxies or 'нет'}")
+
+
 if __name__ == "__main__":
-    os.environ["GIGACHAT_CACHE"] = "0"  
+    os.environ["GIGACHAT_CACHE"] = "0"   # проверка ключа всегда идёт в сеть
+    _load_env()
+    _diagnose_key()
     try:
         llm = GigaChat()
         print(f"Модель: {llm.model}, scope: {llm.scope}, проверка сертификата: {llm.verify}")
