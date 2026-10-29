@@ -1,6 +1,6 @@
 {% import "_ui.html" as ui %}
 {%- set path = request.url.path -%}
-{%- set section = 'events' if (path.startswith('/events-view') or path.startswith('/races-view')) else 'search' -%}
+{%- set section = 'events' if (path.startswith('/events-view') or path.startswith('/races-view')) else ('agent' if path.startswith('/agent-review') else 'search') -%}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -36,6 +36,7 @@
                 <nav class="top-nav" aria-label="Разделы">
                     <a href="/events-view" {% if section == 'events' %}aria-current="page"{% endif %}>Старты</a>
                     <a href="/" {% if section == 'search' %}aria-current="page"{% endif %}>Найти себя</a>
+                    <a href="/agent-review" {% if section == 'agent' %}aria-current="page"{% endif %}>Правки агента</a>
                 </nav>
             </div>
             <div class="app-header__right">

@@ -13,6 +13,7 @@ from app.db import get_db, get_db_connection
 from app.api.athletes import router as athletes_router
 from app.api.events import router as events_router
 from app.api.races import router as races_router
+from app.agent_review import router as agent_review_router
 from app.services.athlete_service import (
     search_athletes, get_athlete_summary, get_athlete_results
 )
@@ -59,6 +60,7 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 app.include_router(athletes_router)
 app.include_router(events_router)
 app.include_router(races_router)
+app.include_router(agent_review_router)   # экран подтверждения правок агента
 
 
 # =====================================================================
