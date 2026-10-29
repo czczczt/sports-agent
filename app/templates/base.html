@@ -1,45 +1,73 @@
+{% import "_ui.html" as ui %}
+{%- set path = request.url.path -%}
+{%- set section = 'events' if (path.startswith('/events-view') or path.startswith('/races-view')) else 'search' -%}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Платформа бегового рейтинга (MVP){% endblock %}</title>
-    <!-- Tailwind CSS CDN для быстрого чернового UI -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js CDN для графиков динамики и распределения -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{% block title %}Рейтинг спортсменов{% endblock %}</title>
+    <!-- Тема применяется до отрисовки, чтобы не мигала светлая -->
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('theme');
+                if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+            } catch (e) {}
+        })();
+    </script>
+    <meta name="color-scheme" content="light dark">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700&family=Golos+Text:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="/static/css/theme.css">
+    <script src="/static/js/theme.js"></script>
+    <!-- Chart.js для графиков динамики и распределения -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
-<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans">
-    <!-- Навигация -->
-    <header class="bg-emerald-700 text-white shadow-md sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <span class="text-2xl">🏃</span>
-                <div>
-                    <a href="/" class="font-bold text-xl tracking-tight hover:text-emerald-100">СберСпорт // Бег</a>
-                    <span class="ml-2 text-xs bg-emerald-800 text-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold">MVP</span>
-                </div>
+<body>
+    <header class="app-header">
+        <div class="app-header__inner">
+            <div class="app-header__left">
+                <a href="/" class="brand">
+                    <span class="brand__mark" aria-hidden="true">{{ ui.icon('logo') }}</span>
+                    <span class="brand__name">Рейтинг <br class="br">спортсменов</span>
+                </a>
+                <nav class="top-nav" aria-label="Разделы">
+                    <a href="/events-view" {% if section == 'events' %}aria-current="page"{% endif %}>Старты</a>
+                    <a href="/" {% if section == 'search' %}aria-current="page"{% endif %}>Найти себя</a>
+                </nav>
             </div>
-            <nav class="flex items-center space-x-6 text-sm font-medium">
-                <a href="/" class="hover:text-emerald-200 transition">Поиск спортсмена</a>
-                <a href="/events-view" class="hover:text-emerald-200 transition">Каталог стартов</a>
-                <a href="/docs" target="_blank" class="bg-emerald-800 hover:bg-emerald-900 px-3 py-1.5 rounded-md transition text-xs font-mono">Swagger API</a>
-            </nav>
+            <div class="app-header__right">
+                <div class="theme-switch" role="group" aria-label="Тема">
+                    <button type="button" data-theme-choice="system" aria-pressed="true">Системная</button>
+                    <button type="button" data-theme-choice="light" aria-pressed="false">Светлая</button>
+                    <button type="button" data-theme-choice="dark" aria-pressed="false">Тёмная</button>
+                </div>
+                <a href="/docs" target="_blank" rel="noopener" class="header-link">Swagger API</a>
+                <button type="button" class="theme-toggle" data-theme-toggle aria-label="Сменить тему" aria-pressed="false">
+                    <span class="icon-moon">{{ ui.icon('moon', 'icon') }}</span>
+                    <span class="icon-sun">{{ ui.icon('sun', 'icon') }}</span>
+                </button>
+            </div>
         </div>
     </header>
 
-    <!-- Основной контент -->
-    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-8">
+    <main class="page {% block page_class %}{% endblock %}">
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Футер -->
-    <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500 mt-12">
-        <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-2">
-            <div>Платформа рейтинга спортсменов (FastAPI MVP) • Беговой прототип</div>
-            <div>Оценка ИИ-агента носит исключительно справочный характер.</div>
+    <footer class="app-footer">
+        <div class="app-footer__inner">
+            <span>Платформа рейтинга спортсменов · беговой прототип</span>
+            <span>Оценка ИИ-агента носит исключительно справочный характер.</span>
         </div>
     </footer>
+
+    <nav class="bottom-nav" aria-label="Разделы">
+        <a href="/events-view" {% if section == 'events' %}aria-current="page"{% endif %}>{{ ui.icon('calendar') }}Старты</a>
+        <a href="/" {% if section == 'search' %}aria-current="page"{% endif %}>{{ ui.icon('user') }}Найти себя</a>
+    </nav>
 
     {% block scripts %}{% endblock %}
 </body>
