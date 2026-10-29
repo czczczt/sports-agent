@@ -662,10 +662,12 @@ def apply_approved(con, issue_id: int, push: bool = True) -> dict:
         shutil.rmtree(wt)
         _git("worktree", "add", "-b", branch, str(wt), "HEAD")   # отдельная копия: рабочая папка не меняется
         try:
-            errs = apply_patch(wt / "parser_running", proposal["edits"])
-            if errs:
-                raise DecisionError("правка не накладывается на текущий код: " + "; ".join(errs))
-            # перезапуск на сохранённых ответах уже с правкой
+            conflict = apply_patch(wt / "parser_running", proposal["edits"])
+            if conflict:
+                # пока предложение ждало решения, код изменился (например, ошибку исправил человек):
+                # откатываем частично наложенное и перезапускаем задачу на текущем коде
+                _git("checkout", "--", ".", cwd=wt)
+            # перезапуск на сохранённых ответах — с правкой или, если она не легла, на текущем коде
             spec = build_sandbox(con, issue, code_dir=wt / "parser_running")
             baseline = run_child({"source": spec["source"], "comp": spec["comp"], "races": spec["races"]},
                                  Path(spec["sandbox"]))
@@ -673,8 +675,12 @@ def apply_approved(con, issue_id: int, push: bool = True) -> dict:
             reg = baseline.get("_regression", {})
             others_bad = [e for e, r in baseline.items() if not e.startswith("_") and e != spec["target"] and not r.get("ok")]
             shutil.rmtree(spec["sandbox"], ignore_errors=True)
-            detail = f"после правки: {_race_text(target) if target else baseline.get('_error', '?')}"
-            if target.get("ok") and reg.get("ok"):
+            detail = (f"{'текущий код (правка не легла: ' + '; '.join(conflict) + ')' if conflict else 'после правки'}: "
+                      f"{_race_text(target) if target else baseline.get('_error', '?')}")
+            if conflict:
+                result, status = ("already_fixed", "resolved") if target.get("ok") and reg.get("ok") \
+                    else ("patch_conflict", "new")
+            elif target.get("ok") and reg.get("ok"):
                 title = f"Агент: {issue['source']} {issue['object_ref']} — {proposal.get('reason', '')}"[:120]
                 body = (f"Предложение агента по задаче #{issue_id} очереди issue, подтверждено человеком.\n\n"
                         f"Обоснование: {proposal.get('reason', '')}\n\nПерезапуск на сохранённых ответах: {detail}\n"
@@ -695,7 +701,7 @@ def apply_approved(con, issue_id: int, push: bool = True) -> dict:
             _git("worktree", "remove", "--force", str(wt), check=False)
             if result not in ("pr_created", "branch_created"):
                 _git("branch", "-D", branch, check=False)
-        draft = write_eval_draft(issue, proposal, [], pr_url) if status == "resolved" else None
+        draft = write_eval_draft(issue, proposal, [], pr_url) if result in ("pr_created", "branch_created") else None
     else:
         raise DecisionError(f"нечего применять: действие {proposal.get('action')}")
 
