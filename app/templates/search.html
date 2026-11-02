@@ -16,20 +16,23 @@
             <input class="input" type="text" id="last_name" name="last_name" value="{{ query_last_name }}" placeholder="Например: Иванов" required autocomplete="family-name">
         </label>
         <label class="field">Год рождения
-            <input class="input" type="number" inputmode="numeric" id="birth_year" name="birth_year" value="{{ query_birth_year or '' }}" placeholder="1990" min="1920" max="2020">
+            <input class="input" type="number" inputmode="numeric" id="birth_year" name="birth_year" value="{{ query_birth_year or '' }}" placeholder="1990" min="1920" max="2020" required>
         </label>
         <button type="submit" class="btn btn--primary btn--lg">Найти</button>
     </div>
 </form>
 
-{% if query_last_name %}
+{% if missing_birth_year %}
+    <div class="card empty">
+        <span class="empty__icon">{{ ui.icon('empty', 'icon') }}</span>
+        <div class="strong">Укажите год рождения</div>
+        <p class="small muted">Для поиска укажите фамилию и год рождения.</p>
+    </div>
+{% elif query_last_name %}
     <div class="row row--between">
         <h2 class="strong" style="font-size: 16px;">
             {% if candidates %}Нашли {{ candidates|length }} {{ ui.plural(candidates|length, 'спортсмена', 'спортсменов', 'спортсменов') }}{% else %}Никого не нашли{% endif %}
         </h2>
-        {% if query_birth_year %}
-            <span class="chip chip--sm num">Год: {{ query_birth_year }} ±1</span>
-        {% endif %}
     </div>
 
     {% if candidates %}
@@ -93,12 +96,51 @@
     input.addEventListener('pointerdown', handleSpin);
     input.addEventListener('mousedown', handleSpin);
 
-    // Клавиатура: стрелки вверх/вниз
+    // Ограничение ввода: только цифры, максимум 4 знака (текст запрещён)
     input.addEventListener('keydown', function(e) {
         if (!input.value && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
             e.preventDefault();
             var base = getBaseYear();
             input.value = (e.key === 'ArrowUp') ? (base + 1) : (base - 1);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            return;
+        }
+
+        var allowedKeys = [
+            'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+            'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+            'Home', 'End'
+        ];
+        if (allowedKeys.indexOf(e.key) !== -1 || e.ctrlKey || e.metaKey || e.altKey) {
+            return;
+        }
+
+        // Запрещаем любые нецифровые символы (текст, буквы, знаки +, -, ., e, E и др.)
+        if (!/^[0-9]$/.test(e.key)) {
+            e.preventDefault();
+            return;
+        }
+
+        // Ограничиваем длину 4 цифрами
+        var selLen = (input.selectionEnd || 0) - (input.selectionStart || 0);
+        if (input.value.length >= 4 && selLen === 0) {
+            e.preventDefault();
+        }
+    });
+
+    input.addEventListener('input', function() {
+        if (input.value && input.value.length > 4) {
+            input.value = input.value.slice(0, 4);
+        }
+    });
+
+    input.addEventListener('paste', function(e) {
+        var pasteData = (e.clipboardData || window.clipboardData).getData('text') || '';
+        var digits = pasteData.replace(/\D/g, '').slice(0, 4);
+        e.preventDefault();
+        if (digits) {
+            input.value = digits;
             input.dispatchEvent(new Event('input', { bubbles: true }));
             input.dispatchEvent(new Event('change', { bubbles: true }));
         }

@@ -71,21 +71,35 @@ app.include_router(agent_review_router)   # экран подтверждени�
 async def home_search_view(
     request: Request,
     last_name: Optional[str] = Query(None),
-    birth_year: Optional[int] = Query(None),
+    birth_year: Optional[str] = Query(None),
     db=Depends(get_db)
 ):
     """Главная страница: поиск спортсмена и выбор кандидата."""
     candidates = []
-    if last_name:
-        candidates = search_athletes(db, last_name=last_name, birth_year=birth_year, limit=50)
+    missing_birth_year = False
+    clean_last_name = (last_name or "").strip()
+
+    parsed_birth_year: Optional[int] = None
+    if birth_year and birth_year.strip().isdigit():
+        try:
+            parsed_birth_year = int(birth_year.strip())
+        except ValueError:
+            parsed_birth_year = None
+
+    if clean_last_name:
+        if not parsed_birth_year:
+            missing_birth_year = True
+        else:
+            candidates = search_athletes(db, last_name=clean_last_name, birth_year=parsed_birth_year, limit=50)
 
     return templates.TemplateResponse(
         request=request,
         name="search.html",
         context={
-            "query_last_name": last_name or "",
-            "query_birth_year": birth_year,
-            "candidates": candidates
+            "query_last_name": clean_last_name,
+            "query_birth_year": parsed_birth_year,
+            "candidates": candidates,
+            "missing_birth_year": missing_birth_year
         }
     )
 
