@@ -82,8 +82,8 @@
                     <h2 class="h2">ИИ-оценка спортсмена</h2>
                     <p class="small muted" style="margin-top: 4px;">Прогресс, процентили в протоколах и стабильность темпа. Метрики считает бэкенд, текст пишет GigaChat.</p>
                 </div>
-                <button type="button" id="btn-generate-assessment" class="btn btn--primary btn--stretch-mobile" data-athlete-id="{{ a.id }}">
-                    {{ ui.icon('spark') }}<span id="btn-text">{% if summary.has_cached_assessment %}Показать оценку{% else %}Получить оценку{% endif %}</span>
+                <button type="button" id="btn-toggle-assessment" class="btn btn--primary btn--stretch-mobile" data-athlete-id="{{ a.id }}">
+                    {{ ui.icon('spark') }}<span id="btn-text">Показать отчёт</span>
                 </button>
             </div>
             <div id="assessment-container" hidden>
@@ -92,8 +92,7 @@
                     <span class="small muted">Агент обрабатывает метрики и пишет отчёт…</span>
                 </div>
                 <div id="assessment-content" class="assessment" aria-live="polite"></div>
-                <div id="assessment-meta" class="row row--between small muted" style="margin-top: 10px;">
-                    <span id="assessment-model">Модель: GigaChat</span>
+                <div id="assessment-meta" class="row small muted" style="margin-top: 10px; justify-content: flex-end;">
                     <span style="color: var(--status-pending);">Оценка носит исключительно справочный характер</span>
                 </div>
             </div>
@@ -102,7 +101,7 @@
         <section class="card card--clip">
             <div class="card__head">
                 <h2 class="h2">Результаты</h2>
-                <span class="chip chip--sm chip--brand">{{ results|length }} · только финиши, без дублей</span>
+                <span class="chip chip--sm chip--brand">{{ results|length }} · {{ selected_sport or 'Бег' }}</span>
             </div>
 
             {% if results %}
@@ -115,7 +114,6 @@
                                 <th scope="col" class="right">Время</th>
                                 <th scope="col" class="right">Темп</th>
                                 <th scope="col" class="center">Место<br><span class="small">абс / пол</span></th>
-                                <th scope="col"><span class="sr-only">Протокол</span></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -123,13 +121,12 @@
                                 <tr>
                                     <td class="num muted nowrap">{{ ui.date_ru(r.event_date) }}</td>
                                     <td>
-                                        <a href="/events-view/{{ r.event_id }}" class="cell-title">{{ r.event_title }}</a>
+                                        <a href="/races-view/{{ r.race_id }}?athlete_id={{ a.id }}" class="cell-title">{{ r.event_title }}</a>
                                         <div class="cell-sub">{{ r.distance_name }}{% if r.norm_distance %} · {{ r.norm_distance }}{% endif %} · {{ ui.source(r.source_name) }}</div>
                                     </td>
                                     <td class="num right strong nowrap">{{ r.time_formatted }}{% if r.gun_time_s %}<div class="cell-sub">пист. {{ ui.hms(r.gun_time_s) }}</div>{% endif %}</td>
                                     <td class="num right nowrap">{{ r.pace_formatted }}</td>
                                     <td class="num center nowrap"><span class="strong">{{ r.place_abs or '—' }}</span> <span class="muted">/ {{ r.place_gender or '—' }}</span></td>
-                                    <td class="right nowrap"><a href="/races-view/{{ r.race_id }}?athlete_id={{ a.id }}" class="text-link small">Конкуренция →</a></td>
                                 </tr>
                             {% endfor %}
                         </tbody>
@@ -158,6 +155,7 @@
 </div>
 {% endblock %}
 
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 {% block scripts %}
 <script>
 // График темпа (Chart.js) — цвета берутся из токенов темы и перерисовываются при её смене
@@ -213,32 +211,64 @@
     document.addEventListener('themechange', render);
 })();
 
-// Запрос оценки ИИ-агента (по кнопке, ответ кэшируется на бэкенде)
+// Запрос и переключение отображения отчёта ИИ-агента
 (function () {
-    const btn = document.getElementById('btn-generate-assessment');
+    const btn = document.getElementById('btn-toggle-assessment');
     if (!btn) return;
     const container = document.getElementById('assessment-container');
     const loading = document.getElementById('assessment-loading');
     const content = document.getElementById('assessment-content');
     const meta = document.getElementById('assessment-meta');
-    const modelText = document.getElementById('assessment-model');
     const btnText = document.getElementById('btn-text');
 
+    let loadedHtml = null;
+
+    function renderMarkdown(md) {
+        if (typeof marked !== 'undefined' && marked.parse) {
+            return marked.parse(md);
+        }
+        var escaped = md
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        return escaped
+            .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+            .replace(/^#### (.*$)/gim, '<h4>$1</h4>')
+            .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+            .replace(/^\- (.*$)/gim, '<li>$1</li>')
+            .replace(/\n\n/gim, '<p></p>')
+            .replace(/\n/gim, '<br>');
+    }
+
     btn.addEventListener('click', async function () {
+        // Если отчёт уже был загружен в текущей сессии — переключаем показать/скрыть
+        if (loadedHtml) {
+            if (container.hidden) {
+                container.hidden = false;
+                btnText.textContent = 'Скрыть отчёт';
+            } else {
+                container.hidden = true;
+                btnText.textContent = 'Показать отчёт';
+            }
+            return;
+        }
+
+        // Первое нажатие: загружаем/генерируем отчёт
         container.hidden = false;
         loading.hidden = false;
         content.hidden = true;
         meta.hidden = true;
         btn.disabled = true;
-        btnText.textContent = 'Формируем оценку…';
+        btnText.textContent = 'Формируем отчёт…';
+
         try {
             const response = await fetch('/athletes/' + btn.dataset.athleteId + '/assessment', { method: 'POST' });
             if (!response.ok) throw new Error('ошибка сервера ' + response.status);
             const data = await response.json();
-            content.textContent = data.assessment_text;
-            modelText.textContent = 'Модель: ' + data.model + (data.cached ? ' (из кэша)' : '');
+            loadedHtml = renderMarkdown(data.assessment_text);
+            content.innerHTML = loadedHtml;
             meta.hidden = false;
-            btnText.textContent = 'Обновить';
+            btnText.textContent = 'Скрыть отчёт';
         } catch (err) {
             content.textContent = 'Не удалось сформировать оценку: ' + err.message;
             btnText.textContent = 'Попробовать снова';

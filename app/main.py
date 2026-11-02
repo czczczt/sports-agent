@@ -124,7 +124,8 @@ async def athlete_profile_view(
         context={
             "summary": summary,
             "results": results,
-            "dynamics_json": dynamics_json
+            "dynamics_json": dynamics_json,
+            "selected_sport": "Бег"
         }
     )
 
