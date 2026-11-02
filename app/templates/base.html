@@ -56,6 +56,8 @@
         {% block content %}{% endblock %}
     </main>
 
+    <footer class="app-footer" aria-hidden="true"></footer>
+
 
     <nav class="bottom-nav" aria-label="Разделы">
         <a href="/events-view" {% if section == 'events' %}aria-current="page"{% endif %}>{{ ui.icon('calendar') }}Старты</a>

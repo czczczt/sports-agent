@@ -7,7 +7,7 @@
 {% block content %}
 <div class="page-head__text">
     <h1 class="h1">Найти себя</h1>
-    <p class="lead">Введите фамилию и год рождения. Поиск не учитывает регистр и разницу е/ё, а год рождения сверяется с допуском ±1 год — он рассчитывается из возраста в протоколе.</p>
+    <p class="lead">Введите фамилию и год рождения - мы найдём ваши забеги. В профиле вы сможете увидеть свою статистику, историю забегов и положение среди других спортсменов.</p>
 </div>
 
 <form method="GET" action="/" class="card card--pad">
@@ -19,13 +19,6 @@
             <input class="input" type="number" inputmode="numeric" id="birth_year" name="birth_year" value="{{ query_birth_year or '' }}" placeholder="1990" min="1920" max="2020">
         </label>
         <button type="submit" class="btn btn--primary btn--lg">Найти</button>
-    </div>
-    <div class="row small">
-        <span class="muted">Быстрый тест:</span>
-        <a class="chip" href="/?last_name=Иванов&birth_year=1985">Иванов 1985</a>
-        <a class="chip" href="/?last_name=Смирнов">Смирнов</a>
-        <a class="chip" href="/?last_name=Кузнецова&birth_year=1992">Кузнецова 1992</a>
-        <a class="chip" href="/?last_name=Федоров">Федоров (е/ё)</a>
     </div>
 </form>
 
