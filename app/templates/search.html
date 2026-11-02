@@ -122,9 +122,24 @@
             return;
         }
 
-        // Ограничиваем длину 4 цифрами
-        var selLen = (input.selectionEnd || 0) - (input.selectionStart || 0);
-        if (input.value.length >= 4 && selLen === 0) {
+        // Проверяем, выделен ли текст для замены
+        var hasSelection = false;
+        try {
+            if (typeof input.selectionStart === 'number' && typeof input.selectionEnd === 'number') {
+                hasSelection = (input.selectionEnd > input.selectionStart);
+            }
+        } catch (err) {}
+        if (!hasSelection) {
+            try {
+                var s = window.getSelection();
+                if (s && s.toString().length > 0) {
+                    hasSelection = true;
+                }
+            } catch (err) {}
+        }
+
+        // Ограничиваем длину 4 цифрами (если текст не выделен для замены)
+        if (input.value.length >= 4 && !hasSelection) {
             e.preventDefault();
         }
     });
