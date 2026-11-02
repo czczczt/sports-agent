@@ -69,32 +69,51 @@
     var input = document.getElementById('birth_year');
     if (!input) return;
 
-    var base = parseInt(input.placeholder, 10) || 1990;
-    var wasEmpty = !input.value;
+    function getBaseYear() {
+        var base = parseInt(input.placeholder, 10);
+        return isNaN(base) ? 1990 : base;
+    }
 
-    input.addEventListener('focus', function() {
-        wasEmpty = !input.value;
-    });
+    // Обработка клика по браузерным стрелочкам (spin button)
+    function handleSpin(e) {
+        if (input.value) return;
+        var rect = input.getBoundingClientRect();
+        // Область стрелочек — правые ~35px поля
+        if (e.clientX >= rect.right - 35) {
+            e.preventDefault();
+            var isUp = e.clientY < (rect.top + rect.height / 2);
+            var base = getBaseYear();
+            input.value = isUp ? (base + 1) : (base - 1);
+            input.focus();
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
 
-    // 1. Для клавиатуры (стрелочки вверх/вниз)
+    input.addEventListener('pointerdown', handleSpin);
+    input.addEventListener('mousedown', handleSpin);
+
+    // Клавиатура: стрелки вверх/вниз
     input.addEventListener('keydown', function(e) {
         if (!input.value && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
             e.preventDefault();
+            var base = getBaseYear();
             input.value = (e.key === 'ArrowUp') ? (base + 1) : (base - 1);
             input.dispatchEvent(new Event('input', { bubbles: true }));
-            wasEmpty = false;
+            input.dispatchEvent(new Event('change', { bubbles: true }));
         }
     });
 
-    // 2. Для мыши (клик по браузерным стрелочкам spin button)
-    input.addEventListener('input', function(e) {
-        var minVal = parseInt(input.min, 10) || 1920;
-        var curVal = parseInt(input.value, 10);
-        if (wasEmpty && (curVal === minVal || curVal === minVal + 1)) {
-            input.value = (curVal === minVal + 1) ? (base + 1) : base;
+    // Колёсико мыши при фокусе
+    input.addEventListener('wheel', function(e) {
+        if (!input.value && document.activeElement === input) {
+            e.preventDefault();
+            var base = getBaseYear();
+            input.value = (e.deltaY < 0) ? (base + 1) : (base - 1);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
         }
-        wasEmpty = !input.value;
-    });
+    }, { passive: false });
 })();
 </script>
 {% endblock %}
