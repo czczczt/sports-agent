@@ -28,7 +28,7 @@
   function sync(choice) {
     var eff = effective(choice);
     document.querySelectorAll('[data-theme-choice]').forEach(function (btn) {
-      btn.setAttribute('aria-pressed', btn.getAttribute('data-theme-choice') === choice ? 'true' : 'false');
+      btn.setAttribute('aria-pressed', btn.getAttribute('data-theme-choice') === eff ? 'true' : 'false');
     });
     document.querySelectorAll('[data-theme-toggle]').forEach(function (btn) {
       btn.setAttribute('data-effective', eff);
