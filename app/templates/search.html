@@ -62,3 +62,39 @@
     {% endif %}
 {% endif %}
 {% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var input = document.getElementById('birth_year');
+    if (!input) return;
+
+    var base = parseInt(input.placeholder, 10) || 1990;
+    var wasEmpty = !input.value;
+
+    input.addEventListener('focus', function() {
+        wasEmpty = !input.value;
+    });
+
+    // 1. Для клавиатуры (стрелочки вверх/вниз)
+    input.addEventListener('keydown', function(e) {
+        if (!input.value && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+            e.preventDefault();
+            input.value = (e.key === 'ArrowUp') ? (base + 1) : (base - 1);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            wasEmpty = false;
+        }
+    });
+
+    // 2. Для мыши (клик по браузерным стрелочкам spin button)
+    input.addEventListener('input', function(e) {
+        var minVal = parseInt(input.min, 10) || 1920;
+        var curVal = parseInt(input.value, 10);
+        if (wasEmpty && (curVal === minVal || curVal === minVal + 1)) {
+            input.value = (curVal === minVal + 1) ? (base + 1) : base;
+        }
+        wasEmpty = !input.value;
+    });
+})();
+</script>
+{% endblock %}
