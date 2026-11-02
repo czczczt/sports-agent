@@ -58,12 +58,6 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="app-footer">
-        <div class="app-footer__inner">
-            <span>Платформа рейтинга спортсменов · беговой прототип</span>
-            <span>Оценка ИИ-агента носит исключительно справочный характер.</span>
-        </div>
-    </footer>
 
     <nav class="bottom-nav" aria-label="Разделы">
         <a href="/events-view" {% if section == 'events' %}aria-current="page"{% endif %}>{{ ui.icon('calendar') }}Старты</a>
