@@ -285,16 +285,6 @@ button, input, select { font: inherit; color: inherit; }
   font-size: 13px;
 }
 
-/* Отключение стрелочек (+-1) в полях input type=number */
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-input[type="number"] {
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
 .app-footer__inner {
   max-width: 1200px; margin: 0 auto; padding: 16px 24px;
   display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px;

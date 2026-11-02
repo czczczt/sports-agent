@@ -16,7 +16,7 @@
             <input class="input" type="text" id="last_name" name="last_name" value="{{ query_last_name }}" placeholder="Например: Иванов" required autocomplete="family-name">
         </label>
         <label class="field">Год рождения
-            <input class="input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="birth_year" name="birth_year" value="{{ query_birth_year or '' }}" placeholder="1990" autocomplete="off">
+            <input class="input" type="number" inputmode="numeric" id="birth_year" name="birth_year" value="{{ query_birth_year or '' }}" placeholder="1990" min="1920" max="2020">
         </label>
         <button type="submit" class="btn btn--primary btn--lg">Найти</button>
     </div>
