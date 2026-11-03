@@ -31,7 +31,7 @@
 {% elif query_last_name %}
     <div class="row row--between">
         <h2 class="strong" style="font-size: 16px;">
-            {% if candidates %}Нашли {{ candidates|length }} {{ ui.plural(candidates|length, 'спортсмена', 'спортсменов', 'спортсменов') }}{% else %}Никого не нашли{% endif %}
+            {% if candidates %}Нашли {{ candidates|length }} {{ ui.plural(candidates|length, 'спортсмена', 'спортсмена', 'спортсменов') }}{% else %}Никого не нашли{% endif %}
         </h2>
     </div>
 
@@ -49,7 +49,7 @@
                         </div>
                     </div>
                     <div class="chips">
-                        <span class="chip chip--run">{{ ui.icon('run', 'icon-sm') }}Бег · {{ cand.starts_count }} финиш.</span>
+                        <span class="chip chip--run">{{ ui.icon('run', 'icon-sm') }}Бег · {{ cand.starts_count }} {{ ui.plural(cand.starts_count, 'старт', 'старта', 'стартов') }}</span>
                         {% if cand.club %}<span class="chip">{{ cand.club }}</span>{% endif %}
                     </div>
                     <a href="/athletes-view/{{ cand.id }}" class="btn {% if loop.first %}btn--primary{% endif %} btn--block">Это я</a>
