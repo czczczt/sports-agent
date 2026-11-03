@@ -26,6 +26,29 @@ DISTANCE_TITLES = {
 }
 
 
+
+DUMMY_CLUBS_EXACT = {"нет", "лично", "индивидуально", "-", "—", "none", "null", "self", "individual", ""}
+DUMMY_CLUBS_SUBSTR = ("нет клуба", "no club", "без клуба")
+
+
+def is_dummy_club(club: Optional[str]) -> bool:
+    """Проверяет, является ли значение клуба технической заглушкой (Нет клуба/No club, Лично и т.п.)."""
+    if not club:
+        return True
+    s = club.strip().lower().replace("ё", "е")
+    if s in DUMMY_CLUBS_EXACT:
+        return True
+    if any(k in s for k in DUMMY_CLUBS_SUBSTR):
+        return True
+    return False
+
+
+def clean_club(club: Optional[str]) -> Optional[str]:
+    """Возвращает очищенное название клуба или None, если это заглушка."""
+    if is_dummy_club(club):
+        return None
+    return club.strip()
+
 def normalize_term(term: str) -> str:
     """Нормализует строку поиска: нижний регистр, замена ё -> е, удаление спецсимволов."""
     if not term:
@@ -120,7 +143,7 @@ def search_athletes(
             gender=r["gender"],
             city=r["city"],
             region=r["region"],
-            club=r["club"],
+            club=clean_club(r["club"]),
             starts_count=r["starts_count"],
             results_count=r["results_count"],
         )
@@ -145,7 +168,7 @@ def get_athlete_by_id(conn: sqlite3.Connection, athlete_id: int) -> Optional[Ath
         gender=row["gender"],
         city=row["city"],
         region=row["region"],
-        club=row["club"],
+        club=clean_club(row["club"]),
         starts_count=row["starts_count"],
         results_count=row["results_count"],
     )

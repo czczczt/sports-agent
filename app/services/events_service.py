@@ -4,7 +4,7 @@ from typing import List, Optional, Dict, Any
 from app.models import (
     EventItem, RaceItem, RaceProtocolItem, CompetitionDistribution, DistributionBin
 )
-from app.services.athlete_service import format_time, format_pace, normalize_term
+from app.services.athlete_service import format_time, format_pace, normalize_term, clean_club
 
 
 def list_events(
@@ -162,7 +162,7 @@ def _row_to_protocol_item(r: sqlite3.Row, dist_m: Optional[int]) -> RaceProtocol
         gender=r["gender"],
         age=display_age,
         birth_year=r["birth_year"],
-        club_raw=r["club_raw"],
+        club_raw=clean_club(r["club_raw"]),
         place_abs=r["place_abs"],
         place_gender=r["place_gender"],
         chip_time_s=r["chip_time_s"],

@@ -9,6 +9,21 @@ import time
 from collections import defaultdict, Counter
 
 
+
+DUMMY_CLUBS_EXACT = {"нет", "лично", "индивидуально", "-", "—", "none", "null", "self", "individual", ""}
+DUMMY_CLUBS_SUBSTR = ("нет клуба", "no club", "без клуба")
+
+
+def is_dummy_club(club):
+    if not club:
+        return True
+    s = club.strip().lower().replace("ё", "е")
+    if s in DUMMY_CLUBS_EXACT:
+        return True
+    if any(k in s for k in DUMMY_CLUBS_SUBSTR):
+        return True
+    return False
+
 def norm_name(name: str) -> str:
     if not name:
         return ""
@@ -138,7 +153,7 @@ def populate_athletes(db_path: str = "running.db"):
             rep_city = Counter(cities).most_common(1)[0][0] if cities else None
             regions = [x["region"] for x in cl if x["region"]]
             rep_region = Counter(regions).most_common(1)[0][0] if regions else None
-            clubs = [x["club"] for x in cl if x["club"]]
+            clubs = [x["club"] for x in cl if x["club"] and not is_dummy_club(x["club"])]
             rep_club = Counter(clubs).most_common(1)[0][0] if clubs else None
             
             # Завершенные старты без дублей
