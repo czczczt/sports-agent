@@ -200,19 +200,24 @@ async def race_detail_view(
         raise HTTPException(status_code=404, detail="Дистанция не найдена")
 
     event = get_event_by_id(db, event_id=race_row["event_id"])
-    results = get_race_results(db, race_id=race_id, search_query=search, limit=150, offset=0)
+    results = get_race_results(db, race_id=race_id, search_query=search, limit=300, offset=0)
 
-    extra_athlete_result = None
+    pinned_athlete_result = None
     show_gap = False
 
-    # Если передан athlete_id и поиск не активен: проверяем, вошел ли спортсмен в первые 150
+    # Если передан athlete_id и поиск не активен:
+    # Если спортсмен занял место > 100 (или не финишировал DNS/DNF):
+    # выносим его наверх таблицы с разделителем точек, исключая дублирование в основном списке
     if athlete_id and not search:
-        found_in_top = any(r.athlete_id == athlete_id for r in results)
-        if not found_in_top:
-            athlete_item = get_athlete_race_result(db, race_id=race_id, athlete_id=athlete_id)
-            if athlete_item:
-                extra_athlete_result = athlete_item
+        athlete_item = get_athlete_race_result(db, race_id=race_id, athlete_id=athlete_id)
+        if athlete_item:
+            # Проверяем место: если место > 100 или места нет (DNS/DNF/DSQ)
+            is_over_100 = (athlete_item.place_abs is None) or (isinstance(athlete_item.place_abs, int) and athlete_item.place_abs > 100)
+            if is_over_100:
+                pinned_athlete_result = athlete_item
                 show_gap = True
+                # Убираем спортсмена из основного списка, чтобы не дублировать
+                results = [r for r in results if r.athlete_id != athlete_id]
 
     competition = get_race_competition(db, race_id=race_id, athlete_id=athlete_id)
 
@@ -223,7 +228,7 @@ async def race_detail_view(
             "event": event,
             "race": race_row,
             "results": results,
-            "extra_athlete_result": extra_athlete_result,
+            "pinned_athlete_result": pinned_athlete_result,
             "show_gap": show_gap,
             "competition": competition,
             "search_query": search or "",

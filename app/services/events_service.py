@@ -177,7 +177,7 @@ def get_race_results(
     conn: sqlite3.Connection,
     race_id: int,
     search_query: Optional[str] = None,
-    limit: int = 150,
+    limit: int = 300,
     offset: int = 0
 ) -> List[RaceProtocolItem]:
     """Возвращает протокол дистанции с поиском по фамилии или стартовому номеру."""

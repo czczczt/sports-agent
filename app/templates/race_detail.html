@@ -111,12 +111,34 @@
                             <th scope="col">Участник</th>
                             <th scope="col" class="center">Пол / возр.</th>
                             <th scope="col" class="right">Чистое</th>
-                            <th scope="col" class="right">Пистолетное</th>
-                            <th scope="col" class="right">Темп</th>
+                            <th scope="col" class="center">Пистолетное</th>
+                            <th scope="col" class="center">Темп</th>
                             <th scope="col">Статус</th>
                         </tr>
                     </thead>
                     <tbody>
+                        {% if show_gap and pinned_athlete_result %}
+                            {% set r = pinned_athlete_result %}
+                            <tr class="me-row">
+                                <td class="num strong">{{ r.place_abs or '—' }}</td>
+                                <td>
+                                    {% if r.athlete_id %}<a href="/athletes-view/{{ r.athlete_id }}" class="cell-title">{{ r.full_name_raw }}</a>{% else %}<span class="cell-title">{{ r.full_name_raw }}</span>{% endif %}
+                                    <span class="small strong" style="color: var(--brand-text); margin-left: 6px;">это вы</span>
+                                    <div class="cell-sub num">{% if r.bib %}№ {{ r.bib }}{% endif %}{% if r.bib and r.club_raw %} · {% endif %}{{ r.club_raw or '' }}</div>
+                                </td>
+                                <td class="center muted num nowrap">{{ ui.gender(r.gender) or '—' }}{% if r.age is not none and r.age > 0 %} · {{ r.age }}{% elif r.age == 0 or r.birth_year == 2026 %} · 1{% endif %}</td>
+                                <td class="num right strong nowrap">{{ r.time_formatted }}</td>
+                                <td class="num center muted nowrap">{{ ui.hms(r.gun_time_s) }}</td>
+                                <td class="num center nowrap">{{ r.pace_formatted }}</td>
+                                <td>{{ ui.status_chip(r.status) }}</td>
+                            </tr>
+                            <tr class="gap-row" style="border: none;">
+                                <td class="center muted" style="padding: 6px 0; font-size: 13px; line-height: 0.85; letter-spacing: 0;">
+                                    &bull;<br>&bull;<br>&bull;
+                                </td>
+                                <td colspan="6" style="padding: 6px 0;"></td>
+                            </tr>
+                        {% endif %}
                         {% for r in results %}
                             <tr {% if athlete_id and r.athlete_id == athlete_id %}class="me-row"{% endif %}>
                                 <td class="num strong">{{ r.place_abs or '—' }}</td>
@@ -127,39 +149,40 @@
                                 </td>
                                 <td class="center muted num nowrap">{{ ui.gender(r.gender) or '—' }}{% if r.age is not none and r.age > 0 %} · {{ r.age }}{% elif r.age == 0 or r.birth_year == 2026 %} · 1{% endif %}</td>
                                 <td class="num right strong nowrap">{{ r.time_formatted }}</td>
-                                <td class="num right muted nowrap">{{ ui.hms(r.gun_time_s) }}</td>
-                                <td class="num right nowrap">{{ r.pace_formatted }}</td>
+                                <td class="num center muted nowrap">{{ ui.hms(r.gun_time_s) }}</td>
+                                <td class="num center nowrap">{{ r.pace_formatted }}</td>
                                 <td>{{ ui.status_chip(r.status) }}</td>
                             </tr>
                         {% endfor %}
-                        {% if show_gap and extra_athlete_result %}
-                            <tr class="gap-row" style="border: none;">
-                                <td class="center muted" style="padding: 6px 0; font-size: 13px; line-height: 0.85; letter-spacing: 0;">
-                                    &bull;<br>&bull;<br>&bull;
-                                </td>
-                                <td colspan="6" style="padding: 6px 0;"></td>
-                            </tr>
-                            {% set r = extra_athlete_result %}
-                            <tr class="me-row">
-                                <td class="num strong">{{ r.place_abs or '—' }}</td>
-                                <td>
-                                    {% if r.athlete_id %}<a href="/athletes-view/{{ r.athlete_id }}" class="cell-title">{{ r.full_name_raw }}</a>{% else %}<span class="cell-title">{{ r.full_name_raw }}</span>{% endif %}
-                                    <span class="small strong" style="color: var(--brand-text); margin-left: 6px;">это вы</span>
-                                    <div class="cell-sub num">{% if r.bib %}№ {{ r.bib }}{% endif %}{% if r.bib and r.club_raw %} · {% endif %}{{ r.club_raw or '' }}</div>
-                                </td>
-                                <td class="center muted num nowrap">{{ ui.gender(r.gender) or '—' }}{% if r.age is not none and r.age > 0 %} · {{ r.age }}{% elif r.age == 0 or r.birth_year == 2026 %} · 1{% endif %}</td>
-                                <td class="num right strong nowrap">{{ r.time_formatted }}</td>
-                                <td class="num right muted nowrap">{{ ui.hms(r.gun_time_s) }}</td>
-                                <td class="num right nowrap">{{ r.pace_formatted }}</td>
-                                <td>{{ ui.status_chip(r.status) }}</td>
-                            </tr>
-                        {% endif %}
                     </tbody>
                 </table>
             </div>
 
             {# Телефон: компактные строки #}
             <div class="only-mobile">
+                {% if show_gap and pinned_athlete_result %}
+                    {% set r = pinned_athlete_result %}
+                    <div class="list-row list-row--place me-row">
+                        <span class="num strong muted">{{ r.place_abs or '—' }}</span>
+                        <div style="min-width: 0;">
+                            <div class="row" style="gap: 8px;">
+                                {% if r.athlete_id %}<a href="/athletes-view/{{ r.athlete_id }}" class="list-row__title">{{ r.full_name_raw }}</a>{% else %}<span class="list-row__title">{{ r.full_name_raw }}</span>{% endif %}
+                                <span class="small strong" style="color: var(--brand-text);">это вы</span>
+                            </div>
+                            <div class="list-row__meta num">{{ r.pace_formatted }}{% if r.gender %} · {{ ui.gender(r.gender) }}{% endif %}{% if r.age is not none and r.age > 0 %} {{ r.age }}{% elif r.age == 0 or r.birth_year == 2026 %} 1{% endif %}{% if r.club_raw %} · {{ r.club_raw }}{% endif %}</div>
+                        </div>
+                        <div class="list-row__end">
+                            <div class="num strong">{{ r.time_formatted }}</div>
+                            {% if r.status != 'FIN' %}{{ ui.status_chip(r.status) }}{% endif %}
+                        </div>
+                    </div>
+                    <div class="list-row list-row--place" style="padding: 6px 0; border: none; min-height: auto;">
+                        <span class="center muted" style="display: block; font-size: 13px; line-height: 0.85; text-align: center;">
+                            &bull;<br>&bull;<br>&bull;
+                        </span>
+                        <div></div>
+                    </div>
+                {% endif %}
                 {% for r in results %}
                     <div class="list-row list-row--place {% if athlete_id and r.athlete_id == athlete_id %}me-row{% endif %}">
                         <span class="num strong muted">{{ r.place_abs or '—' }}</span>
@@ -176,29 +199,6 @@
                         </div>
                     </div>
                 {% endfor %}
-                {% if show_gap and extra_athlete_result %}
-                    <div class="list-row list-row--place" style="padding: 6px 0; border: none; min-height: auto;">
-                        <span class="center muted" style="display: block; font-size: 13px; line-height: 0.85; text-align: center;">
-                            &bull;<br>&bull;<br>&bull;
-                        </span>
-                        <div></div>
-                    </div>
-                    {% set r = extra_athlete_result %}
-                    <div class="list-row list-row--place me-row">
-                        <span class="num strong muted">{{ r.place_abs or '—' }}</span>
-                        <div style="min-width: 0;">
-                            <div class="row" style="gap: 8px;">
-                                {% if r.athlete_id %}<a href="/athletes-view/{{ r.athlete_id }}" class="list-row__title">{{ r.full_name_raw }}</a>{% else %}<span class="list-row__title">{{ r.full_name_raw }}</span>{% endif %}
-                                <span class="small strong" style="color: var(--brand-text);">это вы</span>
-                            </div>
-                            <div class="list-row__meta num">{{ r.pace_formatted }}{% if r.gender %} · {{ ui.gender(r.gender) }}{% endif %}{% if r.age is not none and r.age > 0 %} {{ r.age }}{% elif r.age == 0 or r.birth_year == 2026 %} 1{% endif %}{% if r.club_raw %} · {{ r.club_raw }}{% endif %}</div>
-                        </div>
-                        <div class="list-row__end">
-                            <div class="num strong">{{ r.time_formatted }}</div>
-                            {% if r.status != 'FIN' %}{{ ui.status_chip(r.status) }}{% endif %}
-                        </div>
-                    </div>
-                {% endif %}
             </div>
         {% else %}
             <div class="empty">
