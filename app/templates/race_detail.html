@@ -133,10 +133,11 @@
                             </tr>
                         {% endfor %}
                         {% if show_gap and extra_athlete_result %}
-                            <tr class="gap-row" style="background: rgba(128, 128, 128, 0.05);">
-                                <td colspan="7" class="center muted" style="padding: 10px 0; font-size: 18px; letter-spacing: 4px; line-height: 1;">
+                            <tr class="gap-row" style="border: none;">
+                                <td class="center muted" style="padding: 6px 0; font-size: 13px; line-height: 0.85; letter-spacing: 0;">
                                     &bull;<br>&bull;<br>&bull;
                                 </td>
+                                <td colspan="6" style="padding: 6px 0;"></td>
                             </tr>
                             {% set r = extra_athlete_result %}
                             <tr class="me-row">
@@ -176,8 +177,11 @@
                     </div>
                 {% endfor %}
                 {% if show_gap and extra_athlete_result %}
-                    <div class="center muted" style="padding: 10px 0; font-size: 18px; letter-spacing: 4px; line-height: 1;">
-                        &bull;<br>&bull;<br>&bull;
+                    <div class="list-row list-row--place" style="padding: 6px 0; border: none; min-height: auto;">
+                        <span class="center muted" style="display: block; font-size: 13px; line-height: 0.85; text-align: center;">
+                            &bull;<br>&bull;<br>&bull;
+                        </span>
+                        <div></div>
                     </div>
                     {% set r = extra_athlete_result %}
                     <div class="list-row list-row--place me-row">
