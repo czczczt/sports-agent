@@ -15,7 +15,7 @@
     <div class="form-filters">
         <label class="field" style="min-width: 230px;">Период дат
             <div style="position: relative;">
-                <input class="input input--sm" type="text" id="date_range_picker" placeholder="Выберите даты…" readonly autocomplete="off" style="cursor: pointer; padding-right: 32px;">
+                <input class="input input--sm" type="text" id="date_range_picker" placeholder="Дата или период…" readonly autocomplete="off" style="cursor: pointer; padding-right: 32px;">
                 <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-muted); display: flex;">{{ ui.icon('calendar', 'icon-sm') }}</span>
             </div>
             <input type="hidden" id="date_from" name="date_from" value="{{ filters.date_from or '' }}">
@@ -130,6 +130,14 @@
         return `${year}-${month}-${day}`;
     }
 
+    function formatDateRu(d) {
+        if (!d) return '';
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}.${month}.${year}`;
+    }
+
     function parseISODate(s) {
         if (!s || !/^\d{4}-\d{2}-\d{2}/.test(s)) return null;
         const p = s.slice(0, 10).split('-');
@@ -139,11 +147,26 @@
     // Инициализация Air Datepicker
     const dp = new AirDatepicker(input, {
         range: true,
+        toggleSelected: false,
         multipleDatesSeparator: ' — ',
         minDate: new Date(1920, 0, 1),
         maxDate: new Date(2026, 11, 31, 23, 59, 59),
         autoClose: true,
-        buttons: ['today', 'clear'],
+        buttons: [
+            {
+                content: 'Только эта дата',
+                className: 'air-datepicker-button-single',
+                onClick: (picker) => {
+                    if (picker.selectedDates.length >= 1) {
+                        const d = picker.selectedDates[0];
+                        picker.selectDate([d, d]);
+                        picker.hide();
+                    }
+                }
+            },
+            'today',
+            'clear'
+        ],
         locale: {
             days: ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'],
             daysShort: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
@@ -157,27 +180,57 @@
             firstDay: 1
         },
         onSelect({date}) {
-            if (Array.isArray(date) && date.length > 0) {
+            if (Array.isArray(date) && date.length === 1) {
+                // Если кликнута одна дата — сразу отображаем её в поле и синхронизируем фильтры
+                input.value = formatDateRu(date[0]);
                 inputFrom.value = toISODate(date[0]);
-                inputTo.value = date.length > 1 ? toISODate(date[1]) : toISODate(date[0]);
+                inputTo.value = toISODate(date[0]);
+            } else if (Array.isArray(date) && date.length >= 2) {
+                if (date[0].getTime() === date[1].getTime()) {
+                    input.value = formatDateRu(date[0]);
+                }
+                inputFrom.value = toISODate(date[0]);
+                inputTo.value = toISODate(date[1]);
             } else {
                 inputFrom.value = '';
                 inputTo.value = '';
             }
+        },
+        onHide() {
+            // При закрытии календаря, если выбрана одна дата — сохраняем её
+            if (dp.selectedDates.length === 1) {
+                const d = dp.selectedDates[0];
+                input.value = formatDateRu(d);
+                inputFrom.value = toISODate(d);
+                inputTo.value = toISODate(d);
+            }
         }
     });
+
+    // Клик по уже выделенной дате повторно фиксирует эту одну дату и закрывает календарь
+    document.addEventListener('click', function(e) {
+        const cell = e.target.closest('.air-datepicker-cell.-day-.-selected-');
+        if (cell && dp.selectedDates.length === 1) {
+            const d = dp.selectedDates[0];
+            dp.selectDate([d, d]);
+            dp.hide();
+        }
+    }, true);
 
     // Установка начальных дат из URL-параметров
     const initFrom = parseISODate(inputFrom.value);
     const initTo = parseISODate(inputTo.value);
-    const selected = [];
-    if (initFrom) selected.push(initFrom);
-    if (initTo && (!initFrom || initTo.getTime() !== initFrom.getTime())) selected.push(initTo);
-    if (selected.length > 0) {
-        dp.selectDate(selected);
+    if (initFrom && initTo && initFrom.getTime() === initTo.getTime()) {
+        dp.selectDate(initFrom);
+        input.value = formatDateRu(initFrom);
+    } else {
+        const selected = [];
+        if (initFrom) selected.push(initFrom);
+        if (initTo) selected.push(initTo);
+        if (selected.length > 0) {
+            dp.selectDate(selected);
+        }
     }
-
-
 })();
 </script>
 {% endblock %}
