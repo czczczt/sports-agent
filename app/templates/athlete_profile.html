@@ -240,7 +240,7 @@
                 const numWidth = ctx.measureText(sampleNum).width;
                 const numCenterX = yAxis.right - 3 - (numWidth / 2);
 
-                const yLabelY = yAxis.top - 8;
+                const yLabelY = yAxis.top - 14;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'bottom';
                 ctx.fillStyle = muted;
@@ -272,7 +272,7 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 layout: {
-                    padding: { top: 22, bottom: 0, left: 0, right: 12 }
+                    padding: { top: 28, bottom: 0, left: 0, right: 12 }
                 },
                 plugins: {
                     legend: { display: false },
@@ -308,7 +308,7 @@
                     y: {
                         reverse: true,
                         ticks: {
-                            color: '#ffffff',
+                            color: muted,
                             font,
                             callback: val => (typeof val === 'number') ? val.toFixed(1).replace('.', ',') : val
                         },
