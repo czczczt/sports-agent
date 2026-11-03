@@ -63,12 +63,14 @@
         </section>
 
         <section class="card card--pad">
-            <h2 class="h2" style="margin-bottom: 20px;">Темп по стартам</h2>
+            <h2 class="h2" style="margin-bottom: 12px;">Темп по стартам</h2>
             {% if summary.dynamics %}
-                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 2px; padding-left: 2px;">время</div>
-                <div class="chart-box chart-box--sm"><canvas id="dynamicsChart" role="img" aria-label="График темпа спортсмена по датам стартов"></canvas></div>
+                <div style="position: relative;">
+                    <div style="font-size: 11px; color: var(--text-muted); line-height: 1; margin-bottom: -4px; padding-left: 2px;">время</div>
+                    <div class="chart-box chart-box--sm"><canvas id="dynamicsChart" role="img" aria-label="График темпа спортсмена по датам стартов"></canvas></div>
+                </div>
             {% else %}
-                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px; padding-left: 2px;">время</div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px; padding-left: 2px;">время</div>
                 <p class="small muted">Недостаточно данных для графика.</p>
             {% endif %}
         </section>
@@ -224,49 +226,8 @@
             pointRadiusArr = 4;
         }
 
-        // Кастомный плагин для раздельной раскраски многострочных меток (дата - белый, дистанция - muted)
-        const customXLabelPlugin = {
-            id: 'customXLabelPlugin',
-            afterDraw: function(c) {
-                const ctx = c.ctx;
-                const xAxis = c.scales.x;
-                if (!xAxis) return;
-                ctx.save();
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'top';
-
-                xAxis.ticks.forEach(function(tick, index) {
-                    const labelVal = chartLabels[index];
-                    if (!labelVal) return;
-                    const xPos = xAxis.getPixelForTick(index);
-                    const yPos = xAxis.top + 8;
-
-                    if (Array.isArray(labelVal)) {
-                        const dateText = labelVal[0] || '';
-                        const distText = labelVal[1] || '';
-
-                        ctx.font = "bold 11px 'Golos Text', system-ui, sans-serif";
-                        ctx.fillStyle = textWhite;
-                        ctx.fillText(dateText, xPos, yPos);
-
-                        if (distText) {
-                            ctx.font = "11px 'Golos Text', system-ui, sans-serif";
-                            ctx.fillStyle = muted;
-                            ctx.fillText(distText, xPos, yPos + 16);
-                        }
-                    } else if (labelVal.trim()) {
-                        ctx.font = "11px 'Golos Text', system-ui, sans-serif";
-                        ctx.fillStyle = textWhite;
-                        ctx.fillText(labelVal, xPos, yPos);
-                    }
-                });
-                ctx.restore();
-            }
-        };
-
         chart = new Chart(el, {
             type: 'line',
-            plugins: [customXLabelPlugin],
             data: {
                 labels: chartLabels,
                 datasets: [{
@@ -285,6 +246,9 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: { top: 6, bottom: 2, left: 0, right: 0 }
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -311,7 +275,10 @@
                 scales: {
                     x: {
                         ticks: {
-                            display: false,
+                            display: true,
+                            color: '#ffffff',
+                            font: { family: "'Golos Text', system-ui, sans-serif", size: 11, weight: '500' },
+                            maxRotation: 0,
                             autoSkip: false
                         },
                         grid: { display: false }
