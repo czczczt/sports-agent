@@ -126,6 +126,17 @@ class TestSportsAgentMVP(unittest.TestCase):
             search_res = resp_search.json()
             self.assertTrue(any(r["bib"] == sample_bib for r in search_res))
 
+        # Поиск в протоколе с маленькой буквы и неточный текст
+        sample_name = results[0]["full_name_raw"]
+        if sample_name:
+            resp_lower = client.get(f"/races/{race_id}/results?search={sample_name.lower()}")
+            self.assertEqual(resp_lower.status_code, 200)
+            self.assertGreater(len(resp_lower.json()), 0)
+            token = sample_name.split()[0][:4].lower()
+            resp_part = client.get(f"/races/{race_id}/results?search={token}")
+            self.assertEqual(resp_part.status_code, 200)
+            self.assertGreater(len(resp_part.json()), 0)
+
         # Блок 'Конкуренция'
         resp_comp = client.get(f"/races/{race_id}/competition")
         self.assertEqual(resp_comp.status_code, 200)

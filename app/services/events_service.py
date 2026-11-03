@@ -188,16 +188,28 @@ def get_race_results(
     conditions = ["r.race_id = ?", "r.duplicate_of IS NULL"]
     params: List[Any] = [race_id]
 
+    try:
+        conn.create_function("ru_lower", 1, lambda s: (s or "").lower().replace("ё", "е"))
+    except Exception:
+        pass
+
     if search_query:
         sq = search_query.strip()
-        if sq.isdigit():
-            conditions.append("r.bib = ?")
-            params.append(int(sq))
+        clean_num = re.sub(r"^[№#\s]+", "", sq)
+        if clean_num.isdigit():
+            conditions.append("(r.bib = ? OR a.name_key LIKE ?)")
+            params.extend([int(clean_num), f"%{clean_num}%"])
         else:
-            norm = normalize_term(sq)
-            conditions.append("(r.full_name_raw LIKE ? OR LOWER(r.full_name_raw) LIKE ?)")
-            pat = f"%{norm}%"
-            params.extend([f"%{sq}%", pat])
+            tokens = re.findall(r"[a-zа-я0-9]+", sq.lower().replace("ё", "е"))
+            if tokens:
+                for token in tokens:
+                    pat = f"%{token}%"
+                    conditions.append("(a.name_key LIKE ? OR ru_lower(r.full_name_raw) LIKE ?)")
+                    params.extend([pat, pat])
+            else:
+                pat = f"%{sq.lower().replace('ё', 'е')}%"
+                conditions.append("(a.name_key LIKE ? OR ru_lower(r.full_name_raw) LIKE ?)")
+                params.extend([pat, pat])
 
     where_clause = " AND ".join(conditions)
     query = f"""
@@ -217,6 +229,7 @@ def get_race_results(
             r.status
         FROM result r
         LEFT JOIN result_athlete ral ON ral.result_id = r.id
+        LEFT JOIN athlete a ON a.id = ral.athlete_id
         WHERE {where_clause}
         ORDER BY 
             CASE WHEN r.status = 'FIN' THEN 0 ELSE 1 END,
