@@ -118,7 +118,7 @@
                                     <td class="num muted nowrap">{{ ui.date_ru(r.event_date) }}</td>
                                     <td>
                                         <a href="/races-view/{{ r.race_id }}?athlete_id={{ a.id }}" class="cell-title">{{ r.event_title }}</a>
-                                        <div class="cell-sub">{{ r.distance_name }}{% if r.norm_distance %} · {{ r.norm_distance }}{% endif %} · {{ ui.source(r.source_name) }}</div>
+                                        <div class="cell-sub">{{ r.distance_name }} · {{ ui.source(r.source_name) }}</div>
                                     </td>
                                     <td class="num right strong nowrap">{{ r.time_formatted }}{% if r.gun_time_s %}<div class="cell-sub">пист. {{ ui.hms(r.gun_time_s) }}</div>{% endif %}</td>
                                     <td class="num right nowrap">{{ r.pace_formatted }}</td>
