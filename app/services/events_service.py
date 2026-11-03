@@ -204,13 +204,18 @@ def get_race_results(
     items = []
     for r in rows:
         time_s = r["chip_time_s"] if r["chip_time_s"] is not None else r["gun_time_s"]
+        raw_age = r["age"]
+        if raw_age == 0 or (raw_age is None and r["birth_year"] == 2026):
+            display_age = 1
+        else:
+            display_age = raw_age
         items.append(RaceProtocolItem(
             result_id=r["result_id"],
             athlete_id=r["athlete_id"],
             bib=r["bib"],
             full_name_raw=r["full_name_raw"] or "Участник",
             gender=r["gender"],
-            age=r["age"],
+            age=display_age,
             birth_year=r["birth_year"],
             club_raw=r["club_raw"],
             place_abs=r["place_abs"],
