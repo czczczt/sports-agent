@@ -65,7 +65,7 @@
         <section class="card card--pad">
             <h2 class="h2" style="margin-bottom: 2px;">Темп по стартам</h2>
             {% if summary.dynamics %}
-                <div class="chart-box chart-box--sm" style="height: 200px;"><canvas id="dynamicsChart" role="img" aria-label="График темпа спортсмена по датам стартов"></canvas></div>
+                <div class="chart-box chart-box--sm" style="height: 165px;"><canvas id="dynamicsChart" role="img" aria-label="График темпа спортсмена по датам стартов"></canvas></div>
             {% else %}
                 <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; margin-bottom: 4px;">время</div>
                 <p class="small muted">Недостаточно данных для графика.</p>
@@ -240,7 +240,7 @@
                 const numWidth = ctx.measureText(sampleNum).width;
                 const numCenterX = yAxis.right - 3 - (numWidth / 2);
 
-                const yLabelY = yAxis.top - 4;
+                const yLabelY = yAxis.top - 8;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'bottom';
                 ctx.fillStyle = muted;
@@ -272,7 +272,7 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 layout: {
-                    padding: { top: 14, bottom: 6, left: 0, right: 12 }
+                    padding: { top: 22, bottom: 0, left: 0, right: 12 }
                 },
                 plugins: {
                     legend: { display: false },
@@ -308,7 +308,7 @@
                     y: {
                         reverse: true,
                         ticks: {
-                            color: muted,
+                            color: '#ffffff',
                             font,
                             callback: val => (typeof val === 'number') ? val.toFixed(1).replace('.', ',') : val
                         },
