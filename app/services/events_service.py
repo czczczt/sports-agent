@@ -21,11 +21,13 @@ def list_events(
     params: List[Any] = []
 
     if date_from:
-        conditions.append("e.date_begin >= ?")
-        params.append(date_from)
+        clean_from = date_from.strip()[:10]
+        conditions.append("substr(e.date_begin, 1, 10) >= ?")
+        params.append(clean_from)
     if date_to:
-        conditions.append("e.date_begin <= ?")
-        params.append(date_to)
+        clean_to = date_to.strip()[:10]
+        conditions.append("substr(e.date_begin, 1, 10) <= ?")
+        params.append(clean_to)
     if city:
         conditions.append("(e.place LIKE ? OR e.address LIKE ?)")
         city_pat = f"%{city}%"
