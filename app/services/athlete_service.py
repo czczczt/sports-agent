@@ -163,12 +163,15 @@ def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[Athle
             ra.name_raw AS distance_name,
             ra.norm_distance,
             ra.distance_m,
+            ra.total_count AS race_total_count,
             r.place_abs,
             r.place_gender,
             r.chip_time_s,
             r.gun_time_s,
             r.status,
-            r.bib
+            r.bib,
+            (SELECT max(r2.place_abs) FROM result r2 WHERE r2.race_id = r.race_id AND r2.duplicate_of IS NULL) AS max_fin_place,
+            (SELECT count(*) FROM result r3 WHERE r3.race_id = r.race_id AND r3.duplicate_of IS NULL) AS race_participants_count
         FROM result_athlete ral
         JOIN result r ON r.id = ral.result_id
         JOIN race ra ON ra.id = r.race_id
@@ -196,6 +199,8 @@ def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[Athle
             pl_abs = r["place_abs"]
             pl_gender = r["place_gender"]
 
+        tot_fin = r["max_fin_place"]
+        tot_part = r["race_total_count"] or r["race_participants_count"]
         results.append(AthleteResultItem(
             result_id=r["result_id"],
             event_id=r["event_id"],
@@ -208,6 +213,8 @@ def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[Athle
             distance_m=dist_m,
             place_abs=pl_abs,
             place_gender=pl_gender,
+            total_finishers=tot_fin,
+            total_participants=tot_part,
             chip_time_s=r["chip_time_s"],
             gun_time_s=r["gun_time_s"],
             time_formatted=time_fmt,

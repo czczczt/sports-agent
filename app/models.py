@@ -26,6 +26,8 @@ class AthleteResultItem(BaseModel):
     distance_m: Optional[int] = None
     place_abs: Optional[Union[int, str]] = None
     place_gender: Optional[Union[int, str]] = None
+    total_finishers: Optional[int] = None
+    total_participants: Optional[int] = None
     chip_time_s: Optional[float] = None
     gun_time_s: Optional[float] = None
     time_formatted: str

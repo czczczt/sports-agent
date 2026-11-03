@@ -113,7 +113,7 @@
                                 <th scope="col">Старт</th>
                                 <th scope="col" class="right">Время</th>
                                 <th scope="col" class="right">Темп</th>
-                                <th scope="col" class="center">Место<br><span class="small">абс / пол</span></th>
+                                <th scope="col" class="center">Место</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -126,7 +126,7 @@
                                     </td>
                                     <td class="num right strong nowrap">{{ r.time_formatted }}{% if r.status == 'FIN' and r.gun_time_s %}<div class="cell-sub">пист. {{ ui.hms(r.gun_time_s) }}</div>{% endif %}</td>
                                     <td class="num right nowrap">{{ r.pace_formatted }}</td>
-                                    <td class="num center nowrap">{% if r.status in ['DNS', 'DNF', 'DSQ', 'NC'] %}<span class="strong">{{ r.status }}</span>{% else %}<span class="strong">{{ r.place_abs or '—' }}</span> <span class="muted">/ {{ r.place_gender or '—' }}</span>{% endif %}</td>
+                                    <td class="num center nowrap">{% if r.status in ['DNS', 'DNF', 'DSQ', 'NC'] %}<span class="strong">{{ r.status }}</span>{% elif r.place_abs and r.total_participants %}<span class="strong">{{ r.place_abs }}</span> <span class="muted">/ {{ r.total_participants }}</span>{% else %}<span class="strong">{{ r.place_abs or '—' }}</span>{% endif %}</td>
                                 </tr>
                             {% endfor %}
                         </tbody>
@@ -138,7 +138,7 @@
                         <a href="/races-view/{{ r.race_id }}?athlete_id={{ a.id }}" class="list-row" style="text-decoration: none;">
                             <div style="min-width: 0;">
                                 <div class="list-row__title">{{ r.event_title }}</div>
-                                <div class="list-row__meta num">{{ ui.date_ru(r.event_date) }} · {{ r.distance_name }} · {% if r.status in ['DNS', 'DNF', 'DSQ', 'NC'] %}{{ r.status }}{% else %}{{ r.place_abs or '—' }} место{% endif %}</div>
+                                <div class="list-row__meta num">{{ ui.date_ru(r.event_date) }} · {{ r.distance_name }} · {% if r.status in ['DNS', 'DNF', 'DSQ', 'NC'] %}{{ r.status }}{% elif r.place_abs and r.total_participants %}{{ r.place_abs }} / {{ r.total_participants }} место{% else %}{{ r.place_abs or '—' }} место{% endif %}</div>
                             </div>
                             <div class="list-row__end">
                                 <div class="num strong">{{ r.time_formatted }}</div>
