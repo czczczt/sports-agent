@@ -91,6 +91,7 @@ def search_athletes(
             SELECT id, display_name, birth_year, gender, city, region, club, starts_count, results_count
             FROM athlete
             WHERE name_key LIKE ?
+              AND starts_count > 0
               AND (birth_year IS NULL OR abs(birth_year - ?) <= 1)
             ORDER BY 
                 starts_count DESC,
@@ -105,6 +106,7 @@ def search_athletes(
             SELECT id, display_name, birth_year, gender, city, region, club, starts_count, results_count
             FROM athlete
             WHERE name_key LIKE ?
+              AND starts_count > 0
             ORDER BY starts_count DESC, results_count DESC, id ASC
             LIMIT ?
         """
@@ -178,6 +180,7 @@ def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[Athle
         JOIN event e ON e.id = ra.event_id
         JOIN source s ON s.id = e.source_id
         WHERE ral.athlete_id = ?
+          AND r.status = 'FIN'
           AND r.duplicate_of IS NULL
         ORDER BY e.date_begin DESC, r.id DESC
     """, (athlete_id,)).fetchall()
@@ -187,17 +190,10 @@ def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[Athle
         status = r["status"]
         time_s = r["chip_time_s"] if r["chip_time_s"] is not None else r["gun_time_s"]
         dist_m = r["distance_m"]
-        
-        if status in ("DNS", "DNF", "DSQ", "NC"):
-            time_fmt = status
-            pace_fmt = status
-            pl_abs = status
-            pl_gender = status
-        else:
-            time_fmt = format_time(time_s)
-            pace_fmt = format_pace(time_s, dist_m)
-            pl_abs = r["place_abs"]
-            pl_gender = r["place_gender"]
+        time_fmt = format_time(time_s)
+        pace_fmt = format_pace(time_s, dist_m)
+        pl_abs = r["place_abs"]
+        pl_gender = r["place_gender"]
 
         tot_fin = r["max_fin_place"]
         tot_part = r["race_total_count"] or r["race_participants_count"]
