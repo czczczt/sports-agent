@@ -182,7 +182,7 @@ class TestSportsAgentMVP(unittest.TestCase):
         aid = cur.execute("SELECT id FROM athlete LIMIT 1").fetchone()["id"]
         resp_profile = client.get(f"/athletes-view/{aid}")
         self.assertEqual(resp_profile.status_code, 200)
-        self.assertIn("ИИ-оценка спортсмена", resp_profile.text)
+        self.assertIn("ИИ-оценка", resp_profile.text)
 
 
 if __name__ == "__main__":

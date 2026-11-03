@@ -58,16 +58,15 @@
                     </div>
                 </div>
             {% else %}
-                <div class="empty" style="padding-top: 8px;"><p class="small muted">Недостаточно данных.</p></div>
+                <div style="padding: 16px 20px;"><p class="small muted">Недостаточно данных.</p></div>
             {% endfor %}
         </section>
 
         <section class="card card--pad">
-            <h2 class="h2" style="margin-bottom: 2px;">Темп по стартам</h2>
+            <h2 class="h2" style="margin-bottom: {% if summary.dynamics %}2px{% else %}12px{% endif %};">Темп по стартам</h2>
             {% if summary.dynamics %}
                 <div class="chart-box chart-box--sm" style="height: 165px;"><canvas id="dynamicsChart" role="img" aria-label="График темпа спортсмена по датам стартов"></canvas></div>
             {% else %}
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; margin-bottom: 4px;">время</div>
                 <p class="small muted">Недостаточно данных для графика.</p>
             {% endif %}
         </section>
@@ -75,10 +74,9 @@
 
     <div class="cols__main">
         <section id="agent" class="card card--pad">
-            <div class="row row--between" style="align-items: flex-start;">
+            <div class="row row--between" style="align-items: center;">
                 <div style="min-width: 0; flex: 1 1 260px;">
-                    <h2 class="h2">ИИ-оценка спортсмена</h2>
-                    <p class="small muted" style="margin-top: 4px;">Прогресс, процентили в протоколах и стабильность темпа. Метрики считает бэкенд, текст пишет GigaChat.</p>
+                    <h2 class="h2">ИИ-оценка</h2>
                 </div>
                 <button type="button" id="btn-toggle-assessment" class="btn btn--primary btn--stretch-mobile" data-athlete-id="{{ a.id }}">
                     {{ ui.icon('spark') }}<span id="btn-text">Показать отчёт</span>
