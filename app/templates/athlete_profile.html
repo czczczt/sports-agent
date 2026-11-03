@@ -236,8 +236,12 @@
 
                 ctx.save();
 
-                // 1. Рисуем "время" ровно над вертикальной осью Y
-                const yCenterX = (yAxis.left + yAxis.right) / 2;
+                // 1. Рисуем "время" над вертикальной осью Y без обрезания слева
+                const textWidth = ctx.measureText('время').width;
+                let yCenterX = (yAxis.left + yAxis.right) / 2;
+                if (yCenterX - textWidth / 2 < 4) {
+                    yCenterX = 4 + textWidth / 2;
+                }
                 const yLabelY = yAxis.top - 6;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'bottom';
@@ -301,7 +305,7 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 layout: {
-                    padding: { top: 20, bottom: 32, left: 0, right: 0 }
+                    padding: { top: 20, bottom: 32, left: 12, right: 6 }
                 },
                 plugins: {
                     legend: { display: false },
