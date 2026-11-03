@@ -29,10 +29,9 @@ def list_events(
         conditions.append("substr(e.date_begin, 1, 10) <= ?")
         params.append(clean_to)
     if city:
-        clean_city = city.strip().lower().replace("ё", "е")
-        conditions.append("(ru_lower(e.place) LIKE ? OR ru_lower(e.address) LIKE ?)")
-        city_pat = f"%{clean_city}%"
-        params.extend([city_pat, city_pat])
+        clean_city = city.strip()
+        conditions.append("match_city(?, e.place, e.address)")
+        params.append(clean_city)
     if source:
         conditions.append("s.name = ?")
         params.append(source.lower())
