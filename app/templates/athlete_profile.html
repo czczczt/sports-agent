@@ -63,9 +63,9 @@
         </section>
 
         <section class="card card--pad">
-            <h2 class="h2" style="margin-bottom: 8px;">Темп по стартам</h2>
+            <h2 class="h2" style="margin-bottom: 2px;">Темп по стартам</h2>
             {% if summary.dynamics %}
-                <div class="chart-box chart-box--sm" style="height: 220px;"><canvas id="dynamicsChart" role="img" aria-label="График темпа спортсмена по датам стартов"></canvas></div>
+                <div class="chart-box chart-box--sm" style="height: 200px;"><canvas id="dynamicsChart" role="img" aria-label="График темпа спортсмена по датам стартов"></canvas></div>
             {% else %}
                 <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; margin-bottom: 4px;">время</div>
                 <p class="small muted">Недостаточно данных для графика.</p>
@@ -223,57 +223,28 @@
             pointRadiusArr = 4;
         }
 
-        // Плагин отрисовки:
-        // 1) Слово "время" точно над центром шкалы Y (чисел темпа)
-        // 2) Дата (белым) и дистанция (серым muted) под каждым делением шкалы X
+        // Плагин отрисовки слова "время" строго по центральной вертикальной линии чисел оси Y
         const chartDrawPlugin = {
             id: 'chartDrawPlugin',
             afterDraw: function(c) {
                 const ctx = c.ctx;
                 const yAxis = c.scales.y;
-                const xAxis = c.scales.x;
-                if (!yAxis || !xAxis) return;
+                if (!yAxis) return;
 
                 ctx.save();
+                ctx.font = "11px 'Golos Text', system-ui, sans-serif";
 
-                // 1. Рисуем "время" строго по центру шкалы Y
-                const yCenterX = (yAxis.left + yAxis.right) / 2;
-                const yLabelY = yAxis.top - 6;
+                // В Chart.js числа на оси Y выравниваются по правому краю: x = yAxis.right - 3
+                // Чтобы центр слова 'время' был строго на одной вертикальной линии с центром чисел:
+                const sampleNum = '5,0';
+                const numWidth = ctx.measureText(sampleNum).width;
+                const numCenterX = yAxis.right - 3 - (numWidth / 2);
+
+                const yLabelY = yAxis.top - 4;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'bottom';
-                ctx.font = "11px 'Golos Text', system-ui, sans-serif";
                 ctx.fillStyle = muted;
-                ctx.fillText('время', Math.max(16, yCenterX), yLabelY);
-
-                // 2. Рисуем метки оси X: дата (белая), дистанция (серая)
-                ctx.textBaseline = 'top';
-                xAxis.ticks.forEach(function(tick, index) {
-                    const labelVal = chartLabels[index];
-                    if (!labelVal) return;
-                    const xPos = xAxis.getPixelForTick(index);
-                    const yPos = xAxis.bottom + 6;
-
-                    if (Array.isArray(labelVal)) {
-                        const dateText = labelVal[0] || '';
-                        const distText = labelVal[1] || '';
-
-                        // Дата - белый цвет
-                        ctx.font = "bold 11px 'Golos Text', system-ui, sans-serif";
-                        ctx.fillStyle = textWhite;
-                        ctx.fillText(dateText, xPos, yPos);
-
-                        // КМ / метры - серый (muted) цвет
-                        if (distText) {
-                            ctx.font = "11px 'Golos Text', system-ui, sans-serif";
-                            ctx.fillStyle = muted;
-                            ctx.fillText(distText, xPos, yPos + 15);
-                        }
-                    } else if (labelVal.trim()) {
-                        ctx.font = "bold 11px 'Golos Text', system-ui, sans-serif";
-                        ctx.fillStyle = textWhite;
-                        ctx.fillText(labelVal, xPos, yPos);
-                    }
-                });
+                ctx.fillText('время', numCenterX, yLabelY);
 
                 ctx.restore();
             }
@@ -301,7 +272,7 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 layout: {
-                    padding: { top: 20, bottom: 32, left: 0, right: 12 }
+                    padding: { top: 14, bottom: 6, left: 0, right: 12 }
                 },
                 plugins: {
                     legend: { display: false },
