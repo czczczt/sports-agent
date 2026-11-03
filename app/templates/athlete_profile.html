@@ -63,13 +63,12 @@
         </section>
 
         <section class="card card--pad">
-            <div>
-                <h2 class="h2">Темп по стартам</h2>
-                <p class="small muted" style="margin-top: 4px;">время</p>
-            </div>
+            <h2 class="h2" style="margin-bottom: 20px;">Темп по стартам</h2>
             {% if summary.dynamics %}
+                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 2px; padding-left: 2px;">время</div>
                 <div class="chart-box chart-box--sm"><canvas id="dynamicsChart" role="img" aria-label="График темпа спортсмена по датам стартов"></canvas></div>
             {% else %}
+                <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px; padding-left: 2px;">время</div>
                 <p class="small muted">Недостаточно данных для графика.</p>
             {% endif %}
         </section>
@@ -207,22 +206,79 @@
             return dateStr;
         }
 
-        const labels = data.map(d => [formatDayMonth(d.date), formatShortDist(d)]);
+        const textWhite = '#ffffff';
+        let chartLabels = [];
+        let chartDataPoints = [];
+        let pointRadiusArr = [];
+        let isSingle = (data.length === 1);
+
+        if (isSingle) {
+            const singlePace = data[0].pace_s_per_km ? +(data[0].pace_s_per_km / 60).toFixed(2) : null;
+            const singleLbl = [formatDayMonth(data[0].date), formatShortDist(data[0])];
+            chartLabels = ['', singleLbl, ' '];
+            chartDataPoints = [singlePace, singlePace, singlePace];
+            pointRadiusArr = [0, 4, 0];
+        } else {
+            chartLabels = data.map(d => [formatDayMonth(d.date), formatShortDist(d)]);
+            chartDataPoints = data.map(d => d.pace_s_per_km ? +(d.pace_s_per_km / 60).toFixed(2) : null);
+            pointRadiusArr = 4;
+        }
+
+        // Кастомный плагин для раздельной раскраски многострочных меток (дата - белый, дистанция - muted)
+        const customXLabelPlugin = {
+            id: 'customXLabelPlugin',
+            afterDraw: function(c) {
+                const ctx = c.ctx;
+                const xAxis = c.scales.x;
+                if (!xAxis) return;
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+
+                xAxis.ticks.forEach(function(tick, index) {
+                    const labelVal = chartLabels[index];
+                    if (!labelVal) return;
+                    const xPos = xAxis.getPixelForTick(index);
+                    const yPos = xAxis.top + 8;
+
+                    if (Array.isArray(labelVal)) {
+                        const dateText = labelVal[0] || '';
+                        const distText = labelVal[1] || '';
+
+                        ctx.font = "bold 11px 'Golos Text', system-ui, sans-serif";
+                        ctx.fillStyle = textWhite;
+                        ctx.fillText(dateText, xPos, yPos);
+
+                        if (distText) {
+                            ctx.font = "11px 'Golos Text', system-ui, sans-serif";
+                            ctx.fillStyle = muted;
+                            ctx.fillText(distText, xPos, yPos + 16);
+                        }
+                    } else if (labelVal.trim()) {
+                        ctx.font = "11px 'Golos Text', system-ui, sans-serif";
+                        ctx.fillStyle = textWhite;
+                        ctx.fillText(labelVal, xPos, yPos);
+                    }
+                });
+                ctx.restore();
+            }
+        };
 
         chart = new Chart(el, {
             type: 'line',
+            plugins: [customXLabelPlugin],
             data: {
-                labels: labels,
+                labels: chartLabels,
                 datasets: [{
                     label: 'Темп, мин/км',
-                    data: data.map(d => d.pace_s_per_km ? +(d.pace_s_per_km / 60).toFixed(2) : null),
+                    data: chartDataPoints,
                     borderColor: brand,
                     backgroundColor: brand,
                     pointBackgroundColor: brand,
                     pointBorderColor: surface,
-                    pointRadius: 4,
+                    pointRadius: pointRadiusArr,
                     borderWidth: 2.5,
-                    tension: 0.25,
+                    tension: isSingle ? 0 : 0.25,
                     spanGaps: true
                 }]
             },
@@ -232,18 +288,30 @@
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        filter: function(tooltipItem) {
+                            if (isSingle) {
+                                return tooltipItem.dataIndex === 1;
+                            }
+                            return true;
+                        },
                         callbacks: {
-                            title: items => { const p = data[items[0].dataIndex]; return p.date + ' · ' + p.event_title; },
-                            label: ctx => { const p = data[ctx.dataIndex]; return ' ' + p.distance_name + ': ' + p.time_formatted + ' (' + p.pace_formatted + ')'; }
+                            title: items => {
+                                const idx = isSingle ? 0 : items[0].dataIndex;
+                                const p = data[idx];
+                                return p ? (p.date + ' · ' + p.event_title) : '';
+                            },
+                            label: ctx => {
+                                const idx = isSingle ? 0 : ctx.dataIndex;
+                                const p = data[idx];
+                                return p ? (' ' + p.distance_name + ': ' + p.time_formatted + ' (' + p.pace_formatted + ')') : '';
+                            }
                         }
                     }
                 },
                 scales: {
                     x: {
                         ticks: {
-                            color: muted,
-                            font,
-                            maxRotation: 0,
+                            display: false,
                             autoSkip: false
                         },
                         grid: { display: false }
