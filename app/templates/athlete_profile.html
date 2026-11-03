@@ -65,7 +65,7 @@
         <section class="card card--pad">
             <div>
                 <h2 class="h2">Темп по стартам</h2>
-                <p class="small muted" style="margin-top: 4px;">мин/км · выше — быстрее</p>
+                <p class="small muted" style="margin-top: 4px;">время</p>
             </div>
             {% if summary.dynamics %}
                 <div class="chart-box chart-box--sm"><canvas id="dynamicsChart" role="img" aria-label="График темпа спортсмена по датам стартов"></canvas></div>
@@ -170,10 +170,49 @@
         const brand = tok('--brand'), muted = tok('--text-muted'), grid = tok('--border-soft'), surface = tok('--surface');
         const font = { family: "'Golos Text', system-ui, sans-serif", size: 11 };
         if (chart) chart.destroy();
+        function formatShortDist(d) {
+            if (d.norm_distance) {
+                const normMap = {
+                    'marathon': '42 км',
+                    'half_marathon': '21.1 км',
+                    '10000m': '10 км',
+                    '5000m': '5 км',
+                    '3000m': '3 км',
+                    '1500m': '1.5 км',
+                    '1000m': '1 км',
+                    '800m': '800 м',
+                    '400m': '400 м',
+                    '200m': '200 м',
+                    '100m': '100 м',
+                    '60m': '60 м',
+                    '100k': '100 км'
+                };
+                if (normMap[d.norm_distance]) return normMap[d.norm_distance];
+            }
+            if (d.distance_name) {
+                const kmMatch = d.distance_name.match(/(\d+(?:[.,]\d+)?)\s*км/i);
+                if (kmMatch) return kmMatch[1].replace(',', '.') + ' км';
+                const mMatch = d.distance_name.match(/(\d+)\s*м/i);
+                if (mMatch) return mMatch[1] + ' м';
+            }
+            return d.distance_name || '';
+        }
+
+        function formatDayMonth(dateStr) {
+            if (!dateStr) return '';
+            const parts = dateStr.split(/[-T :]/);
+            if (parts.length >= 3) {
+                return parts[2].padStart(2, '0') + '.' + parts[1].padStart(2, '0');
+            }
+            return dateStr;
+        }
+
+        const labels = data.map(d => [formatDayMonth(d.date), formatShortDist(d)]);
+
         chart = new Chart(el, {
             type: 'line',
             data: {
-                labels: data.map(d => d.date),
+                labels: labels,
                 datasets: [{
                     label: 'Темп, мин/км',
                     data: data.map(d => d.pace_s_per_km ? +(d.pace_s_per_km / 60).toFixed(2) : null),
@@ -200,8 +239,24 @@
                     }
                 },
                 scales: {
-                    x: { ticks: { color: muted, font, maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }, grid: { display: false } },
-                    y: { reverse: true, ticks: { color: muted, font }, grid: { color: grid } }
+                    x: {
+                        ticks: {
+                            color: muted,
+                            font,
+                            maxRotation: 0,
+                            autoSkip: false
+                        },
+                        grid: { display: false }
+                    },
+                    y: {
+                        reverse: true,
+                        ticks: {
+                            color: muted,
+                            font,
+                            callback: val => (typeof val === 'number') ? val.toFixed(1).replace('.', ',') : val
+                        },
+                        grid: { color: grid }
+                    }
                 }
             }
         });
