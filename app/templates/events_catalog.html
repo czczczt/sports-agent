@@ -40,14 +40,7 @@
         </div>
     </div>
     
-    <div class="chips" style="margin-top: 14px; gap: 6px;">
-        <span class="small muted" style="align-self: center; margin-right: 4px;">Быстрый выбор:</span>
-        <button type="button" class="chip chip--sm btn-preset" data-from="" data-to="">Все даты</button>
-        <button type="button" class="chip chip--sm btn-preset" data-from="2026-01-01" data-to="2026-12-31">2026 год</button>
-        <button type="button" class="chip chip--sm btn-preset" data-from="2025-01-01" data-to="2025-12-31">2025 год</button>
-        <button type="button" class="chip chip--sm btn-preset" data-from="2025-06-01" data-to="2025-08-31">Лето 2025</button>
-        <button type="button" class="chip chip--sm btn-preset" data-from="2025-09-01" data-to="2025-11-30">Осень 2025</button>
-    </div>
+
 </form>
 
 {% if events %}
@@ -184,24 +177,7 @@
         dp.selectDate(selected);
     }
 
-    // Быстрые пресеты
-    document.querySelectorAll('.btn-preset').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const f = this.dataset.from;
-            const t = this.dataset.to;
-            inputFrom.value = f || '';
-            inputTo.value = t || '';
-            if (f && t) {
-                const df = parseISODate(f);
-                const dt = parseISODate(t);
-                dp.clear();
-                dp.selectDate([df, dt]);
-            } else {
-                dp.clear();
-            }
-            if (form) form.submit();
-        });
-    });
+
 })();
 </script>
 {% endblock %}
