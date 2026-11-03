@@ -13,16 +13,16 @@
 
 <form method="GET" action="/events-view" class="card card--pad" id="events-filter-form">
     <div class="form-filters">
-        <label class="field" style="min-width: 230px;">Период дат
+        <label class="field" style="min-width: 230px;">Дата
             <div style="position: relative;">
-                <input class="input input--sm" type="text" id="date_range_picker" placeholder="Дата или период…" readonly autocomplete="off" style="cursor: pointer; padding-right: 32px;">
+                <input class="input input--sm" type="text" id="date_range_picker" placeholder="01.01.2000" readonly autocomplete="off" style="cursor: pointer; padding-right: 32px;">
                 <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-muted); display: flex;">{{ ui.icon('calendar', 'icon-sm') }}</span>
             </div>
             <input type="hidden" id="date_from" name="date_from" value="{{ filters.date_from or '' }}">
             <input type="hidden" id="date_to" name="date_to" value="{{ filters.date_to or '' }}">
         </label>
         <label class="field">Город
-            <input class="input input--sm" type="text" name="city" value="{{ filters.city or '' }}" placeholder="Москва, Казань…">
+            <input class="input input--sm" type="text" name="city" value="{{ filters.city or '' }}" placeholder="Москва">
         </label>
         <label class="field">Площадка
             <select class="input input--sm" name="source">

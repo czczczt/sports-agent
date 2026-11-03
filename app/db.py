@@ -7,6 +7,7 @@ def get_db_connection() -> sqlite3.Connection:
     """Возвращает соединение с базой данных SQLite."""
     conn = sqlite3.connect(SQLITE_DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.create_function("ru_lower", 1, lambda s: (s or "").lower().replace("ё", "е"))
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
 
