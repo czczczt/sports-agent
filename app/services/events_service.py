@@ -1,4 +1,5 @@
 import sqlite3
+import re
 from typing import List, Optional, Dict, Any
 from app.models import (
     EventItem, RaceItem, RaceProtocolItem, CompetitionDistribution, DistributionBin
@@ -8,6 +9,8 @@ from app.services.athlete_service import format_time, format_pace, normalize_ter
 
 def list_events(
     conn: sqlite3.Connection,
+    query: Optional[str] = None,
+    title: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     city: Optional[str] = None,
@@ -15,10 +18,20 @@ def list_events(
     limit: int = 50,
     offset: int = 0
 ) -> List[EventItem]:
-    """Возвращает каталог стартов с фильтрами по дате, городу и площадке."""
+    """Возвращает каталог стартов с фильтрами по названию забега, дате, городу и площадке."""
     cur = conn.cursor()
     conditions = ["1=1"]
     params: List[Any] = []
+
+    search_query = (query or title or "").strip()
+    if search_query:
+        q_words = [w for w in re.findall(r"\w+", search_query.lower().replace("ё", "е")) if w]
+        for w in q_words:
+            w_pat = f"%{w}%"
+            conditions.append(
+                "(ru_lower(e.title) LIKE ? OR EXISTS (SELECT 1 FROM race r WHERE r.event_id = e.id AND ru_lower(r.name_raw) LIKE ?))"
+            )
+            params.extend([w_pat, w_pat])
 
     if date_from:
         clean_from = date_from.strip()[:10]

@@ -13,7 +13,10 @@
 
 <form method="GET" action="/events-view" class="card card--pad" id="events-filter-form">
     <div class="form-filters">
-        <label class="field" style="min-width: 230px;">Дата
+        <label class="field">Название забега
+            <input class="input input--sm" type="text" name="query" value="{{ filters.query or '' }}" placeholder="Марафон, трейл...">
+        </label>
+        <label class="field" style="min-width: 200px;">Дата
             <div style="position: relative;">
                 <input class="input input--sm" type="text" id="date_range_picker" placeholder="01.01.2000" readonly autocomplete="off" style="cursor: pointer; padding-right: 32px;">
                 <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-muted); display: flex;">{{ ui.icon('calendar', 'icon-sm') }}</span>
@@ -34,13 +37,11 @@
         </label>
         <div class="row" style="flex-wrap: nowrap;">
             <button type="submit" class="btn btn--primary btn--stretch-mobile" style="min-height: 40px;">Применить</button>
-            {% if filters.date_from or filters.date_to or filters.city or filters.source %}
+            {% if filters.query or filters.date_from or filters.date_to or filters.city or filters.source %}
                 <a href="/events-view" class="btn btn--ghost" style="min-height: 40px;">Сбросить</a>
             {% endif %}
         </div>
     </div>
-    
-
 </form>
 
 {% if events %}
@@ -108,7 +109,7 @@
     <div class="card empty">
         <span class="empty__icon">{{ ui.icon('calendar', 'icon') }}</span>
         <div class="strong">Стартов не найдено</div>
-        <p class="small muted">Измените даты, город или площадку.</p>
+        <p class="small muted">Измените параметры поиска или сбросьте фильтры.</p>
     </div>
 {% endif %}
 {% endblock %}

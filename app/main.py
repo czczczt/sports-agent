@@ -133,15 +133,18 @@ async def athlete_profile_view(
 @app.get("/events-view", response_class=HTMLResponse, include_in_schema=False)
 async def events_catalog_view(
     request: Request,
+    query: Optional[str] = Query(None),
+    title: Optional[str] = Query(None),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     city: Optional[str] = Query(None),
     source: Optional[str] = Query(None),
     db=Depends(get_db)
 ):
-    """Каталог стартов с фильтрами по дате, городу и источнику."""
+    """Каталог стартов с фильтрами по названию забега, дате, городу и источнику."""
+    search_query = query or title
     events = list_events(
-        db, date_from=date_from, date_to=date_to, city=city,
+        db, query=search_query, date_from=date_from, date_to=date_to, city=city,
         source=source, limit=60, offset=0
     )
     return templates.TemplateResponse(
@@ -150,6 +153,8 @@ async def events_catalog_view(
         context={
             "events": events,
             "filters": {
+                "query": search_query,
+                "title": search_query,
                 "date_from": date_from,
                 "date_to": date_to,
                 "city": city,

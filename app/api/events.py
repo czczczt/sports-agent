@@ -10,6 +10,8 @@ router = APIRouter(prefix="/events", tags=["events"])
 
 @router.get("", response_model=List[EventItem])
 def get_events_endpoint(
+    query: Optional[str] = Query(None, description="Поиск по названию забега"),
+    title: Optional[str] = Query(None, description="Поиск по названию забега (алиас query)"),
     date_from: Optional[str] = Query(None, description="Дата старта от (YYYY-MM-DD)"),
     date_to: Optional[str] = Query(None, description="Дата старта до (YYYY-MM-DD)"),
     city: Optional[str] = Query(None, description="Город или место проведения"),
@@ -18,9 +20,10 @@ def get_events_endpoint(
     offset: int = Query(0, ge=0),
     db: sqlite3.Connection = Depends(get_db)
 ):
-    """Каталог стартов с фильтрами по дате, городу и площадке."""
+    """Каталог стартов с фильтрами по названию забега, дате, городу и площадке."""
+    search_query = query or title
     events = list_events(
-        db, date_from=date_from, date_to=date_to, city=city,
+        db, query=search_query, date_from=date_from, date_to=date_to, city=city,
         source=source, limit=limit, offset=offset
     )
     return events
