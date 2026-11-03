@@ -536,3 +536,87 @@ a.list-row:hover { background: var(--surface-2); color: var(--text-primary); }
 @media (min-width: 761px) {
   .brand__name .br { display: none; }
 }
+
+
+/* =====================================================================
+   Стилизация Air Datepicker под тему оформления (Светлая / Тёмная)
+   ===================================================================== */
+.air-datepicker {
+  --adp-font-family: 'Golos Text', system-ui, -apple-system, sans-serif;
+  --adp-font-size: 14px;
+  --adp-width: 290px;
+  --adp-z-index: 1050;
+  --adp-padding: 12px;
+  --adp-color: var(--text-primary);
+  --adp-color-secondary: var(--text-muted);
+  --adp-background-color: var(--surface);
+  --adp-background-color-hover: var(--surface-2);
+  --adp-background-color-active: var(--surface-3, var(--surface-2));
+  --adp-background-color-in-range: var(--brand-soft);
+  --adp-background-color-in-range-focused: var(--brand-soft);
+  --adp-color-other-month: var(--text-muted);
+  --adp-color-other-month-hover: var(--text-primary);
+  --adp-border-color: var(--border);
+  --adp-border-color-inner: var(--border-soft);
+  --adp-border-radius: var(--radius-sm);
+  --adp-border-color-inline: var(--border);
+
+  --adp-nav-height: 36px;
+  --adp-nav-arrow-color: var(--text-primary);
+  --adp-nav-action-size: 32px;
+  --adp-nav-color-secondary: var(--text-muted);
+
+  --adp-day-name-color: var(--text-muted);
+  --adp-day-name-color-hover: var(--text-primary);
+
+  --adp-day-cell-height: 34px;
+  --adp-month-cell-height: 42px;
+  --adp-year-cell-height: 52px;
+
+  --adp-btn-height: 32px;
+  --adp-btn-color: var(--brand);
+  --adp-btn-color-hover: var(--brand);
+  --adp-btn-background-color-hover: var(--brand-soft);
+  --adp-btn-background-color-active: var(--brand-soft);
+
+  --adp-cell-border-radius: 6px;
+  --adp-cell-background-color-selected: var(--brand);
+  --adp-cell-background-color-selected-hover: var(--brand);
+  --adp-cell-border-color-in-range: transparent;
+
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--border);
+}
+
+[data-theme="dark"] .air-datepicker {
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+}
+
+.air-datepicker-cell.-selected-,
+.air-datepicker-cell.-selected-.-focus- {
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+.air-datepicker-cell.-in-range- {
+  color: var(--text-primary) !important;
+}
+
+.air-datepicker-cell.-current- {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.air-datepicker-cell.-current-.-selected- {
+  color: #ffffff !important;
+}
+
+.air-datepicker-nav__title {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.air-datepicker-nav__action path {
+  fill: none;
+  stroke: var(--text-primary);
+}

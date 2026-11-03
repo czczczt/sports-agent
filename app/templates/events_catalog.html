@@ -11,13 +11,15 @@
     </div>
 </div>
 
-<form method="GET" action="/events-view" class="card card--pad">
+<form method="GET" action="/events-view" class="card card--pad" id="events-filter-form">
     <div class="form-filters">
-        <label class="field">Дата от
-            <input class="input input--sm" type="date" name="date_from" value="{{ filters.date_from or '' }}">
-        </label>
-        <label class="field">Дата до
-            <input class="input input--sm" type="date" name="date_to" value="{{ filters.date_to or '' }}">
+        <label class="field" style="min-width: 230px;">Период дат
+            <div style="position: relative;">
+                <input class="input input--sm" type="text" id="date_range_picker" placeholder="Выберите даты…" readonly autocomplete="off" style="cursor: pointer; padding-right: 32px;">
+                <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-muted); display: flex;">{{ ui.icon('calendar', 'icon-sm') }}</span>
+            </div>
+            <input type="hidden" id="date_from" name="date_from" value="{{ filters.date_from or '' }}">
+            <input type="hidden" id="date_to" name="date_to" value="{{ filters.date_to or '' }}">
         </label>
         <label class="field">Город
             <input class="input input--sm" type="text" name="city" value="{{ filters.city or '' }}" placeholder="Москва, Казань…">
@@ -36,6 +38,15 @@
                 <a href="/events-view" class="btn btn--ghost" style="min-height: 40px;">Сбросить</a>
             {% endif %}
         </div>
+    </div>
+    
+    <div class="chips" style="margin-top: 14px; gap: 6px;">
+        <span class="small muted" style="align-self: center; margin-right: 4px;">Быстрый выбор:</span>
+        <button type="button" class="chip chip--sm btn-preset" data-from="" data-to="">Все даты</button>
+        <button type="button" class="chip chip--sm btn-preset" data-from="2026-01-01" data-to="2026-12-31">2026 год</button>
+        <button type="button" class="chip chip--sm btn-preset" data-from="2025-01-01" data-to="2025-12-31">2025 год</button>
+        <button type="button" class="chip chip--sm btn-preset" data-from="2025-06-01" data-to="2025-08-31">Лето 2025</button>
+        <button type="button" class="chip chip--sm btn-preset" data-from="2025-09-01" data-to="2025-11-30">Осень 2025</button>
     </div>
 </form>
 
@@ -107,4 +118,90 @@
         <p class="small muted">Измените даты, город или площадку.</p>
     </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    const input = document.getElementById('date_range_picker');
+    const inputFrom = document.getElementById('date_from');
+    const inputTo = document.getElementById('date_to');
+    const form = document.getElementById('events-filter-form');
+    if (!input || !inputFrom || !inputTo) return;
+
+    function toISODate(d) {
+        if (!d) return '';
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function parseISODate(s) {
+        if (!s || !/^\d{4}-\d{2}-\d{2}/.test(s)) return null;
+        const p = s.slice(0, 10).split('-');
+        return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+    }
+
+    // Инициализация Air Datepicker
+    const dp = new AirDatepicker(input, {
+        range: true,
+        multipleDatesSeparator: ' — ',
+        minDate: new Date(1920, 0, 1),
+        maxDate: new Date(2026, 11, 31, 23, 59, 59),
+        autoClose: true,
+        buttons: ['today', 'clear'],
+        locale: {
+            days: ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'],
+            daysShort: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
+            daysMin: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
+            months: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
+            monthsShort: ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'],
+            today: 'Сегодня',
+            clear: 'Очистить',
+            dateFormat: 'dd.MM.yyyy',
+            timeFormat: 'HH:mm',
+            firstDay: 1
+        },
+        onSelect({date}) {
+            if (Array.isArray(date) && date.length > 0) {
+                inputFrom.value = toISODate(date[0]);
+                inputTo.value = date.length > 1 ? toISODate(date[1]) : toISODate(date[0]);
+            } else {
+                inputFrom.value = '';
+                inputTo.value = '';
+            }
+        }
+    });
+
+    // Установка начальных дат из URL-параметров
+    const initFrom = parseISODate(inputFrom.value);
+    const initTo = parseISODate(inputTo.value);
+    const selected = [];
+    if (initFrom) selected.push(initFrom);
+    if (initTo && (!initFrom || initTo.getTime() !== initFrom.getTime())) selected.push(initTo);
+    if (selected.length > 0) {
+        dp.selectDate(selected);
+    }
+
+    // Быстрые пресеты
+    document.querySelectorAll('.btn-preset').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const f = this.dataset.from;
+            const t = this.dataset.to;
+            inputFrom.value = f || '';
+            inputTo.value = t || '';
+            if (f && t) {
+                const df = parseISODate(f);
+                const dt = parseISODate(t);
+                dp.clear();
+                dp.selectDate([df, dt]);
+            } else {
+                dp.clear();
+            }
+            if (form) form.submit();
+        });
+    });
+})();
+</script>
 {% endblock %}
