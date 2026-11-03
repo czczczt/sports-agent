@@ -63,14 +63,11 @@
         </section>
 
         <section class="card card--pad">
-            <h2 class="h2" style="margin-bottom: 12px;">Темп по стартам</h2>
+            <h2 class="h2" style="margin-bottom: 8px;">Темп по стартам</h2>
             {% if summary.dynamics %}
-                <div style="position: relative;">
-                    <div style="font-size: 11px; color: var(--text-muted); line-height: 1; margin-bottom: -4px; padding-left: 2px;">время</div>
-                    <div class="chart-box chart-box--sm"><canvas id="dynamicsChart" role="img" aria-label="График темпа спортсмена по датам стартов"></canvas></div>
-                </div>
+                <div class="chart-box chart-box--sm" style="height: 220px;"><canvas id="dynamicsChart" role="img" aria-label="График темпа спортсмена по датам стартов"></canvas></div>
             {% else %}
-                <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px; padding-left: 2px;">время</div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; margin-bottom: 4px;">время</div>
                 <p class="small muted">Недостаточно данных для графика.</p>
             {% endif %}
         </section>
@@ -226,8 +223,65 @@
             pointRadiusArr = 4;
         }
 
+        // Плагин отрисовки:
+        // 1) Слово "время" точно над центром шкалы Y (чисел темпа)
+        // 2) Дата (белым) и дистанция (серым muted) под каждым делением шкалы X
+        const chartDrawPlugin = {
+            id: 'chartDrawPlugin',
+            afterDraw: function(c) {
+                const ctx = c.ctx;
+                const yAxis = c.scales.y;
+                const xAxis = c.scales.x;
+                if (!yAxis || !xAxis) return;
+
+                ctx.save();
+
+                // 1. Рисуем "время" ровно над вертикальной осью Y
+                const yCenterX = (yAxis.left + yAxis.right) / 2;
+                const yLabelY = yAxis.top - 6;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.font = "11px 'Golos Text', system-ui, sans-serif";
+                ctx.fillStyle = muted;
+                ctx.fillText('время', yCenterX, yLabelY);
+
+                // 2. Рисуем метки оси X: дата (белая), дистанция (серая)
+                ctx.textBaseline = 'top';
+                xAxis.ticks.forEach(function(tick, index) {
+                    const labelVal = chartLabels[index];
+                    if (!labelVal) return;
+                    const xPos = xAxis.getPixelForTick(index);
+                    const yPos = xAxis.bottom + 6;
+
+                    if (Array.isArray(labelVal)) {
+                        const dateText = labelVal[0] || '';
+                        const distText = labelVal[1] || '';
+
+                        // Дата - белый цвет
+                        ctx.font = "bold 11px 'Golos Text', system-ui, sans-serif";
+                        ctx.fillStyle = textWhite;
+                        ctx.fillText(dateText, xPos, yPos);
+
+                        // КМ / метры - серый (muted) цвет
+                        if (distText) {
+                            ctx.font = "11px 'Golos Text', system-ui, sans-serif";
+                            ctx.fillStyle = muted;
+                            ctx.fillText(distText, xPos, yPos + 15);
+                        }
+                    } else if (labelVal.trim()) {
+                        ctx.font = "bold 11px 'Golos Text', system-ui, sans-serif";
+                        ctx.fillStyle = textWhite;
+                        ctx.fillText(labelVal, xPos, yPos);
+                    }
+                });
+
+                ctx.restore();
+            }
+        };
+
         chart = new Chart(el, {
             type: 'line',
+            plugins: [chartDrawPlugin],
             data: {
                 labels: chartLabels,
                 datasets: [{
@@ -247,7 +301,7 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 layout: {
-                    padding: { top: 6, bottom: 2, left: 0, right: 0 }
+                    padding: { top: 20, bottom: 32, left: 0, right: 0 }
                 },
                 plugins: {
                     legend: { display: false },
@@ -275,10 +329,7 @@
                 scales: {
                     x: {
                         ticks: {
-                            display: true,
-                            color: '#ffffff',
-                            font: { family: "'Golos Text', system-ui, sans-serif", size: 11, weight: '500' },
-                            maxRotation: 0,
+                            display: false,
                             autoSkip: false
                         },
                         grid: { display: false }
