@@ -236,18 +236,14 @@
 
                 ctx.save();
 
-                // 1. Рисуем "время" над вертикальной осью Y без обрезания слева
-                const textWidth = ctx.measureText('время').width;
-                let yCenterX = (yAxis.left + yAxis.right) / 2;
-                if (yCenterX - textWidth / 2 < 4) {
-                    yCenterX = 4 + textWidth / 2;
-                }
+                // 1. Рисуем "время" строго по центру шкалы Y
+                const yCenterX = (yAxis.left + yAxis.right) / 2;
                 const yLabelY = yAxis.top - 6;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'bottom';
                 ctx.font = "11px 'Golos Text', system-ui, sans-serif";
                 ctx.fillStyle = muted;
-                ctx.fillText('время', yCenterX, yLabelY);
+                ctx.fillText('время', Math.max(16, yCenterX), yLabelY);
 
                 // 2. Рисуем метки оси X: дата (белая), дистанция (серая)
                 ctx.textBaseline = 'top';
@@ -305,7 +301,7 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 layout: {
-                    padding: { top: 20, bottom: 32, left: 12, right: 6 }
+                    padding: { top: 20, bottom: 32, left: 0, right: 12 }
                 },
                 plugins: {
                     legend: { display: false },
