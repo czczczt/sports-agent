@@ -18,7 +18,8 @@ from app.services.athlete_service import (
     search_athletes, get_athlete_summary, get_athlete_results
 )
 from app.services.events_service import (
-    list_events, get_event_by_id, get_race_results, get_race_competition
+    list_events, get_event_by_id, get_race_results, get_race_competition,
+    get_athlete_race_result
 )
 from init_athletes import setup_schema, populate_athletes
 
@@ -199,7 +200,20 @@ async def race_detail_view(
         raise HTTPException(status_code=404, detail="Дистанция не найдена")
 
     event = get_event_by_id(db, event_id=race_row["event_id"])
-    results = get_race_results(db, race_id=race_id, search_query=search, limit=200, offset=0)
+    results = get_race_results(db, race_id=race_id, search_query=search, limit=150, offset=0)
+
+    extra_athlete_result = None
+    show_gap = False
+
+    # Если передан athlete_id и поиск не активен: проверяем, вошел ли спортсмен в первые 150
+    if athlete_id and not search:
+        found_in_top = any(r.athlete_id == athlete_id for r in results)
+        if not found_in_top:
+            athlete_item = get_athlete_race_result(db, race_id=race_id, athlete_id=athlete_id)
+            if athlete_item:
+                extra_athlete_result = athlete_item
+                show_gap = True
+
     competition = get_race_competition(db, race_id=race_id, athlete_id=athlete_id)
 
     return templates.TemplateResponse(
@@ -209,6 +223,8 @@ async def race_detail_view(
             "event": event,
             "race": race_row,
             "results": results,
+            "extra_athlete_result": extra_athlete_result,
+            "show_gap": show_gap,
             "competition": competition,
             "search_query": search or "",
             "athlete_id": athlete_id

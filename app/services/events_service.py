@@ -147,11 +147,37 @@ def get_event_by_id(conn: sqlite3.Connection, event_id: int) -> Optional[EventIt
     )
 
 
+def _row_to_protocol_item(r: sqlite3.Row, dist_m: Optional[int]) -> RaceProtocolItem:
+    time_s = r["chip_time_s"] if r["chip_time_s"] is not None else r["gun_time_s"]
+    raw_age = r["age"]
+    if raw_age == 0 or (raw_age is None and r["birth_year"] == 2026):
+        display_age = 1
+    else:
+        display_age = raw_age
+    return RaceProtocolItem(
+        result_id=r["result_id"],
+        athlete_id=r["athlete_id"],
+        bib=r["bib"],
+        full_name_raw=r["full_name_raw"] or "Участник",
+        gender=r["gender"],
+        age=display_age,
+        birth_year=r["birth_year"],
+        club_raw=r["club_raw"],
+        place_abs=r["place_abs"],
+        place_gender=r["place_gender"],
+        chip_time_s=r["chip_time_s"],
+        gun_time_s=r["gun_time_s"],
+        time_formatted=format_time(time_s),
+        pace_formatted=format_pace(time_s, dist_m),
+        status=r["status"]
+    )
+
+
 def get_race_results(
     conn: sqlite3.Connection,
     race_id: int,
     search_query: Optional[str] = None,
-    limit: int = 100,
+    limit: int = 150,
     offset: int = 0
 ) -> List[RaceProtocolItem]:
     """Возвращает протокол дистанции с поиском по фамилии или стартовому номеру."""
@@ -201,32 +227,43 @@ def get_race_results(
     params.extend([limit, offset])
     rows = cur.execute(query, params).fetchall()
 
-    items = []
-    for r in rows:
-        time_s = r["chip_time_s"] if r["chip_time_s"] is not None else r["gun_time_s"]
-        raw_age = r["age"]
-        if raw_age == 0 or (raw_age is None and r["birth_year"] == 2026):
-            display_age = 1
-        else:
-            display_age = raw_age
-        items.append(RaceProtocolItem(
-            result_id=r["result_id"],
-            athlete_id=r["athlete_id"],
-            bib=r["bib"],
-            full_name_raw=r["full_name_raw"] or "Участник",
-            gender=r["gender"],
-            age=display_age,
-            birth_year=r["birth_year"],
-            club_raw=r["club_raw"],
-            place_abs=r["place_abs"],
-            place_gender=r["place_gender"],
-            chip_time_s=r["chip_time_s"],
-            gun_time_s=r["gun_time_s"],
-            time_formatted=format_time(time_s),
-            pace_formatted=format_pace(time_s, dist_m),
-            status=r["status"]
-        ))
-    return items
+    return [_row_to_protocol_item(r, dist_m) for r in rows]
+
+
+def get_athlete_race_result(
+    conn: sqlite3.Connection,
+    race_id: int,
+    athlete_id: int
+) -> Optional[RaceProtocolItem]:
+    """Находит результат конкретного спортсмена на данной дистанции (даже если он DNS/DNF)."""
+    cur = conn.cursor()
+    race = cur.execute("SELECT distance_m FROM race WHERE id = ?", (race_id,)).fetchone()
+    dist_m = race["distance_m"] if race else None
+
+    row = cur.execute("""
+        SELECT 
+            r.id AS result_id,
+            ral.athlete_id,
+            r.bib,
+            r.full_name_raw,
+            r.gender,
+            r.age,
+            r.birth_year,
+            r.club_raw,
+            r.place_abs,
+            r.place_gender,
+            r.chip_time_s,
+            r.gun_time_s,
+            r.status
+        FROM result r
+        JOIN result_athlete ral ON ral.result_id = r.id
+        WHERE r.race_id = ? AND ral.athlete_id = ? AND r.duplicate_of IS NULL
+        LIMIT 1
+    """, (race_id, athlete_id)).fetchone()
+
+    if not row:
+        return None
+    return _row_to_protocol_item(row, dist_m)
 
 
 def get_race_competition(
@@ -273,7 +310,29 @@ def get_race_competition(
                     "time_s": t,
                     "time_formatted": format_time(t),
                     "pace_formatted": format_pace(t, race["distance_m"]),
+                    "status": "FIN"
                 }
+
+    # Если спортсмен не финишировал (DNS / DNF / DSQ), подгружаем его статус для бокового блока
+    if athlete_id and not athlete_res:
+        non_fin_row = cur.execute("""
+            SELECT r.id, r.status, r.place_abs, r.chip_time_s, r.gun_time_s
+            FROM result r
+            JOIN result_athlete ral ON ral.result_id = r.id
+            WHERE r.race_id = ? AND ral.athlete_id = ? AND r.duplicate_of IS NULL
+            LIMIT 1
+        """, (race_id, athlete_id)).fetchone()
+        if non_fin_row:
+            status = non_fin_row["status"]
+            athlete_res = {
+                "result_id": non_fin_row["id"],
+                "place_abs": status,
+                "time_s": 0.0,
+                "time_formatted": status,
+                "pace_formatted": status,
+                "status": status,
+                "summary_text": f"Статус на дистанции: {status}"
+            }
 
     if not times:
         return None
@@ -289,13 +348,18 @@ def get_race_competition(
     p75 = times[int(0.75 * total_fin)]
 
     # Если найден результат спортсмена, считаем его процентиль
-    if athlete_res and athlete_res.get("place_abs"):
+    if athlete_res and isinstance(athlete_res.get("place_abs"), (int, float)):
         pl = athlete_res["place_abs"]
         pct = round(100.0 * (total_fin - pl + 1) / total_fin, 1)
         top_pct = round(100.0 * pl / total_fin, 1)
         athlete_res["percentile"] = pct
         athlete_res["top_percent"] = top_pct
         athlete_res["summary_text"] = f"Финишировал на {pl} месте из {total_fin} участников (топ {top_pct}% протокола)."
+    elif athlete_res and athlete_res.get("status") in ("DNS", "DNF", "DSQ", "NC"):
+        status = athlete_res["status"]
+        athlete_res["percentile"] = None
+        athlete_res["top_percent"] = None
+        athlete_res["summary_text"] = f"Статус на дистанции: {status}"
 
     # Построение 10 корзин распределения (бинов гистограммы)
     num_bins = 10
