@@ -141,8 +141,8 @@ def populate_athletes(db_path: str = "running.db"):
             clubs = [x["club"] for x in cl if x["club"]]
             rep_club = Counter(clubs).most_common(1)[0][0] if clubs else None
             
-            # Завершенные старты без дублей
-            fin_starts = sum(1 for x in cl if x["status"] == "FIN" and x["dup"] is None)
+            # Все старты (записи в протоколах), без технических дублей
+            fin_starts = sum(1 for x in cl if x["dup"] is None)
             total_results = len(cl)
 
             athletes_to_insert.append((

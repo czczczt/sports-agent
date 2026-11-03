@@ -98,6 +98,9 @@ def generate_local_expert_assessment(metrics: Dict[str, Any]) -> str:
     если токен GigaChat не настроен в .env или сервис недоступен.
     Без эмодзи и строго по формулам.
     """
+    if metrics.get("finishes_count") == 0 or metrics.get("message") == "Недостаточно данных.":
+        return "Недостаточно данных."
+
     name = metrics.get("athlete_name", "Спортсмен")
     starts = metrics.get("total_starts", 0)
     pbs = metrics.get("personal_bests", [])
@@ -201,6 +204,17 @@ async def get_or_generate_assessment(
     athlete_name = metrics.get("athlete_name", f"Атлет #{athlete_id}")
     used_model = "local-analytics-engine"
     assessment_text = ""
+
+    if metrics.get("finishes_count") == 0 or metrics.get("message") == "Недостаточно данных.":
+        assessment_text = "Недостаточно данных."
+        return AssessmentResponse(
+            athlete_id=athlete_id,
+            athlete_name=athlete_name,
+            assessment_text=assessment_text,
+            metrics=metrics,
+            model="system-fallback",
+            cached=False
+        )
 
     # Пробуем GigaChat, если задан GIGACHAT_CREDENTIALS в .env
     if GIGACHAT_CREDENTIALS and GIGACHAT_CREDENTIALS.strip() and GIGACHAT_CREDENTIALS != "change-me":

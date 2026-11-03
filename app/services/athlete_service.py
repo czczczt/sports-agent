@@ -150,7 +150,7 @@ def get_athlete_by_id(conn: sqlite3.Connection, athlete_id: int) -> Optional[Ath
 
 
 def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[AthleteResultItem]:
-    """Возвращает все завершенные результаты спортсмена."""
+    """Возвращает все результаты спортсмена (включая DNS, DNF, DSQ)."""
     cur = conn.cursor()
     rows = cur.execute("""
         SELECT 
@@ -175,15 +175,27 @@ def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[Athle
         JOIN event e ON e.id = ra.event_id
         JOIN source s ON s.id = e.source_id
         WHERE ral.athlete_id = ?
-          AND r.status = 'FIN'
           AND r.duplicate_of IS NULL
         ORDER BY e.date_begin DESC, r.id DESC
     """, (athlete_id,)).fetchall()
 
     results = []
     for r in rows:
+        status = r["status"]
         time_s = r["chip_time_s"] if r["chip_time_s"] is not None else r["gun_time_s"]
         dist_m = r["distance_m"]
+        
+        if status in ("DNS", "DNF", "DSQ", "NC"):
+            time_fmt = status
+            pace_fmt = status
+            pl_abs = status
+            pl_gender = status
+        else:
+            time_fmt = format_time(time_s)
+            pace_fmt = format_pace(time_s, dist_m)
+            pl_abs = r["place_abs"]
+            pl_gender = r["place_gender"]
+
         results.append(AthleteResultItem(
             result_id=r["result_id"],
             event_id=r["event_id"],
@@ -194,13 +206,13 @@ def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[Athle
             distance_name=r["distance_name"] or "Дистанция",
             norm_distance=r["norm_distance"],
             distance_m=dist_m,
-            place_abs=r["place_abs"],
-            place_gender=r["place_gender"],
+            place_abs=pl_abs,
+            place_gender=pl_gender,
             chip_time_s=r["chip_time_s"],
             gun_time_s=r["gun_time_s"],
-            time_formatted=format_time(time_s),
-            pace_formatted=format_pace(time_s, dist_m),
-            status=r["status"],
+            time_formatted=time_fmt,
+            pace_formatted=pace_fmt,
+            status=status,
             bib=r["bib"]
         ))
     return results
@@ -217,6 +229,8 @@ def get_athlete_summary(conn: sqlite3.Connection, athlete_id: int) -> Optional[A
     # Вычисление личных рекордов (Personal Bests) по нормализованным дистанциям
     pb_dict: Dict[str, Dict[str, Any]] = {}
     for res in results:
+        if res.status != "FIN":
+            continue
         nd = res.norm_distance
         if not nd:
             continue
@@ -249,10 +263,10 @@ def get_athlete_summary(conn: sqlite3.Connection, athlete_id: int) -> Optional[A
 
     # Формирование точек динамики для графика (по возрастанию даты)
     dynamics: List[DynamicsPoint] = []
-    sorted_by_date = sorted([r for r in results if r.event_date], key=lambda x: x.event_date or "")
+    sorted_by_date = sorted([r for r in results if r.event_date and r.status == 'FIN'], key=lambda x: x.event_date or "")
     for r in sorted_by_date:
         time_s = r.chip_time_s if r.chip_time_s is not None else r.gun_time_s
-        if time_s:
+        if time_s and time_s > 0:
             dynamics.append(DynamicsPoint(
                 date=r.event_date[:10] if r.event_date else "",
                 event_title=r.event_title,

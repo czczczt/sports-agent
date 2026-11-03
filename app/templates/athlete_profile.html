@@ -27,7 +27,7 @@
             <div class="card card--accent stat">
                 <span class="stat__label stat__label--run">{{ ui.icon('run', 'icon-sm') }}Бег</span>
                 <span class="display-num num">{{ summary.total_starts }}</span>
-                <span class="small muted">{{ ui.plural(summary.total_starts, 'финиш', 'финиша', 'финишей') }}</span>
+                <span class="small muted">{{ ui.plural(summary.total_starts, 'старт', 'старта', 'стартов') }}</span>
             </div>
             <div class="card stat">
                 <span class="stat__label stat__label--brand">{{ ui.icon('trophy', 'icon-sm') }}Рекорды</span>
@@ -41,7 +41,7 @@
                 <h2 class="h2">Место в рейтинге</h2>
                 <span class="chip chip--sm chip--pending">на согласовании</span>
             </div>
-            <p class="small">{{ summary.rating.message }}. Рейтинг считает бэкенд по формуле куратора — блок включится после утверждения методики.</p>
+            <p class="small">{% if summary.personal_bests|length > 0 %}{{ summary.rating.message }}. Рейтинг считает бэкенд по формуле куратора — блок включится после утверждения методики.{% else %}Недостаточно данных для рейтинга.{% endif %}</p>
         </section>
 
         <section class="card card--clip">
@@ -58,7 +58,7 @@
                     </div>
                 </div>
             {% else %}
-                <div class="empty" style="padding-top: 8px;"><p class="small muted">Рекорды на нормализованных дистанциях пока не сформированы.</p></div>
+                <div class="empty" style="padding-top: 8px;"><p class="small muted">Недостаточно данных.</p></div>
             {% endfor %}
         </section>
 
@@ -124,9 +124,9 @@
                                         <a href="/races-view/{{ r.race_id }}?athlete_id={{ a.id }}" class="cell-title">{{ r.event_title }}</a>
                                         <div class="cell-sub">{{ r.distance_name }}{% if r.norm_distance %} · {{ r.norm_distance }}{% endif %} · {{ ui.source(r.source_name) }}</div>
                                     </td>
-                                    <td class="num right strong nowrap">{{ r.time_formatted }}{% if r.gun_time_s %}<div class="cell-sub">пист. {{ ui.hms(r.gun_time_s) }}</div>{% endif %}</td>
+                                    <td class="num right strong nowrap">{{ r.time_formatted }}{% if r.status == 'FIN' and r.gun_time_s %}<div class="cell-sub">пист. {{ ui.hms(r.gun_time_s) }}</div>{% endif %}</td>
                                     <td class="num right nowrap">{{ r.pace_formatted }}</td>
-                                    <td class="num center nowrap"><span class="strong">{{ r.place_abs or '—' }}</span> <span class="muted">/ {{ r.place_gender or '—' }}</span></td>
+                                    <td class="num center nowrap">{% if r.status in ['DNS', 'DNF', 'DSQ', 'NC'] %}<span class="strong">{{ r.status }}</span>{% else %}<span class="strong">{{ r.place_abs or '—' }}</span> <span class="muted">/ {{ r.place_gender or '—' }}</span>{% endif %}</td>
                                 </tr>
                             {% endfor %}
                         </tbody>
@@ -138,7 +138,7 @@
                         <a href="/races-view/{{ r.race_id }}?athlete_id={{ a.id }}" class="list-row" style="text-decoration: none;">
                             <div style="min-width: 0;">
                                 <div class="list-row__title">{{ r.event_title }}</div>
-                                <div class="list-row__meta num">{{ ui.date_ru(r.event_date) }} · {{ r.distance_name }} · {{ r.place_abs or '—' }} место</div>
+                                <div class="list-row__meta num">{{ ui.date_ru(r.event_date) }} · {{ r.distance_name }} · {% if r.status in ['DNS', 'DNF', 'DSQ', 'NC'] %}{{ r.status }}{% else %}{{ r.place_abs or '—' }} место{% endif %}</div>
                             </div>
                             <div class="list-row__end">
                                 <div class="num strong">{{ r.time_formatted }}</div>
@@ -148,7 +148,7 @@
                     {% endfor %}
                 </div>
             {% else %}
-                <div class="empty"><p class="small muted">Завершённых стартов пока нет.</p></div>
+                <div class="empty"><p class="small muted">Недостаточно данных.</p></div>
             {% endif %}
         </section>
     </div>

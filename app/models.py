@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 
 
 class AthleteCandidate(BaseModel):
@@ -24,8 +24,8 @@ class AthleteResultItem(BaseModel):
     distance_name: str
     norm_distance: Optional[str] = None
     distance_m: Optional[int] = None
-    place_abs: Optional[int] = None
-    place_gender: Optional[int] = None
+    place_abs: Optional[Union[int, str]] = None
+    place_gender: Optional[Union[int, str]] = None
     chip_time_s: Optional[float] = None
     gun_time_s: Optional[float] = None
     time_formatted: str
