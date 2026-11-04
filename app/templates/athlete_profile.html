@@ -18,7 +18,6 @@
             {% if a.club %}<div class="small muted" style="margin-top: 2px;">Клуб в протоколах: {{ a.club }}</div>{% endif %}
         </div>
     </div>
-    <a href="#agent" class="btn btn--primary btn--stretch-mobile">{{ ui.icon('spark') }}Оценка ИИ-агента</a>
 </section>
 
 <div class="cols">
@@ -32,7 +31,7 @@
             <div class="card stat">
                 <span class="stat__label stat__label--brand">{{ ui.icon('trophy', 'icon-sm') }}Рекорды</span>
                 <span class="display-num num">{{ summary.personal_bests|length }}</span>
-                <span class="small muted">{{ ui.plural(summary.personal_bests|length, 'дистанция', 'дистанции', 'дистанций') }} с PB</span>
+                <span class="small muted">{{ ui.plural(summary.personal_bests|length, 'личный рекорд', 'личных рекорда', 'личных рекордов') }}</span>
             </div>
         </div>
 
