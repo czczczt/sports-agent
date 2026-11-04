@@ -15,6 +15,7 @@ import re
 from pathlib import Path
 
 import psycopg
+from distance_classification import DDL as CLASSIFICATION_DDL
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(__file__).parent / "data"   # отчёты и кеш ответов площадок (data/raw), в git не попадает
@@ -164,6 +165,9 @@ CREATE TABLE IF NOT EXISTS agent_run (
     finished_at  timestamptz
 );
 """
+
+
+DDL += CLASSIFICATION_DDL
 
 
 def database_url() -> str:

@@ -1,7 +1,9 @@
 # Running scores (#9)
 
-The computed layer uses the parser's existing `race.distance_type` unchanged. It
-stores norms and one score or explicit exclusion per result and formula version.
+The computed layer classifies stored race names, lengths and discipline using the
+rating rules described in [distance-classification.md](distance-classification.md).
+The parser's legacy `race.distance_type` and `normalize.norm_distance` stay unchanged.
+It stores norms and one score or explicit exclusion per result and formula version.
 No employee matching or rating aggregation is performed here.
 
 ## Usage
@@ -33,9 +35,12 @@ floating-point precision; consumers may display them to two decimal places.
 `parser_running/scoring.py` exposes:
 
 - `calculate(result, race, norms, formula_version='run-v1')`: pure calculator.
-  `result` contains stored result columns; `race` supplies `distance_type`,
-  `date_begin` as a Python date, and optionally `sport_type`, `race_type`,
-  `discipline`. Norms are dictionaries with `year`, `distance_class`, `gender`,
+  `result` contains stored result columns; `race` supplies `name`, `distance_m`,
+  `competition_name`, `date_begin` as a Python date, and optionally `sport_type`,
+  `race_type`, `discipline`, `class_source`, `distance_class_override`. An optional
+  fifth argument supplies persisted synonyms; omitted uses default rules. For
+  compatibility, callers may still supply only a preclassified `distance_type`
+  without raw name/length/override keys. Norms have `year`, `distance_class`, `gender`,
   `value`, `unit`. Returns `points`, `reason`, and `breakdown`.
 - `initialize(con)`, `seed_norms(con)`, `load_norms(con)`: idempotent schema
   initialization, insert-missing seed, and persisted normative table.
@@ -85,14 +90,13 @@ by `docs/scoring-spec.md` (#8). Values are seconds except 24-hour running (km).
 
 The pure calculator supports `race.distance_type='24h'` and an explicit
 `result.distance_km` for **achieved kilometres**, using km / norm km × 1000.
-The current parser has no achieved-distance column or 24h classification. Both
-24h norms are stored and G1-tested, but existing DB results cannot yet supply
-that input; if a stored race were assigned 24h it would receive
-`missing_distance`. Adding this ingestion/representation belongs to #10.
+The parser storage contract accepts achieved kilometres as `result.distance_km`;
+`save_results` persists this independently of race length. Names such as `сутки`
+and `24 часа` classify as 24h. Missing achieved kilometres receive `missing_distance`.
 Race length and time fields are never interpreted as achieved kilometres.
-New synonyms (parkrun, etc.) and classifier tolerance/discipline rules also belong
-to #10. Existing classes are used as-is, so #9's G1 tests cover all 30 normative
-class/gender pairs, the formulas, years and eligibility, not the future classifier.
+The connector must explicitly provide the achieved distance; no existing running
+source is claimed to expose 24h results. G1 covers all 30 normative class/gender
+pairs; G9 and database tests cover the new classification and import path.
 
 ## Verification
 

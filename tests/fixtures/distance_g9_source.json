@@ -1,0 +1,8 @@
+{
+  "source": "Local running SQLite snapshot (parser source before PostgreSQL migration)",
+  "race_count": 297,
+  "result_count": 297225,
+  "unique_pairs": 185,
+  "sqlite_sha256": "20d1b6f028c591f77f7d0965a031692f0eb506ad88336ec266331e4dcf2ec118",
+  "annotation": "Manual review of all name/length pairs; explicit literal labels independent of classifier output; no participant data in fixture"
+}

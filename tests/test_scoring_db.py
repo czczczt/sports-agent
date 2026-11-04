@@ -96,6 +96,73 @@ class ScoringDatabaseTests(unittest.TestCase):
         self.assertEqual(recalculate(self.con)['reasons'], {'missing_date': 1})
         self.assertIsNone(get_score(self.con, fin)['breakdown']['norm_year_requested'])
 
+    def test_persisted_distance_rules_and_manual_assignments(self):
+        from distance_classification import set_synonym, set_manual_class, clear_manual_class
+        from store import save_race
+        seed_norms(self.con)
+        self.con.execute('UPDATE race SET name=%s,distance_m=NULL,distance_type=NULL WHERE id=%s',
+                         ('Новый забег', self.race))
+        fin = self.add_result(chip_time_s=846)
+        self.assertEqual(recalculate(self.con)['scored'], 0)
+        set_synonym(self.con, r'\bновый\b', '5000m')
+        self.assertEqual(recalculate(self.con)['scored'], 1)
+        self.assertEqual(get_score(self.con, fin)['points'], 1000)
+        set_manual_class(self.con, self.race, '10000m')
+        self.assertEqual(recalculate(self.con)['scored'], 1)
+        self.assertEqual(get_score(self.con, fin)['breakdown']['class'], '10000m')
+        save_race(self.con, self.comp, {'external_id': '10km', 'name_raw': 'Новый забег',
+                                       'distance_km': None, 'place_by': 'chip'})
+        recalculate(self.con)
+        self.assertEqual(get_score(self.con, fin)['breakdown']['classification']['class_source'], 'manual')
+        set_manual_class(self.con, self.race, None)
+        recalculate(self.con)
+        self.assertEqual(get_score(self.con, fin)['reason'], 'manual_exclusion')
+        clear_manual_class(self.con, self.race)
+        recalculate(self.con)
+        self.assertEqual(get_score(self.con, fin)['points'], 1000)
+        set_synonym(self.con, r'\bновый\b', '10000m')
+        seed_norms(self.con)
+        recalculate(self.con)
+        self.assertEqual(get_score(self.con, fin)['breakdown']['class'], '10000m')
+        set_synonym(self.con, r'\bновый\b', '10000m', enabled=False)
+        seed_norms(self.con)
+        recalculate(self.con)
+        self.assertEqual(get_score(self.con, fin)['reason'], 'unclassified_distance')
+
+    def test_24_hour_distance_survives_import_and_is_scored_in_kilometres(self):
+        from store import save_race
+        seed_norms(self.con)
+        race = save_race(self.con, self.comp, {'external_id': '24h', 'name_raw': '24 часа',
+                                              'distance_km': None, 'discipline': 'road',
+                                              'place_by': 'chip'})
+        save_results(self.con, race, [{'status': 'FIN', 'gender': 'M', 'distance_km': 250,
+                                       'gun_time_s': 86400}])
+        fin = self.con.execute('SELECT id FROM result WHERE race_id=%s', (race,)).fetchone()[0]
+        recalculate(self.con)
+        score = get_score(self.con, fin)
+        self.assertAlmostEqual(score['points'], 1020.4081632653061)
+        self.assertEqual(score['breakdown']['distance_km'], 250)
+        self.assertEqual(score['breakdown']['discipline'], 'road')
+        self.assertEqual(score['breakdown']['formula'], '250 / 245 × 1000')
+        save_results(self.con, race, [{'status': 'FIN', 'gender': 'M', 'gun_time_s': 86400}])
+        fin = self.con.execute('SELECT id FROM result WHERE race_id=%s', (race,)).fetchone()[0]
+        recalculate(self.con)
+        self.assertEqual(get_score(self.con, fin)['reason'], 'missing_distance')
+
+    def test_distance_audit_compares_eligible_results_by_class_without_writes(self):
+        from distance_report import report
+        seed_norms(self.con)
+        self.add_result()
+        other = self.con.execute("INSERT INTO race(competition_id,external_id,name) VALUES (%s,'park','Паркран') RETURNING id", (self.comp,)).fetchone()[0]
+        self.con.execute("INSERT INTO result(race_id,status,gender,chip_time_s) VALUES (%s,'FIN','M',846)", (other,))
+        self.con.execute("INSERT INTO result(race_id,status,gender,chip_time_s) VALUES (%s,'DNF','M',846)", (other,))
+        audit = report(self.con)
+        self.assertEqual(audit['before'], {'total': 3, 'scored': 1, 'unscored': 2, 'classes': {'10000m': 1}})
+        self.assertEqual(audit['after'], {'total': 3, 'scored': 2, 'unscored': 1,
+                                         'classes': {'10000m': 1, '5000m': 1}})
+        self.assertEqual(audit['changed_scores'], 1)
+        self.assertEqual(score_report(self.con)['total'], 0)
+
     def test_cli_seed_recalculate_report_and_result_explanation(self):
         fin = self.add_result()
         self.con.commit()  # subprocess sees only this explicitly isolated synthetic schema

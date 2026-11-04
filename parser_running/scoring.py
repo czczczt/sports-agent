@@ -1,4 +1,4 @@
-"""Rebuildable running scores over the existing parser distance classes."""
+"""Rebuildable running scores using the rating-specific distance classifier."""
 from __future__ import annotations
 
 import math
@@ -20,11 +20,17 @@ NORMS_2026 = [dict(year=2026, distance_class=cls, gender=gender, value=value,
 
 
 def calculate(result: dict, race: dict, norms: list[dict],
-              formula_version: str = FORMULA_VERSION) -> dict:
+              formula_version: str = FORMULA_VERSION, synonyms: list[dict] | None = None) -> dict:
     """Pure result + stored race context + norms -> points and full explanation.
 
     A present but invalid chip time is rejected, never silently replaced by gun time.
     """
+    classification = None
+    if any(key in race for key in ('distance_m', 'name', 'class_source')):
+        from distance_classification import classify
+        classification = classify(race, synonyms)
+        race = race | {'distance_type': classification['distance_class'],
+                       'discipline': classification['discipline']}
     start = race.get('date_begin')
     breakdown = {
         'sport': 'run', 'class': race.get('distance_type'), 'discipline': race.get('discipline'),
@@ -32,6 +38,8 @@ def calculate(result: dict, race: dict, norms: list[dict],
         'norm_year': None, 'norm_year_requested': start.year if start else None,
         'time_kind': None, 'time_s': None, 'formula': None, 'points': None,
         'formula_version': formula_version}
+    if classification is not None:
+        breakdown['classification'] = classification
 
     def missing(reason):
         return {'points': None, 'reason': reason, 'breakdown': breakdown | {'reason': reason}}
@@ -49,7 +57,7 @@ def calculate(result: dict, race: dict, norms: list[dict],
     if not start:
         return missing('missing_date')
     if not race.get('distance_type'):
-        return missing('unclassified_distance')
+        return missing(classification['reason'] if classification else 'unclassified_distance')
     candidates = [n for n in norms if n['distance_class'] == race['distance_type']
                   and n['gender'] == result['gender']]
     if not candidates:
@@ -113,12 +121,16 @@ CREATE TABLE IF NOT EXISTS score (
 
 def initialize(con) -> None:
     """Idempotently add the scoring layer; transaction belongs to the caller."""
+    import distance_classification
+    distance_classification.initialize(con)
     con.execute(DDL)
 
 
 def seed_norms(con) -> None:
     """Insert missing 2026 norms, preserving values already maintained by an admin."""
     initialize(con)
+    from distance_classification import seed_synonyms
+    seed_synonyms(con)
     with con.cursor() as cur:
         cur.executemany('''INSERT INTO norm(year, distance_class, gender, value, unit)
                           VALUES (%(year)s, %(distance_class)s, %(gender)s, %(value)s, %(unit)s)
@@ -152,15 +164,19 @@ def recalculate(con, formula_version: str = FORMULA_VERSION) -> dict:
     with con.transaction():
         initialize(con)
         norms = load_norms(con)
+        from distance_classification import load_synonyms
+        synonyms = load_synonyms(con)
         with con.cursor(name='scoring_' + uuid.uuid4().hex, row_factory=dict_row) as reader, con.cursor() as writer:
             reader.execute('''SELECT r.id, r.status, r.gender, r.chip_time_s, r.gun_time_s, r.duplicate_of,
-                                     ra.distance_type, ra.race_type, c.date_begin, c.sport_type
+                                     r.distance_km, ra.name, ra.distance_m, ra.distance_type, ra.race_type,
+                                     ra.discipline, ra.class_source, ra.distance_class_override,
+                                     c.name AS competition_name, c.date_begin, c.sport_type
                               FROM result r JOIN race ra ON ra.id = r.race_id
                               JOIN competition c ON c.id = ra.competition_id ORDER BY r.id''')
             while rows := reader.fetchmany(1000):
                 batch = []
                 for row in rows:
-                    outcome = calculate(row, row, norms, formula_version)
+                    outcome = calculate(row, row, norms, formula_version, synonyms)
                     batch.append((row['id'], formula_version, outcome['points'], outcome['reason'],
                                   Jsonb(outcome['breakdown'])))
                 writer.executemany('''INSERT INTO score(result_id, formula_version, points, reason, breakdown)
