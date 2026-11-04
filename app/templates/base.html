@@ -24,6 +24,9 @@
     <script src="/static/js/theme.js"></script>
     <!-- Chart.js для графиков динамики и распределения -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Air Datepicker для удобного выбора дат и диапазонов -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/air-datepicker@3.5.3/air-datepicker.css">
+    <script src="https://cdn.jsdelivr.net/npm/air-datepicker@3.5.3/air-datepicker.min.js"></script>
 </head>
 <body>
     <header class="app-header">
@@ -41,11 +44,9 @@
             </div>
             <div class="app-header__right">
                 <div class="theme-switch" role="group" aria-label="Тема">
-                    <button type="button" data-theme-choice="system" aria-pressed="true">Системная</button>
                     <button type="button" data-theme-choice="light" aria-pressed="false">Светлая</button>
                     <button type="button" data-theme-choice="dark" aria-pressed="false">Тёмная</button>
                 </div>
-                <a href="/docs" target="_blank" rel="noopener" class="header-link">Swagger API</a>
                 <button type="button" class="theme-toggle" data-theme-toggle aria-label="Сменить тему" aria-pressed="false">
                     <span class="icon-moon">{{ ui.icon('moon', 'icon') }}</span>
                     <span class="icon-sun">{{ ui.icon('sun', 'icon') }}</span>
@@ -60,10 +61,11 @@
 
     <footer class="app-footer">
         <div class="app-footer__inner">
-            <span>Платформа рейтинга спортсменов · беговой прототип</span>
-            <span>Оценка ИИ-агента носит исключительно справочный характер.</span>
+            <span>Платформа для расчёта рейтинга спортсменов · демонстрационный прототип</span>
+            <span>Представленная информация может содержать ошибки</span>
         </div>
     </footer>
+
 
     <nav class="bottom-nav" aria-label="Разделы">
         <a href="/events-view" {% if section == 'events' %}aria-current="page"{% endif %}>{{ ui.icon('calendar') }}Старты</a>

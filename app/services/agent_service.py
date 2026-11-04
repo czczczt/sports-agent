@@ -1,4 +1,5 @@
 import json
+import re
 import uuid
 import sqlite3
 import httpx
@@ -10,19 +11,41 @@ from app.services.analytics_service import compute_athlete_metrics
 from app.models import AssessmentResponse
 
 
-SYSTEM_PROMPT = """Ты профессиональный спортивный аналитик беговой платформы Сбера.
-Твоя задача — составить персональную оценку результатов спортсмена на основе предоставленных числовых метрик.
+SYSTEM_PROMPT = """Ты профессиональный спортивный аналитик беговой платформы.
+Твоя задача — составить краткую и объективную аналитическую сводку по результатам спортсмена на основе предоставленных числовых метрик.
 
-ПРАВИЛА:
-1. Используй ТОЛЬКО числа, времена, процентили и факты из входных данных. НИЧЕГО НЕ ПРИДУМЫВАЙ.
-2. Структурируй ответ по разделам:
-   - 🎯 Общий уровень и соревновательный статус (на основе процентилей)
-   - 📈 Прогресс и динамика по дистанциям (личные рекорды, изменение времени)
-   - ⚡ Стабильность темпа
-   - 💪 Сильные стороны
-   - 🔍 Точки роста и рекомендации
-3. Тон доброжелательный, конструктивный и мотивирующий.
-4. В конце обязательно отметь, что оценка носит справочный характер."""
+ТРЕБОВАНИЯ И ОГРАНИЧЕНИЯ:
+1. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО использовать эмодзи и графические иконки (никаких значков, смайликов, кружков и т.д.). Текст должен быть строгим и аналитическим.
+2. ЗАПРЕЩЕНО выдумывать данные, времена, дистанции, места или рекорды. Опирайся ИСКЛЮЧИТЕЛЬНО на переданные числа и метрики.
+3. ОБЪЕКТИВНОСТЬ ПРИ МАЛОМ КОЛИЧЕСТВЕ ЗАБЕГОВ:
+   Если у спортсмена мало стартов (1-3 старта), обязательно укажи, что соревновательная выборка пока мала. Если процентиль равен 100% или очень высок из-за одного удачного финиша, не делай вывод об абсолютном мастерстве или непобедимости — подчеркни, что это начальный ориентир, который необходимо подтверждать на дистанции в последующих забегах.
+4. СТРУКТУРА СВОДКИ (в формате Markdown):
+   ### Аналитическая сводка: [Имя спортсмена]
+   - Общий уровень и соревновательный опыт: количество финишей, положение среди участников (средний и лучший процентили).
+   - Личные рекорды (PB): зафиксированные результаты на дистанциях и средний темп.
+   - Динамика и стабильность: прогресс по времени между стартами и показатель вариации темпа.
+   - Сильные стороны и рекомендации для тренировочного процесса.
+5. ЗАПРЕЩЕНО добавлять в конце текста фразы о справочном характере оценки или пожелания развития потенциала — дисклеймер уже отображается в интерфейсе сайта."""
+
+
+def clean_assessment_text(text: str) -> str:
+    """Очищает текст от случайных эмодзи и дублирующихся шаблонных дисклеймеров."""
+    if not text:
+        return ""
+    # Удаляем нежелательный текст дисклеймера
+    text = re.sub(
+        r"(?i)\*?Оценка носит справочный характер и предназначена для информирования[^\n]*\*?",
+        "",
+        text
+    )
+    text = re.sub(
+        r"(?i)\n*---\n*\*?Примечание:?\s*(Данная|Эта)?\s*оценка носит (исключительно )?справочный характер[^\n]*\*?",
+        "",
+        text
+    )
+    # Удаляем любые эмодзи
+    text = re.sub(r"[\U00010000-\U0010ffff]|[\u2600-\u27BF]", "", text)
+    return text.strip()
 
 
 async def get_gigachat_token(credentials: str, scope: str, verify_ssl: bool) -> str:
@@ -55,7 +78,7 @@ async def call_gigachat_chat(token: str, model: str, user_content: str, verify_s
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_content}
         ],
-        "temperature": 0.5,
+        "temperature": 0.3,
         "max_tokens": 1500
     }
 
@@ -65,15 +88,19 @@ async def call_gigachat_chat(token: str, model: str, user_content: str, verify_s
         res_json = resp.json()
         choices = res_json.get("choices", [])
         if choices and "message" in choices[0]:
-            return choices[0]["message"]["content"]
+            return clean_assessment_text(choices[0]["message"]["content"])
         return "Не удалось сформировать текст ответа от GigaChat."
 
 
 def generate_local_expert_assessment(metrics: Dict[str, Any]) -> str:
     """
     Генерирует структурированную экспертную оценку на основе вычисленных бэкендом метрик,
-    если токен GigaChat не настроен в .env.
+    если токен GigaChat не настроен в .env или сервис недоступен.
+    Без эмодзи и строго по формулам.
     """
+    if metrics.get("finishes_count") == 0 or metrics.get("message") == "Недостаточно данных.":
+        return "Недостаточно данных."
+
     name = metrics.get("athlete_name", "Спортсмен")
     starts = metrics.get("total_starts", 0)
     pbs = metrics.get("personal_bests", [])
@@ -85,10 +112,13 @@ def generate_local_expert_assessment(metrics: Dict[str, Any]) -> str:
     weaknesses = metrics.get("weaknesses", [])
 
     lines = [
-        f"### Персональная оценка результатов: {name}\n",
+        f"### Аналитическая сводка: {name}\n",
         f"**Всего стартов в протоколах:** {starts}\n",
-        "#### 🎯 Соревновательный статус",
+        "#### Соревновательный статус",
     ]
+
+    if starts <= 2:
+        lines.append("*Примечание: выборка стартов пока невелика (начальный соревновательный этап), показатели носят предварительный характер.*")
 
     if avg_pct is not None:
         lines.append(
@@ -99,46 +129,44 @@ def generate_local_expert_assessment(metrics: Dict[str, Any]) -> str:
     else:
         lines.append("Недостаточно завершенных финишей для расчета процентилей.")
 
-    lines.append("\n#### 🏆 Личные рекорды (PB)")
+    lines.append("\n#### Личные рекорды (PB)")
     if pbs:
         for pb in pbs:
             lines.append(f"- **{pb['distance_name']}**: {pb['time_formatted']} ({pb['pace_formatted']}) на «{pb['event_title']}»")
     else:
         lines.append("Личные рекорды на зачетных дистанциях пока не зафиксированы.")
 
-    lines.append("\n#### 📈 Динамика и прогресс по дистанциям")
+    lines.append("\n#### Динамика и прогресс по дистанциям")
     if progress:
         for prg in progress:
-            trend_icon = "🟢" if prg["trend"] == "улучшение" else ("🔴" if prg["trend"] == "спад" else "⚪")
             lines.append(
-                f"- {trend_icon} **{prg['distance']}** ({prg['starts_count']} старта): "
+                f"- **{prg['distance']}** ({prg['starts_count']} старта): "
                 f"первый результат {prg['first_time']} ({prg['first_date']}), крайний {prg['latest_time']} ({prg['latest_date']}). "
                 f"Динамика: **{prg['trend']}** ({'+' if prg['improvement_pct'] > 0 else ''}{prg['improvement_pct']}%)."
             )
     else:
         lines.append("Для анализа прогресса требуется минимум 2 старта на одной и той же дистанции.")
 
-    lines.append("\n#### ⚡ Стабильность темпа")
+    lines.append("\n#### Стабильность темпа")
     lines.append(f"Показатель стабильности: **{stability.get('status', 'не определено')}**.")
     if stability.get("description"):
         lines.append(f"{stability['description']}.")
 
-    lines.append("\n#### 💪 Сильные стороны")
+    lines.append("\n#### Сильные стороны")
     if strengths:
         for s in strengths:
             lines.append(f"- {s}")
     else:
         lines.append("- Регулярное участие в соревнованиях.")
 
-    lines.append("\n#### 🔍 Точки роста и рекомендации")
+    lines.append("\n#### Точки роста и рекомендации")
     if weaknesses:
         for w in weaknesses:
             lines.append(f"- {w}")
     else:
         lines.append("- Рекомендуется продолжать тренировочный план и закрепить результаты на целевых дистанциях.")
 
-    lines.append("\n---\n*Примечание: Данная оценка носит исключительно справочный характер.*")
-    return "\n".join(lines)
+    return clean_assessment_text("\n".join(lines))
 
 
 async def get_or_generate_assessment(
@@ -177,6 +205,17 @@ async def get_or_generate_assessment(
     used_model = "local-analytics-engine"
     assessment_text = ""
 
+    if metrics.get("finishes_count") == 0 or metrics.get("message") == "Недостаточно данных.":
+        assessment_text = "Недостаточно данных."
+        return AssessmentResponse(
+            athlete_id=athlete_id,
+            athlete_name=athlete_name,
+            assessment_text=assessment_text,
+            metrics=metrics,
+            model="system-fallback",
+            cached=False
+        )
+
     # Пробуем GigaChat, если задан GIGACHAT_CREDENTIALS в .env
     if GIGACHAT_CREDENTIALS and GIGACHAT_CREDENTIALS.strip() and GIGACHAT_CREDENTIALS != "change-me":
         try:
@@ -187,12 +226,11 @@ async def get_or_generate_assessment(
         except Exception as exc:
             # Fallback на структурированный генератор при ошибке сети/авторизации
             assessment_text = generate_local_expert_assessment(metrics)
-            assessment_text += f"\n\n*(Запрос к GigaChat не удался: {str(exc)}. Использована встроенная аналитическая модель.)*"
             used_model = "local-analytics-fallback"
     else:
         # Токен не задан: используем локальную аналитическую генерацию
         assessment_text = generate_local_expert_assessment(metrics)
-        used_model = "local-analytics-engine (укажите GIGACHAT_CREDENTIALS в .env для GigaChat)"
+        used_model = "local-analytics-engine"
 
     # 3. Сохраняем в кэш
     metrics_json = json.dumps(metrics, ensure_ascii=False)

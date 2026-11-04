@@ -20,13 +20,15 @@ def compute_athlete_metrics(conn: sqlite3.Connection, athlete_id: int) -> Dict[s
     if not athlete:
         return {}
 
-    results = get_athlete_results(conn, athlete_id)
+    all_results = get_athlete_results(conn, athlete_id)
+    results = [r for r in all_results if r.status == 'FIN']
     if not results:
         return {
             "athlete_id": athlete_id,
             "athlete_name": athlete.display_name,
-            "total_starts": 0,
-            "message": "Нет завершенных стартов для анализа"
+            "total_starts": len(all_results),
+            "finishes_count": 0,
+            "message": "Недостаточно данных."
         }
 
     cur = conn.cursor()

@@ -7,7 +7,7 @@
 {% block content %}
 <div class="page-head__text">
     <h1 class="h1">Найти себя</h1>
-    <p class="lead">Введите фамилию и год рождения. Поиск не учитывает регистр и разницу е/ё, а год рождения сверяется с допуском ±1 год — он рассчитывается из возраста в протоколе.</p>
+    <p class="lead">Введите фамилию и год рождения - мы найдём ваши старты. В профиле вы сможете увидеть личную статистику, историю и положение среди других спортсменов.</p>
 </div>
 
 <form method="GET" action="/" class="card card--pad">
@@ -16,27 +16,23 @@
             <input class="input" type="text" id="last_name" name="last_name" value="{{ query_last_name }}" placeholder="Например: Иванов" required autocomplete="family-name">
         </label>
         <label class="field">Год рождения
-            <input class="input" type="number" inputmode="numeric" id="birth_year" name="birth_year" value="{{ query_birth_year or '' }}" placeholder="1990" min="1920" max="2020">
+            <input class="input" type="number" inputmode="numeric" id="birth_year" name="birth_year" value="{{ query_birth_year or '' }}" placeholder="1990" min="1920" max="2026" required>
         </label>
         <button type="submit" class="btn btn--primary btn--lg">Найти</button>
     </div>
-    <div class="row small">
-        <span class="muted">Быстрый тест:</span>
-        <a class="chip" href="/?last_name=Иванов&birth_year=1985">Иванов 1985</a>
-        <a class="chip" href="/?last_name=Смирнов">Смирнов</a>
-        <a class="chip" href="/?last_name=Кузнецова&birth_year=1992">Кузнецова 1992</a>
-        <a class="chip" href="/?last_name=Федоров">Федоров (е/ё)</a>
-    </div>
 </form>
 
-{% if query_last_name %}
+{% if missing_birth_year %}
+    <div class="card empty">
+        <span class="empty__icon">{{ ui.icon('empty', 'icon') }}</span>
+        <div class="strong">Укажите год рождения</div>
+        <p class="small muted">Для поиска укажите фамилию и год рождения.</p>
+    </div>
+{% elif query_last_name %}
     <div class="row row--between">
         <h2 class="strong" style="font-size: 16px;">
-            {% if candidates %}Нашли {{ candidates|length }} {{ ui.plural(candidates|length, 'спортсмена', 'спортсменов', 'спортсменов') }}{% else %}Никого не нашли{% endif %}
+            {% if candidates %}Нашли {{ candidates|length }} {{ ui.plural(candidates|length, 'спортсмена', 'спортсмена', 'спортсменов') }}{% else %}Никого не нашли{% endif %}
         </h2>
-        {% if query_birth_year %}
-            <span class="chip chip--sm num">Год: {{ query_birth_year }} ±1</span>
-        {% endif %}
     </div>
 
     {% if candidates %}
@@ -53,7 +49,7 @@
                         </div>
                     </div>
                     <div class="chips">
-                        <span class="chip chip--run">{{ ui.icon('run', 'icon-sm') }}Бег · {{ cand.starts_count }} финиш.</span>
+                        <span class="chip chip--run">{{ ui.icon('run', 'icon-sm') }}Бег · {{ cand.starts_count }} {{ ui.plural(cand.starts_count, 'старт', 'старта', 'стартов') }}</span>
                         {% if cand.club %}<span class="chip">{{ cand.club }}</span>{% endif %}
                     </div>
                     <a href="/athletes-view/{{ cand.id }}" class="btn {% if loop.first %}btn--primary{% endif %} btn--block">Это я</a>
@@ -68,4 +64,113 @@
         </div>
     {% endif %}
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var input = document.getElementById('birth_year');
+    if (!input) return;
+
+    function getBaseYear() {
+        var base = parseInt(input.placeholder, 10);
+        return isNaN(base) ? 1990 : base;
+    }
+
+    // Обработка клика по браузерным стрелочкам (spin button)
+    function handleSpin(e) {
+        if (input.value) return;
+        var rect = input.getBoundingClientRect();
+        // Область стрелочек — правые ~35px поля
+        if (e.clientX >= rect.right - 35) {
+            e.preventDefault();
+            var isUp = e.clientY < (rect.top + rect.height / 2);
+            var base = getBaseYear();
+            input.value = isUp ? (base + 1) : (base - 1);
+            input.focus();
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+
+    input.addEventListener('pointerdown', handleSpin);
+    input.addEventListener('mousedown', handleSpin);
+
+    // Ограничение ввода: только цифры, максимум 4 знака (текст запрещён)
+    input.addEventListener('keydown', function(e) {
+        if (!input.value && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+            e.preventDefault();
+            var base = getBaseYear();
+            input.value = (e.key === 'ArrowUp') ? (base + 1) : (base - 1);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            return;
+        }
+
+        var allowedKeys = [
+            'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+            'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+            'Home', 'End'
+        ];
+        if (allowedKeys.indexOf(e.key) !== -1 || e.ctrlKey || e.metaKey || e.altKey) {
+            return;
+        }
+
+        // Запрещаем любые нецифровые символы (текст, буквы, знаки +, -, ., e, E и др.)
+        if (!/^[0-9]$/.test(e.key)) {
+            e.preventDefault();
+            return;
+        }
+
+        // Проверяем, выделен ли текст для замены
+        var hasSelection = false;
+        try {
+            if (typeof input.selectionStart === 'number' && typeof input.selectionEnd === 'number') {
+                hasSelection = (input.selectionEnd > input.selectionStart);
+            }
+        } catch (err) {}
+        if (!hasSelection) {
+            try {
+                var s = window.getSelection();
+                if (s && s.toString().length > 0) {
+                    hasSelection = true;
+                }
+            } catch (err) {}
+        }
+
+        // Ограничиваем длину 4 цифрами (если текст не выделен для замены)
+        if (input.value.length >= 4 && !hasSelection) {
+            e.preventDefault();
+        }
+    });
+
+    input.addEventListener('input', function() {
+        if (input.value && input.value.length > 4) {
+            input.value = input.value.slice(0, 4);
+        }
+    });
+
+    input.addEventListener('paste', function(e) {
+        var pasteData = (e.clipboardData || window.clipboardData).getData('text') || '';
+        var digits = pasteData.replace(/\D/g, '').slice(0, 4);
+        e.preventDefault();
+        if (digits) {
+            input.value = digits;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    });
+
+    // Колёсико мыши при фокусе
+    input.addEventListener('wheel', function(e) {
+        if (!input.value && document.activeElement === input) {
+            e.preventDefault();
+            var base = getBaseYear();
+            input.value = (e.deltaY < 0) ? (base + 1) : (base - 1);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }, { passive: false });
+})();
+</script>
 {% endblock %}

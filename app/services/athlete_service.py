@@ -26,6 +26,29 @@ DISTANCE_TITLES = {
 }
 
 
+
+DUMMY_CLUBS_EXACT = {"нет", "лично", "индивидуально", "-", "—", "none", "null", "self", "individual", ""}
+DUMMY_CLUBS_SUBSTR = ("нет клуба", "no club", "без клуба")
+
+
+def is_dummy_club(club: Optional[str]) -> bool:
+    """Проверяет, является ли значение клуба технической заглушкой (Нет клуба/No club, Лично и т.п.)."""
+    if not club:
+        return True
+    s = club.strip().lower().replace("ё", "е")
+    if s in DUMMY_CLUBS_EXACT:
+        return True
+    if any(k in s for k in DUMMY_CLUBS_SUBSTR):
+        return True
+    return False
+
+
+def clean_club(club: Optional[str]) -> Optional[str]:
+    """Возвращает очищенное название клуба или None, если это заглушка."""
+    if is_dummy_club(club):
+        return None
+    return club.strip()
+
 def normalize_term(term: str) -> str:
     """Нормализует строку поиска: нижний регистр, замена ё -> е, удаление спецсимволов."""
     if not term:
@@ -91,16 +114,22 @@ def search_athletes(
             SELECT id, display_name, birth_year, gender, city, region, club, starts_count, results_count
             FROM athlete
             WHERE name_key LIKE ?
+              AND starts_count > 0
               AND (birth_year IS NULL OR abs(birth_year - ?) <= 1)
-            ORDER BY starts_count DESC, results_count DESC, id ASC
+            ORDER BY 
+                starts_count DESC,
+                COALESCE(abs(birth_year - ?), 999) ASC,
+                results_count DESC, 
+                id ASC
             LIMIT ?
         """
-        rows = cur.execute(query, (pattern, birth_year, limit)).fetchall()
+        rows = cur.execute(query, (pattern, birth_year, birth_year, limit)).fetchall()
     else:
         query = """
             SELECT id, display_name, birth_year, gender, city, region, club, starts_count, results_count
             FROM athlete
             WHERE name_key LIKE ?
+              AND starts_count > 0
             ORDER BY starts_count DESC, results_count DESC, id ASC
             LIMIT ?
         """
@@ -114,7 +143,7 @@ def search_athletes(
             gender=r["gender"],
             city=r["city"],
             region=r["region"],
-            club=r["club"],
+            club=clean_club(r["club"]),
             starts_count=r["starts_count"],
             results_count=r["results_count"],
         )
@@ -139,14 +168,14 @@ def get_athlete_by_id(conn: sqlite3.Connection, athlete_id: int) -> Optional[Ath
         gender=row["gender"],
         city=row["city"],
         region=row["region"],
-        club=row["club"],
+        club=clean_club(row["club"]),
         starts_count=row["starts_count"],
         results_count=row["results_count"],
     )
 
 
 def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[AthleteResultItem]:
-    """Возвращает все завершенные результаты спортсмена."""
+    """Возвращает все результаты спортсмена (включая DNS, DNF, DSQ)."""
     cur = conn.cursor()
     rows = cur.execute("""
         SELECT 
@@ -159,12 +188,15 @@ def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[Athle
             ra.name_raw AS distance_name,
             ra.norm_distance,
             ra.distance_m,
+            ra.total_count AS race_total_count,
             r.place_abs,
             r.place_gender,
             r.chip_time_s,
             r.gun_time_s,
             r.status,
-            r.bib
+            r.bib,
+            (SELECT max(r2.place_abs) FROM result r2 WHERE r2.race_id = r.race_id AND r2.duplicate_of IS NULL) AS max_fin_place,
+            (SELECT count(*) FROM result r3 WHERE r3.race_id = r.race_id AND r3.duplicate_of IS NULL) AS race_participants_count
         FROM result_athlete ral
         JOIN result r ON r.id = ral.result_id
         JOIN race ra ON ra.id = r.race_id
@@ -178,8 +210,16 @@ def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[Athle
 
     results = []
     for r in rows:
+        status = r["status"]
         time_s = r["chip_time_s"] if r["chip_time_s"] is not None else r["gun_time_s"]
         dist_m = r["distance_m"]
+        time_fmt = format_time(time_s)
+        pace_fmt = format_pace(time_s, dist_m)
+        pl_abs = r["place_abs"]
+        pl_gender = r["place_gender"]
+
+        tot_fin = r["max_fin_place"]
+        tot_part = r["race_total_count"] or r["race_participants_count"]
         results.append(AthleteResultItem(
             result_id=r["result_id"],
             event_id=r["event_id"],
@@ -190,13 +230,15 @@ def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[Athle
             distance_name=r["distance_name"] or "Дистанция",
             norm_distance=r["norm_distance"],
             distance_m=dist_m,
-            place_abs=r["place_abs"],
-            place_gender=r["place_gender"],
+            place_abs=pl_abs,
+            place_gender=pl_gender,
+            total_finishers=tot_fin,
+            total_participants=tot_part,
             chip_time_s=r["chip_time_s"],
             gun_time_s=r["gun_time_s"],
-            time_formatted=format_time(time_s),
-            pace_formatted=format_pace(time_s, dist_m),
-            status=r["status"],
+            time_formatted=time_fmt,
+            pace_formatted=pace_fmt,
+            status=status,
             bib=r["bib"]
         ))
     return results
@@ -213,6 +255,8 @@ def get_athlete_summary(conn: sqlite3.Connection, athlete_id: int) -> Optional[A
     # Вычисление личных рекордов (Personal Bests) по нормализованным дистанциям
     pb_dict: Dict[str, Dict[str, Any]] = {}
     for res in results:
+        if res.status != "FIN":
+            continue
         nd = res.norm_distance
         if not nd:
             continue
@@ -245,10 +289,10 @@ def get_athlete_summary(conn: sqlite3.Connection, athlete_id: int) -> Optional[A
 
     # Формирование точек динамики для графика (по возрастанию даты)
     dynamics: List[DynamicsPoint] = []
-    sorted_by_date = sorted([r for r in results if r.event_date], key=lambda x: x.event_date or "")
+    sorted_by_date = sorted([r for r in results if r.event_date and r.status == 'FIN'], key=lambda x: x.event_date or "")
     for r in sorted_by_date:
         time_s = r.chip_time_s if r.chip_time_s is not None else r.gun_time_s
-        if time_s:
+        if time_s and time_s > 0:
             dynamics.append(DynamicsPoint(
                 date=r.event_date[:10] if r.event_date else "",
                 event_title=r.event_title,

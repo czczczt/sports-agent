@@ -18,7 +18,8 @@ from app.services.athlete_service import (
     search_athletes, get_athlete_summary, get_athlete_results
 )
 from app.services.events_service import (
-    list_events, get_event_by_id, get_race_results, get_race_competition
+    list_events, get_event_by_id, get_race_results, get_race_competition,
+    get_athlete_race_result
 )
 from init_athletes import setup_schema, populate_athletes
 
@@ -71,21 +72,35 @@ app.include_router(agent_review_router)   # экран подтверждени�
 async def home_search_view(
     request: Request,
     last_name: Optional[str] = Query(None),
-    birth_year: Optional[int] = Query(None),
+    birth_year: Optional[str] = Query(None),
     db=Depends(get_db)
 ):
     """Главная страница: поиск спортсмена и выбор кандидата."""
     candidates = []
-    if last_name:
-        candidates = search_athletes(db, last_name=last_name, birth_year=birth_year, limit=50)
+    missing_birth_year = False
+    clean_last_name = (last_name or "").strip()
+
+    parsed_birth_year: Optional[int] = None
+    if birth_year and birth_year.strip().isdigit():
+        try:
+            parsed_birth_year = int(birth_year.strip())
+        except ValueError:
+            parsed_birth_year = None
+
+    if clean_last_name:
+        if not parsed_birth_year:
+            missing_birth_year = True
+        else:
+            candidates = search_athletes(db, last_name=clean_last_name, birth_year=parsed_birth_year, limit=50)
 
     return templates.TemplateResponse(
         request=request,
         name="search.html",
         context={
-            "query_last_name": last_name or "",
-            "query_birth_year": birth_year,
-            "candidates": candidates
+            "query_last_name": clean_last_name,
+            "query_birth_year": parsed_birth_year,
+            "candidates": candidates,
+            "missing_birth_year": missing_birth_year
         }
     )
 
@@ -110,7 +125,8 @@ async def athlete_profile_view(
         context={
             "summary": summary,
             "results": results,
-            "dynamics_json": dynamics_json
+            "dynamics_json": dynamics_json,
+            "selected_sport": "Бег"
         }
     )
 
@@ -118,15 +134,18 @@ async def athlete_profile_view(
 @app.get("/events-view", response_class=HTMLResponse, include_in_schema=False)
 async def events_catalog_view(
     request: Request,
+    query: Optional[str] = Query(None),
+    title: Optional[str] = Query(None),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     city: Optional[str] = Query(None),
     source: Optional[str] = Query(None),
     db=Depends(get_db)
 ):
-    """Каталог стартов с фильтрами по дате, городу и источнику."""
+    """Каталог стартов с фильтрами по названию забега, дате, городу и источнику."""
+    search_query = query or title
     events = list_events(
-        db, date_from=date_from, date_to=date_to, city=city,
+        db, query=search_query, date_from=date_from, date_to=date_to, city=city,
         source=source, limit=60, offset=0
     )
     return templates.TemplateResponse(
@@ -135,6 +154,8 @@ async def events_catalog_view(
         context={
             "events": events,
             "filters": {
+                "query": search_query,
+                "title": search_query,
                 "date_from": date_from,
                 "date_to": date_to,
                 "city": city,
@@ -179,7 +200,25 @@ async def race_detail_view(
         raise HTTPException(status_code=404, detail="Дистанция не найдена")
 
     event = get_event_by_id(db, event_id=race_row["event_id"])
-    results = get_race_results(db, race_id=race_id, search_query=search, limit=200, offset=0)
+    results = get_race_results(db, race_id=race_id, search_query=search, limit=300, offset=0)
+
+    pinned_athlete_result = None
+    show_gap = False
+
+    # Если передан athlete_id и поиск не активен:
+    # Если спортсмен занял место > 100 (или не финишировал DNS/DNF):
+    # выносим его наверх таблицы с разделителем точек, исключая дублирование в основном списке
+    if athlete_id and not search:
+        athlete_item = get_athlete_race_result(db, race_id=race_id, athlete_id=athlete_id)
+        if athlete_item:
+            # Проверяем место: если место > 100 или места нет (DNS/DNF/DSQ)
+            is_over_100 = (athlete_item.place_abs is None) or (isinstance(athlete_item.place_abs, int) and athlete_item.place_abs > 100)
+            if is_over_100:
+                pinned_athlete_result = athlete_item
+                show_gap = True
+                # Убираем спортсмена из основного списка, чтобы не дублировать
+                results = [r for r in results if r.athlete_id != athlete_id]
+
     competition = get_race_competition(db, race_id=race_id, athlete_id=athlete_id)
 
     return templates.TemplateResponse(
@@ -189,6 +228,8 @@ async def race_detail_view(
             "event": event,
             "race": race_row,
             "results": results,
+            "pinned_athlete_result": pinned_athlete_result,
+            "show_gap": show_gap,
             "competition": competition,
             "search_query": search or "",
             "athlete_id": athlete_id
