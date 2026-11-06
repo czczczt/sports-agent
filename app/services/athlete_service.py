@@ -1,4 +1,5 @@
 import sqlite3
+import json
 import re
 from typing import List, Optional, Dict, Any
 from app.models import (
@@ -193,6 +194,9 @@ def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[Athle
             r.place_gender,
             r.chip_time_s,
             r.gun_time_s,
+            rs.points AS rating_points,
+            rs.reason AS rating_reason,
+            rs.breakdown_json AS rating_breakdown_json,
             r.status,
             r.bib,
             (SELECT max(r2.place_abs) FROM result r2 WHERE r2.race_id = r.race_id AND r2.duplicate_of IS NULL) AS max_fin_place,
@@ -202,6 +206,8 @@ def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[Athle
         JOIN race ra ON ra.id = r.race_id
         JOIN event e ON e.id = ra.event_id
         JOIN source s ON s.id = e.source_id
+        LEFT JOIN rating_score rs
+          ON rs.result_id = r.id AND rs.formula_version = 'run-v1'
         WHERE ral.athlete_id = ?
           AND r.status = 'FIN'
           AND r.duplicate_of IS NULL
@@ -239,7 +245,13 @@ def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[Athle
             time_formatted=time_fmt,
             pace_formatted=pace_fmt,
             status=status,
-            bib=r["bib"]
+            bib=r["bib"],
+            rating_points=r["rating_points"],
+            rating_reason=r["rating_reason"],
+            rating_breakdown=(
+                json.loads(r["rating_breakdown_json"])
+                if r["rating_breakdown_json"] else None
+            )
         ))
     return results
 
@@ -311,16 +323,30 @@ def get_athlete_summary(conn: sqlite3.Connection, athlete_id: int) -> Optional[A
         (athlete_id,)
     ).fetchone() is not None
 
+    rating_row = cur.execute(
+        """
+        SELECT points, rank, starts_count, period_start, period_end
+        FROM running_athlete_rating
+        WHERE athlete_id = ? AND formula_version = 'run-v1'
+        ORDER BY period_end DESC
+        LIMIT 1
+        """,
+        (athlete_id,)
+    ).fetchone()
+
     return AthleteSummaryResponse(
         athlete=athlete,
         total_starts=len(results),
         personal_bests=sorted_pbs,
         dynamics=dynamics,
         rating=RatingPlaceholder(
-            status="pending_curator_formula",
-            message="Формула рейтинга находится на согласовании с куратором проекта",
-            points=None,
-            rank=None
+            status="counted" if rating_row else "no_data",
+            message="Рейтинг за последние 365 дней" if rating_row else "Нет результатов в рейтинговом периоде",
+            points=rating_row["points"] if rating_row else None,
+            rank=rating_row["rank"] if rating_row else None,
+            starts_count=rating_row["starts_count"] if rating_row else 0,
+            period_start=rating_row["period_start"] if rating_row else None,
+            period_end=rating_row["period_end"] if rating_row else None,
         ),
         has_cached_assessment=has_cache
     )

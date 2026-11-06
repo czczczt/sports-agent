@@ -43,6 +43,14 @@
   </form>
 </div>
 
+{% if db_error %}
+<div class="card card--pending" role="alert">
+  <p class="strong">Управление агентом временно недоступно</p>
+  <p class="small">{{ db_error }}</p>
+  <p class="small muted">Для этого экрана нужна PostgreSQL-база парсера и переменная окружения <code>DATABASE_URL</code>.</p>
+</div>
+{% endif %}
+
 {% if not items %}
 <div class="card empty">
   <span class="empty__icon">{{ ui.icon('empty') }}</span>

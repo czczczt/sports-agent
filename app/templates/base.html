@@ -1,6 +1,6 @@
 {% import "_ui.html" as ui %}
 {%- set path = request.url.path -%}
-{%- set section = 'events' if (path.startswith('/events-view') or path.startswith('/races-view')) else ('agent' if path.startswith('/agent-review') else 'search') -%}
+{%- set section = 'events' if (path.startswith('/events-view') or path.startswith('/races-view')) else ('rating' if path.startswith('/rating-view') else ('agent' if path.startswith('/agent-review') else 'search')) -%}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700&family=Golos+Text:wght@400;500;600&display=swap">
-    <link rel="stylesheet" href="/static/css/theme.css">
+    <link rel="stylesheet" href="/static/css/theme.css?v=rating-3">
     <script src="/static/js/theme.js"></script>
     <!-- Chart.js для графиков динамики и распределения -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -38,6 +38,7 @@
                 </a>
                 <nav class="top-nav" aria-label="Разделы">
                     <a href="/events-view" {% if section == 'events' %}aria-current="page"{% endif %}>Старты</a>
+                    <a href="/rating-view" {% if section == 'rating' %}aria-current="page"{% endif %}>Рейтинг</a>
                     <a href="/" {% if section == 'search' %}aria-current="page"{% endif %}>Найти себя</a>
                     <a href="/agent-review" {% if section == 'agent' %}aria-current="page"{% endif %}>Правки агента</a>
                 </nav>
@@ -69,6 +70,7 @@
 
     <nav class="bottom-nav" aria-label="Разделы">
         <a href="/events-view" {% if section == 'events' %}aria-current="page"{% endif %}>{{ ui.icon('calendar') }}Старты</a>
+        <a href="/rating-view" {% if section == 'rating' %}aria-current="page"{% endif %}>{{ ui.icon('trophy') }}Рейтинг</a>
         <a href="/" {% if section == 'search' %}aria-current="page"{% endif %}>{{ ui.icon('user') }}Найти себя</a>
     </nav>
 

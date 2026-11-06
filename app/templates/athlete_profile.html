@@ -35,12 +35,30 @@
             </div>
         </div>
 
-        <section class="card card--pad card--pending">
+        <section class="card card--pad {% if summary.rating.status == 'no_data' %}card--pending{% endif %}">
             <div class="row row--between">
                 <h2 class="h2">Место в рейтинге</h2>
-                <span class="chip chip--sm chip--pending">на согласовании</span>
+                {% if not summary.rating.rank %}
+                    <span class="chip chip--sm chip--pending">нет данных</span>
+                {% endif %}
             </div>
-            <p class="small">{% if summary.personal_bests|length > 0 %}{{ summary.rating.message }}. Рейтинг считает бэкенд по формуле куратора — блок включится после утверждения методики.{% else %}Недостаточно данных для рейтинга.{% endif %}</p>
+            {% if summary.rating.rank %}
+                <div class="row" style="align-items: baseline; gap: 10px; margin-top: 8px;">
+                    <span class="display-num num">{{ summary.rating.rank }}</span>
+                </div>
+                <div class="grid-2" style="margin-top: 12px;">
+                    <div class="tile">
+                        <div class="tile__value num">{{ '%.1f'|format(summary.rating.points) }}</div>
+                        <div class="tile__label">баллов</div>
+                    </div>
+                    <div class="tile">
+                        <div class="tile__value num">{{ summary.rating.starts_count }}</div>
+                        <div class="tile__label">{{ ui.plural(summary.rating.starts_count, 'старт', 'старта', 'стартов') }}</div>
+                    </div>
+                </div>
+            {% else %}
+                <p class="small">Недостаточно данных для рейтинга за последние 365 дней.</p>
+            {% endif %}
         </section>
 
         <section class="card card--clip">
@@ -108,6 +126,7 @@
                                 <th scope="col">Старт</th>
                                 <th scope="col" class="right">Время</th>
                                 <th scope="col" class="right">Темп</th>
+                                <th scope="col" class="right">Баллы</th>
                                 <th scope="col" class="center">Место</th>
                             </tr>
                         </thead>
@@ -121,6 +140,13 @@
                                     </td>
                                     <td class="num right strong nowrap">{{ r.time_formatted }}{% if r.gun_time_s %}<div class="cell-sub">пист. {{ ui.hms(r.gun_time_s) }}</div>{% endif %}</td>
                                     <td class="num right nowrap">{{ r.pace_formatted }}</td>
+                                    <td class="num right nowrap">
+                                        {% if r.rating_points is not none %}
+                                            <span class="strong">{{ '%.1f'|format(r.rating_points) }}</span>
+                                        {% else %}
+                                            <span class="muted" title="{{ r.rating_reason or 'не в зачёте' }}">—</span>
+                                        {% endif %}
+                                    </td>
                                     <td class="num center nowrap">{% if r.place_abs and r.total_participants %}<span class="strong">{{ r.place_abs }}</span> <span class="muted">/ {{ r.total_participants }}</span>{% else %}<span class="strong">{{ r.place_abs or '—' }}</span>{% endif %}</td>
                                 </tr>
                             {% endfor %}
@@ -137,7 +163,10 @@
                             </div>
                             <div class="list-row__end">
                                 <div class="num strong">{{ r.time_formatted }}</div>
-                                <div class="list-row__meta num">{{ r.pace_formatted }}</div>
+                                <div class="list-row__meta num">
+                                    {{ r.pace_formatted }}
+                                    {% if r.rating_points is not none %} · {{ '%.1f'|format(r.rating_points) }} б.{% endif %}
+                                </div>
                             </div>
                         </a>
                     {% endfor %}

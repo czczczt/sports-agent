@@ -279,6 +279,39 @@ def get_athlete_race_result(
     return _row_to_protocol_item(row, dist_m)
 
 
+def get_race_rating_leaders(
+    conn: sqlite3.Connection,
+    race_id: int,
+    limit: int = 3,
+) -> List[dict]:
+    """Возвращает сильнейших участников дистанции по общему рейтингу бега."""
+    rows = conn.execute(
+        """
+        SELECT ar.rank AS rating_rank, ar.points AS rating_points,
+               ar.starts_count AS rating_starts,
+               ral.athlete_id, r.id AS result_id, r.full_name_raw,
+               r.place_abs, r.chip_time_s, r.gun_time_s
+        FROM result r
+        JOIN result_athlete ral ON ral.result_id = r.id
+        JOIN running_athlete_rating ar ON ar.athlete_id = ral.athlete_id
+        WHERE r.race_id = ?
+          AND r.status = 'FIN'
+          AND r.duplicate_of IS NULL
+          AND ar.formula_version = 'run-v1'
+          AND ar.period_end = (
+              SELECT MAX(period_end)
+              FROM running_athlete_rating
+              WHERE formula_version = 'run-v1'
+          )
+        ORDER BY ar.points DESC, ar.best_points DESC, ar.starts_count DESC,
+                 ar.rank ASC
+        LIMIT ?
+        """,
+        (race_id, limit),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def get_race_competition(
     conn: sqlite3.Connection,
     race_id: int,

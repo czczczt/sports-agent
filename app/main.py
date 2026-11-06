@@ -19,8 +19,9 @@ from app.services.athlete_service import (
 )
 from app.services.events_service import (
     list_events, get_event_by_id, get_race_results, get_race_competition,
-    get_athlete_race_result
+    get_athlete_race_result, get_race_rating_leaders
 )
+from app.services.rating_service import recalculate as recalculate_rating, get_rating_page
 from init_athletes import setup_schema, populate_athletes
 
 
@@ -41,6 +42,14 @@ async def lifespan(app: FastAPI):
         populate_athletes(SQLITE_DB_PATH)
     else:
         print(f"[Startup] База данных готова. Спортсменов в индексе: {count}")
+    rating_conn = get_db_connection()
+    rating_report = recalculate_rating(rating_conn)
+    rating_conn.close()
+    print(
+        "[Startup] Рейтинг бега пересчитан: "
+        f"{rating_report['athletes_rated']} спортсменов, "
+        f"{rating_report['results_scored']} результатов"
+    )
     yield
 
 
@@ -105,6 +114,67 @@ async def home_search_view(
     )
 
 
+@app.get("/rating-view", response_class=HTMLResponse, include_in_schema=False)
+async def rating_view(
+    request: Request,
+    gender: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    db=Depends(get_db),
+):
+    """Страница сохранённого рейтинга бегунов за последние 365 дней."""
+    clean_gender = gender if gender in ("M", "F") else None
+    clean_search = (search or "").strip()
+    rating = get_rating_page(
+        db,
+        gender=clean_gender,
+        search=clean_search or None,
+        limit=100,
+    )
+    return templates.TemplateResponse(
+        request=request,
+        name="rating.html",
+        context={
+            "rating": rating,
+            "gender": clean_gender,
+            "search_query": clean_search,
+        },
+    )
+
+
+@app.get("/rating-formula", response_class=HTMLResponse, include_in_schema=False)
+async def rating_formula_view(
+    request: Request,
+    db=Depends(get_db),
+):
+    """Пояснение действующей формулы бегового рейтинга."""
+    norms = db.execute(
+        """
+        SELECT distance_class, gender, value, unit
+        FROM rating_norm
+        WHERE year = 2026
+        ORDER BY CASE distance_class
+            WHEN '60m' THEN 1 WHEN '100m' THEN 2 WHEN '200m' THEN 3
+            WHEN '400m' THEN 4 WHEN '800m' THEN 5 WHEN '1000m' THEN 6
+            WHEN '1500m' THEN 7 WHEN '1mile' THEN 8 WHEN '3000m' THEN 9
+            WHEN '5000m' THEN 10 WHEN '10000m' THEN 11
+            WHEN 'half_marathon' THEN 12 WHEN 'marathon' THEN 13
+            WHEN '100km' THEN 14 WHEN '24h' THEN 15 ELSE 99 END,
+            gender
+        """
+    ).fetchall()
+    period = db.execute(
+        """
+        SELECT period_start, period_end
+        FROM running_athlete_rating
+        WHERE formula_version = 'run-v1'
+        ORDER BY period_end DESC LIMIT 1
+        """
+    ).fetchone()
+    return templates.TemplateResponse(
+        request=request,
+        name="rating_formula.html",
+        context={"norms": norms, "period": period},
+    )
 @app.get("/athletes-view/{athlete_id}", response_class=HTMLResponse, include_in_schema=False)
 async def athlete_profile_view(
     request: Request,
@@ -220,6 +290,7 @@ async def race_detail_view(
                 results = [r for r in results if r.athlete_id != athlete_id]
 
     competition = get_race_competition(db, race_id=race_id, athlete_id=athlete_id)
+    rating_leaders = get_race_rating_leaders(db, race_id=race_id)
 
     return templates.TemplateResponse(
         request=request,
@@ -231,6 +302,7 @@ async def race_detail_view(
             "pinned_athlete_result": pinned_athlete_result,
             "show_gap": show_gap,
             "competition": competition,
+            "rating_leaders": rating_leaders,
             "search_query": search or "",
             "athlete_id": athlete_id
         }

@@ -34,6 +34,9 @@ class AthleteResultItem(BaseModel):
     pace_formatted: str
     status: str
     bib: Optional[int] = None
+    rating_points: Optional[float] = None
+    rating_reason: Optional[str] = None
+    rating_breakdown: Optional[Dict[str, Any]] = None
 
 
 class PersonalBestItem(BaseModel):
@@ -47,10 +50,13 @@ class PersonalBestItem(BaseModel):
 
 
 class RatingPlaceholder(BaseModel):
-    status: str = "pending_curator_formula"
-    message: str = "Формула рейтинга согласуется с куратором"
+    status: str = "counted"
+    message: str = "Рейтинг за последние 365 дней"
     points: Optional[float] = None
     rank: Optional[int] = None
+    starts_count: int = 0
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
 
 
 class DynamicsPoint(BaseModel):

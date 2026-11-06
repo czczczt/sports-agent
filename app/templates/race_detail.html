@@ -60,16 +60,23 @@
             </section>
         {% endif %}
 
-        {% if not search_query and results and results[0].place_abs == 1 %}
+        {% if not search_query and rating_leaders %}
             <section class="card card--clip">
-                <div class="card__head"><h2 class="h2">Топ-3</h2></div>
-                {% for r in results[:3] if r.place_abs and r.place_abs <= 3 %}
+                <div class="card__head">
+                    <h2 class="h2">Топ по рейтингу</h2>
+                    <span class="chip chip--sm chip--brand">365 дней</span>
+                </div>
+                {% for r in rating_leaders %}
                     <div class="list-row list-row--place">
-                        <span class="medal medal--{{ r.place_abs }} num">{{ r.place_abs }}</span>
+                        <span class="medal medal--{{ loop.index }} num">{{ loop.index }}</span>
                         <span style="min-width: 0;">
-                            {% if r.athlete_id %}<a href="/athletes-view/{{ r.athlete_id }}" class="list-row__title">{{ r.full_name_raw }}</a>{% else %}<span class="list-row__title">{{ r.full_name_raw }}</span>{% endif %}
+                            <a href="/athletes-view/{{ r.athlete_id }}" class="list-row__title">{{ r.full_name_raw }}</a>
+                            <span class="list-row__meta">место в общем рейтинге: {{ r.rating_rank }} · {{ r.rating_starts }} стартов</span>
                         </span>
-                        <span class="num strong">{{ r.time_formatted }}</span>
+                        <span class="list-row__end">
+                            <span class="num strong">{{ '%.1f'|format(r.rating_points) }}</span>
+                            <span class="list-row__meta">баллов</span>
+                        </span>
                     </div>
                 {% endfor %}
             </section>

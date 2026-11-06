@@ -50,7 +50,14 @@ class ApplyIn(BaseModel):
 
 @router.get("", response_class=HTMLResponse, include_in_schema=False)
 def review_page(request: Request, status: str = Query("proposed"), source: str | None = Query(None)):
-    con = _con()
+    db_error = None
+    try:
+        con = _con()
+    except RuntimeError as ex:
+        return templates.TemplateResponse(request=request, name="agent_review.html", context={
+            "items": [], "sources": [], "statuses": STATUSES, "status": status,
+            "source": source or "", "default_author": "operator", "db_error": str(ex),
+        }, status_code=503)
     try:
         items = aq.list_items(con, None if status == "all" else status, source or None)
         sources = aq.sources(con)
@@ -63,7 +70,10 @@ def review_page(request: Request, status: str = Query("proposed"), source: str |
 
 @router.get("/api/items")
 def api_items(status: str = "proposed", source: str | None = None):
-    con = _con()
+    try:
+        con = _con()
+    except RuntimeError as ex:
+        raise HTTPException(503, str(ex)) from ex
     try:
         items = aq.list_items(con, None if status == "all" else status, source)
     finally:
@@ -76,7 +86,10 @@ def api_items(status: str = "proposed", source: str | None = None):
 
 @router.post("/api/{issue_id}/decide")
 def api_decide(issue_id: int, body: DecisionIn):
-    con = _con()
+    try:
+        con = _con()
+    except RuntimeError as ex:
+        raise HTTPException(503, str(ex)) from ex
     try:
         return aq.decide(con, issue_id, body.decision, body.author, body.comment, body.retry)
     except aq.DecisionError as ex:
@@ -87,7 +100,10 @@ def api_decide(issue_id: int, body: DecisionIn):
 
 @router.post("/api/{issue_id}/apply")
 def api_apply(issue_id: int, body: ApplyIn):
-    con = _con()
+    try:
+        con = _con()
+    except RuntimeError as ex:
+        raise HTTPException(503, str(ex)) from ex
     try:
         return aq.apply_approved(con, issue_id, push=body.push)
     except aq.DecisionError as ex:
