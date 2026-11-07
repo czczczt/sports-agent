@@ -278,12 +278,175 @@ button, input, select { font: inherit; color: inherit; }
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
 
+/* ---------- Экран рейтинга ---------- */
+.rating-page {
+  --rating-bg: var(--bg-base); --rating-surface: var(--surface); --rating-line: var(--border);
+  --rating-muted: var(--text-muted); --rating-green: var(--brand);
+  color: var(--text-primary); background: var(--rating-bg); border-radius: 14px;
+  padding: 28px; margin: -4px 0 0;
+}
+.rating-page__head { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
+.rating-page__title { font: 700 42px/1.1 var(--font-display); letter-spacing: -.03em; }
+.rating-page__subtitle { color: var(--rating-muted); font-size: 13px; margin-top: 6px; }
+.rating-sports { display: flex; gap: 24px; align-items: center; }
+.rating-sport { color: var(--rating-muted); display: flex; gap: 7px; align-items: center; padding: 10px 0; text-decoration: none; border-bottom: 2px solid transparent; }
+.rating-sport--active { color: var(--text-primary); border-bottom-color: var(--sport-run); }
+.rating-sport--disabled { opacity: .7; }
+.rating-filters { display: flex; gap: 12px; align-items: end; margin: 28px 0 16px; }
+.rating-filter { display: flex; gap: 8px; align-items: center; color: var(--rating-muted); font-size: 13px; }
+.rating-filter select, .rating-search input { background: var(--rating-surface); border: 1px solid var(--rating-line); border-radius: 7px; color: var(--text-primary); min-height: 36px; padding: 0 12px; }
+.rating-search { margin-left: auto; }
+.rating-search input { width: 210px; }
+.rating-segment { display: flex; background: var(--rating-surface); border: 1px solid var(--rating-line); border-radius: 7px; padding: 3px; }
+.rating-segment a { color: var(--rating-muted); padding: 6px 11px; text-decoration: none; border-radius: 5px; }
+.rating-segment a.is-active { color: var(--brand-on-fill); background: var(--brand-fill); }
+.rating-layout { display: grid; grid-template-columns: minmax(0, 1fr) 216px; gap: 16px; align-items: start; }
+.rating-board, .rating-side-card { background: var(--rating-surface); border: 1px solid var(--rating-line); border-radius: 11px; overflow: hidden; }
+.rating-podium { height: 174px; display: flex; justify-content: center; align-items: end; gap: 12px; padding: 18px 42px 0; border-bottom: 1px dashed var(--border-strong); }
+.rating-podium__item { width: 23%; min-width: 120px; color: var(--text-primary); text-align: center; text-decoration: none; display: flex; flex-direction: column; align-items: center; }
+.rating-podium__name { font-size: 13px; white-space: nowrap; overflow: hidden; max-width: 100%; text-overflow: ellipsis; }
+.rating-podium__points { font-size: 16px; margin: 3px 0 7px; }
+.rating-podium__bar { width: 100%; display: grid; place-items: center; color: #101512; font: 700 24px var(--font-display); border-radius: 6px 6px 0 0; }
+.rating-podium__item--1 { order: 2; }.rating-podium__item--2 { order: 1; }.rating-podium__item--3 { order: 3; }
+.rating-podium__item--1 .rating-podium__bar { height: 76px; background: #e8b929; }
+.rating-podium__item--2 .rating-podium__bar { height: 56px; background: #b9c3ca; }
+.rating-podium__item--3 .rating-podium__bar { height: 44px; background: #d78c4a; }
+.rating-table { width: 100%; border-collapse: collapse; }
+.rating-table th { color: var(--rating-muted); font-size: 12px; font-weight: 500; text-align: left; padding: 10px 16px; border-bottom: 1px solid var(--rating-line); }
+.rating-table td { padding: 10px 16px; border-bottom: 1px solid #1d2723; }
+.rating-table tr:hover { background: var(--surface-2); }
+.rating-table .right { text-align: right; }.rating-athlete { color: var(--text-primary); text-decoration: none; display: block; font-weight: 600; }.rating-birth { color: var(--rating-muted); font-size: 12px; display: block; }
+.rating-place { display: inline-grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; color: #101512; font-weight: 600; font-size: 12px; }
+.rating-place--1 { background: var(--medal-gold); }.rating-place--2 { background: var(--medal-silver); }.rating-place--3 { background: var(--medal-bronze); }.rating-place--plain { color: var(--text-primary); }
+.rating-delta { color: var(--rating-green); }.rating-board__footer { padding: 14px 16px; color: var(--rating-muted); font-size: 12px; }
+.rating-sidebar { display: flex; flex-direction: column; gap: 14px; }.rating-side-card { padding: 16px; }.rating-side-card__label { color: var(--rating-green); font-size: 12px; font-weight: 600; }.rating-side-card__rank { display: block; font: 700 42px var(--font-display); margin: 6px 0; }.rating-side-card__muted, .rating-side-card p { color: var(--rating-muted); font-size: 12px; line-height: 1.5; }.rating-side-card h2 { font-size: 14px; margin-bottom: 10px; }.rating-side-card__link { color: var(--rating-green); font-size: 12px; font-weight: 600; text-decoration: none; } .rating-side-card__title-link { color: var(--text-primary) !important; font-size: 14px; font-weight: 600; line-height: 1.4; text-decoration: none; display: block; transition: color 0.15s ease; } .rating-side-card__title-link:hover { color: var(--rating-green) !important; }.rating-formula { color: var(--text-primary) !important; font-weight: 600; margin: 10px 0; }.rating-explanation { color: var(--rating-muted); font-size: 13px; padding: 16px 2px 0; }.rating-explanation h2 { color: var(--text-primary); font-size: 16px; margin-bottom: 6px; }
+.formula-page { --formula-bg: #0b100e; --formula-surface: #121a17; --formula-line: #24302b; --formula-muted: #899690; color: #f1f5f2; background: var(--formula-bg); border-radius: 14px; padding: 28px; }
+.formula-head h1 { font: 700 42px/1.1 var(--font-display); letter-spacing: -.03em; }.formula-head p { color: #32b9ee; font-size: 13px; margin-top: 8px; }
+.formula-demo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 24px; align-items: start; }.formula-demo-card { background: var(--formula-surface); border: 1px solid var(--formula-line); border-radius: 11px; padding: 20px; min-height: 280px; }.formula-demo-card:first-child { border-top: 2px solid #ef8d28; }.formula-demo-card--result { border: 2px solid var(--rating-green); }.formula-demo-card__muted { color: var(--formula-muted); font-size: 12px; }.formula-demo-card h2 { font-size: 16px; margin: 7px 0 14px; }.formula-demo-equation { background: #19241f; border-radius: 8px; padding: 11px; font-size: 13px; margin-bottom: 10px; }.formula-demo-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; color: var(--formula-muted); border-bottom: 1px solid var(--formula-line); font-size: 13px; }.formula-demo-row strong { color: #f1f5f2; }.formula-demo-total { display: flex; justify-content: space-between; padding-top: 14px; margin-top: 3px; font-size: 15px; }.formula-demo-total strong:last-child { font: 700 22px var(--font-display); }.formula-demo-note { color: var(--formula-muted); font-size: 12px; line-height: 1.5; margin-top: 14px; }.formula-demo-card hr { border: 0; border-top: 1px solid var(--formula-line); margin: 18px 0; }.formula-demo-result span { color: var(--formula-muted); font-size: 13px; display: block; }.formula-demo-result strong { display: block; font: 700 22px var(--font-display); margin-top: 6px; }.formula-demo-card--result > a { display: block; color: var(--rating-green); font-size: 12px; font-weight: 600; margin-top: 18px; text-decoration: none; }
+.formula-rules { background: var(--formula-surface); border: 1px solid var(--formula-line); border-radius: 11px; padding: 20px; margin-top: 16px; }.formula-rules h2 { font-size: 18px; margin-bottom: 14px; }.formula-rule-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }.formula-rule { background: #19241f; border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 6px; border-top: 2px solid; }.formula-rule strong { font-size: 13px; }.formula-rule span { font-size: 13px; }.formula-rule small { color: var(--formula-muted); font-size: 11px; line-height: 1.4; }.formula-rule--run { border-color: #ef8d28; }.formula-rule--run strong { color: #f0a04b; }.formula-rule--blue { border-color: #32b9ee; }.formula-rule--blue strong { color: #32b9ee; }.formula-rule--purple { border-color: #a78bfa; }.formula-rule--purple strong { color: #a78bfa; }.formula-rule--sand { border-color: #d4a373; }.formula-rule--sand strong { color: #d4a373; }
+
+/* ---------- Страница формулы бегового рейтинга ---------- */
+.formula-page { --formula-bg: #0b100e; --formula-surface: #121a17; --formula-surface-2: #18231e; --formula-line: #29352f; --formula-muted: #91a099; max-width: 1180px; margin: 0 auto; padding: 42px 44px 34px; color: #f1f5f2; background: var(--formula-bg); border-radius: 16px; }
+.formula-hero { display: flex; justify-content: space-between; gap: 32px; padding-bottom: 40px; border-bottom: 1px solid var(--formula-line); }
+.formula-back { color: #91a099; font-size: 12px; text-decoration: none; }.formula-back:hover { color: #f1f5f2; }
+.formula-kicker { color: #f0a04b; font-size: 11px; font-weight: 700; letter-spacing: .12em; margin: 0 0 12px; }
+.formula-hero .formula-kicker { margin-top: 30px; }.formula-hero h1 { font: 700 clamp(34px, 5vw, 64px)/1.08 var(--font-display); letter-spacing: -.05em; margin: 0; }.formula-hero h1 em { color: #f0a04b; font-style: normal; }.formula-lead { color: var(--formula-muted); font-size: 15px; line-height: 1.6; max-width: 570px; margin: 20px 0 0; }
+.formula-hero__badge { align-self: end; border: 1px solid #7e5428; border-radius: 10px; min-width: 190px; padding: 16px; background: #1c1913; }.formula-hero__badge span, .formula-hero__badge small { display: block; color: #b7a58d; font-size: 11px; }.formula-hero__badge strong { display: block; color: #f0a04b; font: 700 25px var(--font-display); margin: 8px 0; }
+.formula-main-card { display: grid; grid-template-columns: 1fr 1.1fr; gap: 28px; margin-top: 24px; padding: 28px; border: 1px solid #7e5428; border-radius: 12px; background: linear-gradient(120deg, #211b13, #151d19 62%); }.formula-main-card__intro h2, .formula-section-heading h2 { font: 700 24px var(--font-display); letter-spacing: -.03em; margin: 0 0 10px; }.formula-main-card__intro > p:last-child { color: var(--formula-muted); line-height: 1.55; margin: 0; max-width: 420px; }
+.formula-equation { display: grid; grid-template-columns: auto auto auto auto auto; align-items: center; gap: 10px; }.formula-equation--large { align-self: center; padding: 22px; background: #111915; border-radius: 10px; color: #f0a04b; }.formula-equation span, .formula-equation strong, .formula-equation em { font-size: 13px; font-style: normal; }.formula-equation b { color: #9bab9f; font-size: 20px; }.formula-equation strong { color: #f1f5f2; }.formula-equation em { color: #9bab9f; border-top: 1px solid #617069; padding-top: 5px; grid-column: 5; text-align: center; }.formula-example { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 24px; padding-top: 18px; border-top: 1px solid #57412a; }.formula-example span { display: block; color: #b7a58d; font-size: 11px; }.formula-example strong { display: block; color: #f0a04b; font: 700 20px var(--font-display); margin-top: 7px; }.formula-example p { color: var(--formula-muted); font-size: 12px; line-height: 1.5; max-width: 330px; margin: 0; }
+.formula-flow, .formula-norms, .formula-rules--new { margin-top: 42px; }.formula-section-heading { display: flex; justify-content: space-between; align-items: end; gap: 18px; margin-bottom: 17px; }.formula-section-heading .formula-kicker { margin-bottom: 8px; }.formula-section-note { color: var(--formula-muted); font-size: 12px; }.formula-flow-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }.formula-flow-step { padding: 18px; min-height: 160px; border: 1px solid var(--formula-line); border-radius: 10px; background: var(--formula-surface); }.formula-flow-step--accent { border-color: #346d4b; background: #112319; }.formula-step-number { color: #f0a04b; font: 700 12px var(--font-display); }.formula-flow-step h3 { font-size: 15px; margin: 28px 0 8px; }.formula-flow-step p { color: var(--formula-muted); font-size: 12px; line-height: 1.5; margin: 0; }
+.formula-norms { padding: 25px; border: 1px solid var(--formula-line); border-radius: 12px; background: var(--formula-surface); }.formula-norms-table-wrap { overflow-x: auto; }.formula-norms-table { width: 100%; border-collapse: collapse; min-width: 540px; }.formula-norms-table th, .formula-norms-table td { padding: 11px 12px; border-bottom: 1px solid var(--formula-line); text-align: right; font-size: 13px; }.formula-norms-table th:first-child, .formula-norms-table td:first-child { text-align: left; }.formula-norms-table thead th { color: var(--formula-muted); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; }.formula-norms-table tbody th { color: #f1f5f2; font-weight: 600; }.formula-norms-table tbody td { color: #f0a04b; font-weight: 600; }.formula-norms-table tbody td:last-child { color: var(--formula-muted); font-weight: 400; }.formula-table-note { color: var(--formula-muted); font-size: 11px; line-height: 1.5; margin: 14px 0 0; }
+.formula-rules--new { padding: 25px; border: 1px solid var(--formula-line); border-radius: 12px; background: var(--formula-surface); }.formula-rules-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }.formula-rule-card { display: flex; gap: 12px; align-items: flex-start; padding: 15px; border-radius: 9px; background: var(--formula-surface-2); }.formula-rule-card > b { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-size: 14px; flex: 0 0 auto; }.formula-rule-card strong, .formula-rule-card span { display: block; }.formula-rule-card strong { font-size: 13px; margin-bottom: 4px; }.formula-rule-card span { color: var(--formula-muted); font-size: 11px; line-height: 1.45; }.formula-rule-card--yes > b { color: #65cf83; background: #1b4930; }.formula-rule-card--no > b { color: #ef8d75; background: #4a2822; }.formula-footer { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-top: 24px; padding: 20px 4px 0; border-top: 1px solid var(--formula-line); }.formula-footer strong, .formula-footer span { display: block; }.formula-footer strong { font-size: 14px; }.formula-footer span { color: var(--formula-muted); font-size: 12px; margin-top: 5px; }.formula-footer a { color: #65cf83; font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+
+.formula-hero__badge { min-width: 0; max-width: 220px; padding: 11px 14px; border-color: var(--formula-line); background: var(--formula-surface); opacity: .8; }
+.formula-hero__badge strong { color: #c5cec8; font: 600 14px var(--font-body); margin: 5px 0; }
+.formula-hero__badge span, .formula-hero__badge small { color: var(--formula-muted); }
+.formula-main-card { grid-template-columns: .8fr 1.2fr; border-width: 2px; border-color: #ef8d28; box-shadow: 0 0 28px #ef8d2826; }
+.formula-equation--large { min-height: 112px; padding: 25px 28px; background: #0c1510; border: 1px solid #ef8d28; box-shadow: inset 0 0 24px #ef8d2814; }
+.formula-equation--large > span:first-child { color: #f0a04b; font: 700 20px var(--font-display); }
+.formula-equation--large > b { color: #f0a04b; font-size: 28px; }
+.formula-equation--large > i { color: #f0a04b; font-size: 22px; font-style: normal; }
+.formula-equation--large > b:last-child { color: #f0a04b; font: 700 24px var(--font-display); }
+.formula-fraction { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 125px; }
+.formula-fraction strong { color: #f1f5f2; font: 700 17px var(--font-display); border-bottom: 2px solid #f0a04b; padding: 0 8px 5px; }
+.formula-fraction em { color: #aab8b0; font-size: 13px; font-style: normal; }
+
+/* Простая страница объяснения формулы */
+.formula-page--simple { max-width: 900px; padding: 46px 52px 56px; }
+.formula-simple-header { border-bottom: 1px solid var(--formula-line); padding-bottom: 28px; }
+.formula-simple-back { color: var(--formula-muted); font-size: 12px; text-decoration: none; }
+.formula-simple-back:hover { color: #f1f5f2; }
+.formula-simple-header h1 { font: 700 42px/1.1 var(--font-display); letter-spacing: -.04em; margin: 30px 0 12px; }
+.formula-simple-header p { display: flex; gap: 12px; margin: 0; color: var(--formula-muted); font-size: 14px; }
+.formula-simple-header p strong { color: #f0a04b; font-weight: 600; }
+.formula-simple-header p span { padding-left: 12px; border-left: 1px solid var(--formula-line); }
+.formula-simple-card { margin-top: 24px; padding: 28px; border: 1px solid var(--formula-line); border-radius: 12px; background: var(--formula-surface); }
+.formula-simple-card__heading > span { color: #f0a04b; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.formula-simple-card__heading h2 { font: 700 23px var(--font-display); letter-spacing: -.03em; margin: 9px 0 0; }
+.formula-simple-card__heading p { color: var(--formula-muted); font-size: 12px; margin: 8px 0 0; }
+.formula-simple-calculation { border-color: #ef8d28; background: linear-gradient(135deg, #211b13, #121a17 68%); }
+.formula-simple-equation { display: flex; align-items: center; justify-content: center; gap: 17px; margin: 28px 0; padding: 24px 16px; border: 1px solid #ef8d28; border-radius: 10px; background: #0c1510; color: #f0a04b; box-shadow: 0 0 22px #ef8d281c; }
+.formula-simple-equation > span:first-child { font: 700 20px var(--font-display); }
+.formula-simple-equation > b { font-size: 25px; }
+.formula-simple-equation > strong { font: 700 24px var(--font-display); }
+.formula-simple-fraction { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 130px; }
+.formula-simple-fraction strong { color: #f1f5f2; border-bottom: 2px solid #f0a04b; padding: 0 14px 6px; font: 700 18px var(--font-display); }
+.formula-simple-fraction i { color: #aab8b0; font-size: 14px; font-style: normal; }
+.formula-simple-example { display: flex; justify-content: space-between; gap: 24px; padding-top: 18px; border-top: 1px solid #57412a; }
+.formula-simple-example span { display: block; color: #b7a58d; font-size: 11px; }
+.formula-simple-example strong { display: block; color: #f0a04b; font: 700 19px var(--font-display); margin-top: 8px; }
+.formula-simple-example p { color: var(--formula-muted); font-size: 12px; line-height: 1.55; margin: 0; }
+.formula-simple-note { color: var(--formula-muted); font-size: 12px; line-height: 1.6; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--formula-line); }
+.formula-simple-note strong { color: var(--text-primary); font-weight: 600; }
+.formula-simple-norms { margin-top: 16px; }
+.formula-simple-table-wrap { overflow-x: auto; margin-top: 20px; }
+.formula-simple-table { width: 100%; border-collapse: collapse; min-width: 500px; }
+.formula-simple-table th, .formula-simple-table td { padding: 12px 10px; border-bottom: 1px solid var(--formula-line); font-size: 13px; text-align: right; }
+.formula-simple-table th:first-child, .formula-simple-table td:first-child { text-align: left; }
+.formula-simple-table thead th { color: var(--formula-muted); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; }
+.formula-simple-table tbody th { color: var(--text-primary); font-weight: 600; }
+.formula-simple-table tbody td { color: #f0a04b; font-weight: 600; }
+.formula-simple-table tbody td:last-child { color: var(--formula-muted); font-weight: 400; }
+.formula-simple-table-note { color: var(--formula-muted); font-size: 11px; line-height: 1.5; margin: 16px 0 0; }
+
+/* Формула использует ту же палитру и ритм, что и экран рейтинга. */
+.formula-page--simple {
+  --formula-bg: var(--bg-base);
+  --formula-surface: var(--surface);
+  --formula-line: var(--border);
+  --formula-muted: var(--text-muted);
+  --formula-accent: var(--brand);
+  color: var(--text-primary);
+  max-width: none;
+  margin: -4px 0 0;
+  padding: 28px;
+  background: var(--formula-bg);
+  border-radius: 14px;
+}
+.formula-simple-header { padding-bottom: 24px; }
+.formula-simple-back { color: var(--formula-muted); }
+.formula-simple-header h1 { font: 700 42px/1.1 var(--font-display); letter-spacing: -.03em; margin: 24px 0 8px; }
+.formula-simple-header p strong { color: var(--formula-accent); }
+.formula-simple-card { border-color: var(--formula-line); background: var(--formula-surface); border-radius: 11px; }
+.formula-simple-calculation { border: 1px solid var(--formula-line); background: var(--formula-surface); }
+.formula-simple-card__heading > span { color: var(--formula-accent); }
+.formula-simple-card__heading h2 { font-size: 18px; }
+.formula-simple-equation { border-color: var(--formula-accent); background: var(--surface-2); color: var(--formula-accent); box-shadow: none; }
+.formula-simple-equation > span:first-child,
+.formula-simple-equation > b,
+.formula-simple-equation > strong,
+.formula-simple-fraction strong,
+.formula-simple-fraction i {
+  color: var(--text-primary);
+  font: 500 16px/1.2 var(--font-body);
+}
+.formula-simple-equation > b { font-weight: 500; }
+.formula-simple-fraction strong { border-color: var(--formula-accent); }
+.formula-simple-fraction i { font-style: normal; }
+.formula-simple-example { border-top-color: var(--formula-line); }
+.formula-simple-example span { color: var(--formula-muted); }
+.formula-simple-example strong { color: var(--formula-accent); }
+.formula-simple-note { border-top-color: var(--formula-line); }
+.formula-simple-table tbody td { color: var(--text-primary); }
+.formula-simple-table tbody td:last-child { color: var(--formula-muted); }
+
+@media (max-width: 760px) {
+  .formula-simple-equation > span:first-child,
+  .formula-simple-equation > b,
+  .formula-simple-equation > strong,
+  .formula-simple-fraction strong,
+  .formula-simple-fraction i {
+    font: 500 13px/1.2 var(--font-body);
+  }
+}
+
 .app-footer {
   border-top: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-muted);
   font-size: 13px;
 }
+
 .app-footer__inner {
   max-width: 1200px; margin: 0 auto; padding: 16px 24px;
   display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px;
@@ -466,7 +629,22 @@ a.list-row:hover { background: var(--surface-2); color: var(--text-primary); }
 /* Блок ИИ-оценки */
 .assessment {
   background: var(--surface-2); border-radius: var(--radius-sm);
-  padding: 16px; white-space: pre-line; line-height: 1.6; font-size: 15px;
+  padding: 18px; line-height: 1.6; font-size: 15px;
+}
+.assessment h3, .assessment h4 {
+  margin: 16px 0 8px; font-weight: 600; color: var(--text-primary);
+}
+.assessment h3:first-child, .assessment h4:first-child {
+  margin-top: 0;
+}
+.assessment p {
+  margin: 0 0 10px;
+}
+.assessment ul {
+  margin: 6px 0 12px 20px; padding: 0;
+}
+.assessment li {
+  margin-bottom: 5px;
 }
 .spinner {
   width: 22px; height: 22px; border-radius: 50%;
@@ -516,7 +694,108 @@ a.list-row:hover { background: var(--surface-2); color: var(--text-primary); }
   .only-mobile { display: block; }
   .only-desktop { display: none; }
   .app-footer { display: none; }
+  .rating-page { padding: 18px 14px 28px; margin: -4px -8px 0; border-radius: 0; }
+  .rating-page__head { display: block; }.rating-page__title { font-size: 30px; }
+  .rating-sports { overflow-x: auto; gap: 18px; margin-top: 18px; }.rating-sport { white-space: nowrap; font-size: 13px; }
+  .rating-filters { align-items: stretch; flex-wrap: wrap; margin-top: 20px; }.rating-filter { flex-wrap: wrap; }
+  .rating-search { width: 100%; margin-left: 0; }.rating-search input { width: 100%; }
+  .rating-layout { display: block; }.rating-sidebar { margin-top: 14px; }.rating-podium { padding: 18px 12px 0; gap: 7px; }
+  .rating-podium__item { min-width: 0; width: 32%; }.rating-podium__name { font-size: 11px; }.rating-podium__points { font-size: 13px; }
+  .rating-table th, .rating-table td { padding: 9px 7px; }.rating-table th:nth-child(4), .rating-table td:nth-child(4) { display: none; }
+  .formula-page--simple { padding: 24px 14px 32px; margin: -4px -8px 0; border-radius: 0; }.formula-simple-header h1 { font-size: 30px; margin-top: 24px; }.formula-simple-card { padding: 20px 16px; }.formula-simple-card__heading h2 { font-size: 19px; }.formula-simple-equation { gap: 8px; padding: 18px 6px; margin: 22px 0; }.formula-simple-equation > span:first-child { font-size: 13px; }.formula-simple-equation > b { font-size: 17px; }.formula-simple-equation > strong { font-size: 15px; }.formula-simple-fraction { min-width: 82px; gap: 3px; }.formula-simple-fraction strong { font-size: 11px; padding: 0 5px 3px; }.formula-simple-fraction i { font-size: 9px; }.formula-simple-example { display: block; }.formula-simple-example strong { font-size: 14px; }.formula-simple-example p { margin-top: 14px; }.formula-simple-header p { flex-wrap: wrap; }.formula-simple-table { min-width: 500px; }
 }
 @media (min-width: 761px) {
   .brand__name .br { display: none; }
 }
+
+
+/* =====================================================================
+   Стилизация Air Datepicker под тему оформления (Светлая / Тёмная)
+   ===================================================================== */
+.air-datepicker {
+  --adp-font-family: 'Golos Text', system-ui, -apple-system, sans-serif;
+  --adp-font-size: 14px;
+  --adp-width: 290px;
+  --adp-z-index: 1050;
+  --adp-padding: 12px;
+  --adp-color: var(--text-primary);
+  --adp-color-secondary: var(--text-muted);
+  --adp-background-color: var(--surface);
+  --adp-background-color-hover: var(--surface-2);
+  --adp-background-color-active: var(--surface-3, var(--surface-2));
+  --adp-background-color-in-range: var(--brand-soft);
+  --adp-background-color-in-range-focused: var(--brand-soft);
+  --adp-color-other-month: var(--text-muted);
+  --adp-color-other-month-hover: var(--text-primary);
+  --adp-border-color: var(--border);
+  --adp-border-color-inner: var(--border-soft);
+  --adp-border-radius: var(--radius-sm);
+  --adp-border-color-inline: var(--border);
+
+  --adp-nav-height: 36px;
+  --adp-nav-arrow-color: var(--text-primary);
+  --adp-nav-action-size: 32px;
+  --adp-nav-color-secondary: var(--text-muted);
+
+  --adp-day-name-color: var(--text-muted);
+  --adp-day-name-color-hover: var(--text-primary);
+
+  --adp-day-cell-height: 34px;
+  --adp-month-cell-height: 42px;
+  --adp-year-cell-height: 52px;
+
+  --adp-btn-height: 32px;
+  --adp-btn-color: var(--brand);
+  --adp-btn-color-hover: var(--brand);
+  --adp-btn-background-color-hover: var(--brand-soft);
+  --adp-btn-background-color-active: var(--brand-soft);
+
+  --adp-cell-border-radius: 6px;
+  --adp-cell-background-color-selected: var(--brand);
+  --adp-cell-background-color-selected-hover: var(--brand);
+  --adp-cell-border-color-in-range: transparent;
+
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--border);
+}
+
+[data-theme="dark"] .air-datepicker {
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+}
+
+.air-datepicker-cell.-selected-,
+.air-datepicker-cell.-selected-.-focus- {
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+.air-datepicker-cell.-in-range- {
+  color: var(--text-primary) !important;
+}
+
+.air-datepicker-cell.-current- {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.air-datepicker-cell.-current-.-selected- {
+  color: #ffffff !important;
+}
+
+.air-datepicker-nav__title {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.air-datepicker-nav__action path {
+  fill: none;
+  stroke: var(--text-primary);
+}
+
+.rating-profile-link { text-decoration: none; display: block; }
+.rating-profile-link .rating-hover-target { color: var(--text-primary); transition: color 0.15s ease; }
+.rating-profile-link:hover .rating-hover-target { color: var(--rating-green) !important; }
+
+.points-profile-link { text-decoration: none; display: block; }
+.points-profile-link .rating-hover-target-points { color: var(--text-primary); transition: color 0.15s ease; }
+.points-profile-link:hover .rating-hover-target-points { color: var(--rating-green) !important; }

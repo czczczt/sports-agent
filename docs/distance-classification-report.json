@@ -1,0 +1,53 @@
+{
+  "before": {
+    "total": 297225,
+    "scored": 232916,
+    "unscored": 64309,
+    "classes": {
+      "10000m": 108135,
+      "1000m": 6351,
+      "100m": 56,
+      "1500m": 95,
+      "1mile": 119,
+      "200m": 59,
+      "3000m": 18160,
+      "400m": 228,
+      "5000m": 30206,
+      "60m": 171,
+      "800m": 728,
+      "half_marathon": 30053,
+      "marathon": 38555
+    }
+  },
+  "after": {
+    "total": 297225,
+    "scored": 234030,
+    "unscored": 63195,
+    "classes": {
+      "10000m": 108806,
+      "1000m": 6351,
+      "100m": 56,
+      "1500m": 95,
+      "1mile": 119,
+      "200m": 59,
+      "3000m": 18160,
+      "400m": 228,
+      "5000m": 30649,
+      "60m": 171,
+      "800m": 728,
+      "half_marathon": 30053,
+      "marathon": 38555
+    }
+  },
+  "changed_scores": 1114,
+  "g9": {
+    "unique_pairs": 185,
+    "labelled_pairs": 185,
+    "correct_pairs": 185,
+    "accuracy": 1.0,
+    "coverage": 1.0,
+    "unlabelled_pairs": [],
+    "mismatches": [],
+    "false_negatives": []
+  }
+}

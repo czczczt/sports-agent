@@ -205,7 +205,7 @@ class QueueTools:
     def __init__(self, spec: dict, baseline: dict):
         self.spec, self.sandbox = spec, Path(spec["sandbox"])
         self.target = spec["target"]
-        # регрессия: дистанции этого старта, которые проходили проверки до правки, должны проходить и после
+        # regression: дистанции этого старта, которые проходили проверки до правки, должны проходить и после
         self.were_ok = [e for e, r in baseline.items() if not e.startswith("_") and e != self.target and r.get("ok")]
 
     def run_checks(self, edits: list[dict]) -> dict:
@@ -453,8 +453,8 @@ def report_text(report: dict | None) -> str:
     if report.get("errors"):
         return "ошибки: " + "; ".join(report["errors"])
     if "task_check" in report:
-        return (f"задача: {'OK' if report['task_check']['ok'] else 'ПРОВАЛ'} — {report['task_check']['msg']}\n"
-                f"регрессия: {'OK' if report['regression']['ok'] else 'ПРОВАЛ'} — {report['regression']['msg']}")
+        return (f"task: {'OK' if report['task_check']['ok'] else 'FAIL'} — {report['task_check']['msg']}\n"
+                f"regression: {'OK' if report['regression']['ok'] else 'FAIL'} — {report['regression']['msg']}")
     return json.dumps(report, ensure_ascii=False)
 
 
@@ -485,7 +485,12 @@ def list_items(con, status: str | None = "proposed", source: str | None = None, 
 
 
 def sources(con) -> list[str]:
-    return [r[0] for r in con.execute("SELECT name FROM source ORDER BY name").fetchall()]
+    return [r[0] for r in con.execute("""
+        SELECT DISTINCT s.name 
+        FROM issue i 
+        JOIN source s ON s.id = i.source_id 
+        ORDER BY s.name
+    """).fetchall()]
 
 
 class DecisionError(Exception):

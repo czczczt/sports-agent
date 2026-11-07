@@ -19,10 +19,10 @@ from normalize import is_sber_club, km_to_m, norm_distance
 STATUSES = {"FIN", "DNF", "DSQ", "DNS", "NC", "LAP"}
 RESULT_FIELDS = ("external_participant_id", "bib", "full_name_raw", "gender", "age", "birth_year", "country",
                  "region", "city", "club_raw", "club_source", "status", "place_abs", "place_gender", "age_group",
-                 "chip_time_s", "gun_time_s")
+                 "chip_time_s", "gun_time_s", "distance_km")
 RESULT_COLUMNS = ("external_participant_id", "bib", "full_name_raw", "gender", "age", "birth_year", "country",
                   "region", "city", "club_raw", "club_source", "status", "position", "position_gender", "age_group",
-                  "chip_time_s", "gun_time_s")
+                  "chip_time_s", "gun_time_s", "distance_km")
 
 
 def to_date(s: str | None) -> str | None:
@@ -46,17 +46,18 @@ def save_race(con: psycopg.Connection, competition_id: int, r: dict) -> int:
     dist_m = km_to_m(r.get("distance_km"))
     # E21: не «удалить и вставить» — на дистанцию уже ссылаются результаты (FK)
     return con.execute("""INSERT INTO race(competition_id, external_id, name, distance_km_raw, distance_m,
-                          distance_type, race_type, place_by, timing_type, is_final_protocol, total_count)
-                          VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                          distance_type, race_type, place_by, timing_type, is_final_protocol, total_count, discipline)
+                          VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                           ON CONFLICT (competition_id, external_id) DO UPDATE SET name = excluded.name,
                           distance_km_raw = excluded.distance_km_raw, distance_m = excluded.distance_m,
                           distance_type = excluded.distance_type, race_type = excluded.race_type,
                           place_by = excluded.place_by, timing_type = excluded.timing_type,
-                          is_final_protocol = excluded.is_final_protocol, total_count = excluded.total_count
+                          is_final_protocol = excluded.is_final_protocol, total_count = excluded.total_count,
+                          discipline = COALESCE(excluded.discipline, race.discipline)
                           RETURNING id""",
                        (competition_id, str(r["external_id"]), r.get("name_raw"), r.get("distance_km"), dist_m,
                         norm_distance(dist_m), r.get("race_type", "individual"), r["place_by"], r.get("timing_type"),
-                        bool(r.get("is_final")), r.get("total_count"))).fetchone()[0]
+                        bool(r.get("is_final")), r.get("total_count"), r.get("discipline"))).fetchone()[0]
 
 
 def club_ids(con: psycopg.Connection, names: set[str]) -> dict[str, int]:

@@ -20,7 +20,7 @@
         {% set finishers = event.races|map(attribute='total_count')|select|sum %}
         <div class="grid-2" style="max-width: 420px;">
             <div class="tile"><div class="tile__value num">{{ event.races|length }}</div><div class="tile__label">{{ ui.plural(event.races|length, 'дистанция', 'дистанции', 'дистанций') }}</div></div>
-            <div class="tile"><div class="tile__value num">{{ finishers or '—' }}</div><div class="tile__label">участников в протоколах</div></div>
+            <div class="tile"><div class="tile__value num">{{ finishers or '—' }}</div><div class="tile__label">{% if finishers %}{{ ui.plural(finishers, 'участник', 'участника', 'участников') }} в протоколах{% else %}участников в протоколах{% endif %}</div></div>
         </div>
     </div>
 </section>
@@ -35,9 +35,6 @@
         <a href="/races-view/{{ r.id }}" class="list-row" style="text-decoration: none; padding: 14px 20px;">
             <div style="min-width: 0;">
                 <div class="list-row__title strong">{{ r.name_raw }}</div>
-                <div class="list-row__meta num">
-                    {% if r.norm_distance %}зачёт {{ r.norm_distance }}{% endif %}{% if r.norm_distance and r.distance_m %} · {% endif %}{% if r.distance_m %}{{ r.distance_m }} м{% endif %}{% if not r.norm_distance and not r.distance_m %}протокол{% endif %}
-                </div>
             </div>
             <div class="row" style="flex-wrap: nowrap; color: var(--text-muted);">
                 {% if r.total_count %}<span class="num strong" style="color: var(--text-primary);">{{ r.total_count }}</span><span class="small">уч.</span>{% endif %}

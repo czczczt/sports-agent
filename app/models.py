@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 
 
 class AthleteCandidate(BaseModel):
@@ -24,14 +24,19 @@ class AthleteResultItem(BaseModel):
     distance_name: str
     norm_distance: Optional[str] = None
     distance_m: Optional[int] = None
-    place_abs: Optional[int] = None
-    place_gender: Optional[int] = None
+    place_abs: Optional[Union[int, str]] = None
+    place_gender: Optional[Union[int, str]] = None
+    total_finishers: Optional[int] = None
+    total_participants: Optional[int] = None
     chip_time_s: Optional[float] = None
     gun_time_s: Optional[float] = None
     time_formatted: str
     pace_formatted: str
     status: str
     bib: Optional[int] = None
+    rating_points: Optional[float] = None
+    rating_reason: Optional[str] = None
+    rating_breakdown: Optional[Dict[str, Any]] = None
 
 
 class PersonalBestItem(BaseModel):
@@ -45,10 +50,13 @@ class PersonalBestItem(BaseModel):
 
 
 class RatingPlaceholder(BaseModel):
-    status: str = "pending_curator_formula"
-    message: str = "Формула рейтинга согласуется с куратором"
+    status: str = "counted"
+    message: str = "Рейтинг за последние 365 дней"
     points: Optional[float] = None
     rank: Optional[int] = None
+    starts_count: int = 0
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
 
 
 class DynamicsPoint(BaseModel):

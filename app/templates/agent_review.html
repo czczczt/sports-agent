@@ -24,8 +24,7 @@
 <div class="page-head">
   <div class="page-head__text">
     <h1 class="h1 h1-sm">Правки агента</h1>
-    <p class="lead">Предложения агента-ремонтника по очереди проблем парсера ждут решения человека.
-      То же, что <code>agent_queue.py review / decide / apply</code>.</p>
+    <p class="lead">Сгенерированные ИИ-агентом решения и адаптеры для сбора протоколов соревнований, ожидающие проверки человеком.</p>
   </div>
   <form method="get" class="review-filters">
     <label class="field">Статус
@@ -43,24 +42,37 @@
   </form>
 </div>
 
+{% if db_error %}
+<div class="card card--pending" role="alert">
+  <p class="strong">Управление агентом временно недоступно</p>
+  <p class="small">{{ db_error }}</p>
+  <p class="small muted">Для этого экрана нужна PostgreSQL-база парсера и переменная окружения <code>DATABASE_URL</code>.</p>
+</div>
+{% endif %}
+
 {% if not items %}
 <div class="card empty">
   <span class="empty__icon">{{ ui.icon('empty') }}</span>
   <p class="strong">Предложений нет{% if status != "all" %} в статусе «{{ status }}»{% endif %}</p>
-  <p class="muted small">Агент запускается командой <code>agent_queue.py process &lt;номер задачи&gt;</code></p>
+  <p class="muted small">Все задачи проверены или находятся в других вкладках.</p>
 </div>
 {% endif %}
 
 {% for it in items %}
 {% set run = it.run or {} %}
 <article class="card card--clip" id="issue-{{ it.issue_id }}">
-  <div class="card__head">
-    <div class="stack" style="gap:4px">
-      <h2 class="h2">Задача #{{ it.issue_id }} · {{ ui.source(it.source) }} · {{ it.object_ref }}</h2>
-      <span class="muted small">{{ it.kind }} · что упало: {{ it.details }}</span>
+  <div class="card__head" style="align-items: flex-start; padding-bottom: 4px;">
+    <div class="stack" style="gap:4px; flex: 1;">
+      <div class="row" style="align-items: center; gap: 8px; flex-wrap: wrap;">
+        <h2 class="h2" style="margin: 0;">Задача #{{ it.issue_id }} · {{ ui.source(it.source) }}</h2>
+        <a href="{{ it.object_ref }}" target="_blank" rel="noopener" class="small muted" style="text-decoration: underline;">{{ it.object_ref }} {{ ui.icon('external', 'icon-sm') }}</a>
+      </div>
+      <div style="font-size: 15px; line-height: 1.5; margin-top: 2px;">
+        <span class="muted">Проблема:</span>
+        <span style="color: var(--text-base); margin-left: 4px;">{{ it.details }}</span>
+      </div>
     </div>
     <div class="chips">
-      <span class="chip chip--sm chip--run">{{ run.action }}</span>
       {% if it.status == 'proposed' %}<span class="chip chip--sm chip--pending">ждёт решения</span>
       {% elif it.status in ['approved', 'resolved', 'known'] %}<span class="chip chip--sm chip--brand">{{ it.status }}</span>
       {% elif it.status == 'rejected' %}<span class="chip chip--sm chip--error">rejected</span>
@@ -68,20 +80,20 @@
     </div>
   </div>
 
-  <div class="card--pad" style="padding-top:0">
+  <div class="card--pad" style="padding-top: 4px;">
     <div class="stack" style="gap:4px">
-      <span class="label">Обоснование агента</span>
-      <p>{{ it.reason or "—" }}</p>
-      <span class="muted small num">agent_run #{{ run.run_id }} · {{ run.model }} · токены {{ run.tokens_in or 0 }} / {{ run.tokens_out or 0 }} · {{ run.seconds }} с</span>
+      <span class="label">Обоснование решения агента</span>
+      <p style="font-size: 15px; line-height: 1.5; margin: 0;">{{ it.reason or "—" }}</p>
+      <span class="muted small num" style="margin-top: 4px;">Модель: <b>{{ run.model }}</b>{% if run.tokens_in %} · Токены: {{ run.tokens_in }} вход / {{ run.tokens_out }} выход (всего {{ (run.tokens_in or 0) + (run.tokens_out or 0) }}){% endif %}{% if run.seconds is not none %} · Время: {{ run.seconds }} сек.{% endif %}</span>
     </div>
 
-    <div class="stack" style="gap:6px">
-      <span class="label">Правка</span>
+    <div class="stack" style="gap:6px; margin-top: 14px;">
+      <span class="label">Сгенерированный код</span>
       <pre class="diff">{% for line in it.diff.splitlines() %}<span class="{% if line.startswith('+++') or line.startswith('---') or line.startswith('@@') %}meta{% elif line.startswith('+') %}add{% elif line.startswith('-') %}del{% endif %}">{{ line }}</span>{% endfor %}</pre>
     </div>
 
-    <div class="stack" style="gap:6px">
-      <span class="label">Отчёт проверок</span>
+    <div class="stack" style="gap:6px; margin-top: 14px;">
+      <span class="label">Результат проверки решения</span>
       <pre class="report">{{ it.report_text }}</pre>
     </div>
 
@@ -108,19 +120,46 @@
         <input class="input input--sm" data-comment="{{ it.issue_id }}">
       </label>
     </div>
-    <div class="row">
-      <button type="button" class="btn btn--primary" onclick="decide({{ it.issue_id }}, 'approve', this)">Подтвердить</button>
-      <button type="button" class="btn btn--ghost" onclick="decide({{ it.issue_id }}, 'reject', this)">Отклонить</button>
-      <label class="row small muted" style="gap:6px"><input type="checkbox" data-retry="{{ it.issue_id }}"> вернуть агенту с комментарием</label>
-      <span class="msg-error" data-msg="{{ it.issue_id }}" role="status"></span>
+    <div class="row" style="justify-content: space-between; width: 100%;">
+      <div class="row">
+        <button type="button" class="btn btn--primary" onclick="decide({{ it.issue_id }}, 'approve', this)">Подтвердить</button>
+        <button type="button" class="btn btn--ghost" onclick="decide({{ it.issue_id }}, 'reject', this)">Отклонить</button>
+        <label class="row small muted" style="gap:6px"><input type="checkbox" data-retry="{{ it.issue_id }}"> вернуть агенту с комментарием</label>
+        <span class="msg-error" data-msg="{{ it.issue_id }}" role="status"></span>
+      </div>
+      <button type="button" class="btn btn--ghost" style="color: #ef4444;" onclick="deleteIssue({{ it.issue_id }}, this)">✕ Удалить</button>
     </div>
   </div>
   {% elif it.status == 'approved' %}
   <div class="card__foot">
-    <div class="row">
-      <button type="button" class="btn btn--primary" onclick="applyFix({{ it.issue_id }}, this)">Применить</button>
-      <label class="row small muted" style="gap:6px"><input type="checkbox" data-push="{{ it.issue_id }}"> push и PR (иначе только локальная ветка)</label>
-      <span class="small" data-msg="{{ it.issue_id }}" role="status"></span>
+    <div class="row" style="justify-content: space-between; width: 100%;">
+      <div class="row">
+        <button type="button" class="btn btn--primary" onclick="applyFix({{ it.issue_id }}, this)">Применить</button>
+        <label class="row small muted" style="gap:6px"><input type="checkbox" data-push="{{ it.issue_id }}"> push и PR (иначе только локальная ветка)</label>
+        <span class="small" data-msg="{{ it.issue_id }}" role="status"></span>
+      </div>
+      <div class="row">
+        <button type="button" class="btn btn--ghost" onclick="resetIssue({{ it.issue_id }}, this)">
+          ↺ Сбросить решение
+        </button>
+        <button type="button" class="btn btn--ghost" style="color: #ef4444;" onclick="deleteIssue({{ it.issue_id }}, this)">
+          ✕ Удалить
+        </button>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="card__foot">
+    <div class="row" style="justify-content: space-between; width: 100%;">
+      <span class="small muted">Статус: <b>{{ it.status }}</b></span>
+      <div class="row">
+        <button type="button" class="btn btn--ghost" onclick="resetIssue({{ it.issue_id }}, this)">
+          ↺ Сбросить решение
+        </button>
+        <button type="button" class="btn btn--ghost" style="color: #ef4444;" onclick="deleteIssue({{ it.issue_id }}, this)">
+          ✕ Удалить
+        </button>
+      </div>
     </div>
   </div>
   {% endif %}
@@ -149,6 +188,39 @@
       decision, author: field('author', id).value, comment: field('comment', id).value,
       retry: field('retry', id).checked}, id, btn);
     if (data) location.reload();
+  }
+
+  async function deleteIssue(id, btn) {
+    if (!confirm(`Удалить задачу #${id} с сайта?`)) return;
+    btn.disabled = true;
+    const card = document.getElementById(`issue-${id}`);
+    if (card) {
+      card.style.transition = 'opacity 0.2s, transform 0.2s';
+      card.style.opacity = '0.3';
+    }
+    try {
+      const r = await fetch(`/agent-review/api/${id}`, {method: 'DELETE'});
+      if (r.ok) {
+        if (card) card.remove();
+        if (!document.querySelectorAll('article.card').length) {
+          location.reload();
+        }
+      } else {
+        if (card) card.style.opacity = '1';
+        alert('Ошибка при удалении задачи');
+      }
+    } catch (e) {
+      if (card) card.style.opacity = '1';
+    } finally { btn.disabled = false; }
+  }
+
+  async function resetIssue(id, btn) {
+    btn.disabled = true;
+    btn.textContent = 'сброс…';
+    try {
+      const r = await fetch(`/agent-review/api/${id}/reset`, {method: 'POST'});
+      if (r.ok) location.href = '/agent-review?status=proposed';
+    } finally { btn.disabled = false; }
   }
 
   async function applyFix(id, btn) {
