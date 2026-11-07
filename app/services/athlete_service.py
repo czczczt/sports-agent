@@ -101,7 +101,7 @@ def search_athletes(
     """
     Поиск спортсменов:
     - Регистронезависимо, замена е/ё.
-    - Фильтрация по году рождения с допуском +- 1 год.
+    - Строгая фильтрация по году рождения.
     """
     norm = normalize_term(last_name)
     if not norm:
@@ -116,15 +116,14 @@ def search_athletes(
             FROM athlete
             WHERE name_key LIKE ?
               AND starts_count > 0
-              AND (birth_year IS NULL OR abs(birth_year - ?) <= 1)
+              AND birth_year = ?
             ORDER BY 
                 starts_count DESC,
-                COALESCE(abs(birth_year - ?), 999) ASC,
                 results_count DESC, 
                 id ASC
             LIMIT ?
         """
-        rows = cur.execute(query, (pattern, birth_year, birth_year, limit)).fetchall()
+        rows = cur.execute(query, (pattern, birth_year, limit)).fetchall()
     else:
         query = """
             SELECT id, display_name, birth_year, gender, city, region, club, starts_count, results_count

@@ -1,3 +1,8 @@
+<style>
+  .rating-profile-link:hover {
+    color: var(--brand-text) !important;
+  }
+</style>
 {% extends "base.html" %}
 {% import "_ui.html" as ui %}
 
@@ -15,7 +20,7 @@
             <div class="muted num" style="margin-top: 6px;">
                 {{ a.birth_year or 'год не указан' }}{% if a.city or a.region %} · {{ a.city or a.region }}{% endif %}{% if a.gender %} · {{ ui.gender(a.gender) }}{% endif %}
             </div>
-            {% if a.club %}<div class="small muted" style="margin-top: 2px;">Клуб в протоколах: {{ a.club }}</div>{% endif %}
+            {% if a.club %}<div class="small muted" style="margin-top: 2px;">{{ a.club }}</div>{% endif %}
         </div>
     </div>
 </section>
@@ -36,28 +41,27 @@
         </div>
 
         <section class="card card--pad {% if summary.rating.status == 'no_data' %}card--pending{% endif %}">
-            <div class="row row--between">
-                <h2 class="h2">Место в рейтинге</h2>
-                {% if not summary.rating.rank %}
-                    <span class="chip chip--sm chip--pending">нет данных</span>
-                {% endif %}
-            </div>
             {% if summary.rating.rank %}
-                <div class="row" style="align-items: baseline; gap: 10px; margin-top: 8px;">
-                    <span class="display-num num">{{ summary.rating.rank }}</span>
-                </div>
-                <div class="grid-2" style="margin-top: 12px;">
-                    <div class="tile">
-                        <div class="tile__value num">{{ '%.1f'|format(summary.rating.points) }}</div>
-                        <div class="tile__label">баллов</div>
+                <div class="grid-2" style="gap: 16px;">
+                    <div>
+                        <a href="/rating-view?athlete_id={{ a.id }}" class="rating-profile-link" style="text-decoration: none; display: block;" title="Открыть в общем рейтинге" onmouseover="this.querySelectorAll('.rating-hover-target').forEach(function(el){ el.style.color='var(--rating-green)'; })" onmouseout="this.querySelectorAll('.rating-hover-target').forEach(function(el){ el.style.color='var(--text-primary)'; })">
+                            <h2 class="h2 rating-hover-target" style="line-height: 1.25; color: var(--text-primary); transition: color 0.15s ease;">Место</h2>
+                            <div class="display-num num rating-hover-target" style="margin-top: 8px; font-size: 24px; letter-spacing: -0.02em; color: var(--text-primary); transition: color 0.15s ease;">{{ summary.rating.rank }}</div>
+                        </a>
                     </div>
-                    <div class="tile">
-                        <div class="tile__value num">{{ summary.rating.starts_count }}</div>
-                        <div class="tile__label">{{ ui.plural(summary.rating.starts_count, 'старт', 'старта', 'стартов') }}</div>
+                    <div>
+                        <a href="/rating-formula" class="points-profile-link" style="text-decoration: none; display: block;" title="Как рассчитываются баллы" onmouseover="this.querySelectorAll('.rating-hover-target-points').forEach(function(el){ el.style.color='var(--rating-green)'; })" onmouseout="this.querySelectorAll('.rating-hover-target-points').forEach(function(el){ el.style.color='var(--text-primary)'; })">
+                            <h2 class="h2 rating-hover-target-points" style="line-height: 1.25; color: var(--text-primary); transition: color 0.15s ease;">Баллы</h2>
+                            <div class="display-num num rating-hover-target-points" style="margin-top: 8px; font-size: 24px; letter-spacing: -0.02em; color: var(--text-primary); transition: color 0.15s ease;">{{ '%.1f'|format(summary.rating.points) }}</div>
+                        </a>
                     </div>
                 </div>
             {% else %}
-                <p class="small">Недостаточно данных для рейтинга за последние 365 дней.</p>
+                <div class="row row--between">
+                    <h2 class="h2">Место</h2>
+                    <span class="chip chip--sm chip--pending">нет данных</span>
+                </div>
+                <p class="small" style="margin-top: 12px;">Недостаточно данных для рейтинга за последние 365 дней.</p>
             {% endif %}
         </section>
 
@@ -159,7 +163,7 @@
                         <a href="/races-view/{{ r.race_id }}?athlete_id={{ a.id }}" class="list-row" style="text-decoration: none;">
                             <div style="min-width: 0;">
                                 <div class="list-row__title">{{ r.event_title }}</div>
-                                <div class="list-row__meta num">{{ ui.date_ru(r.event_date) }} · {{ r.distance_name }} · {% if r.place_abs and r.total_participants %}{{ r.place_abs }} / {{ r.total_participants }} место{% else %}{{ r.place_abs or '—' }} место{% endif %}</div>
+                                <div class="list-row__meta num">{{ ui.date_ru(r.event_date) }} · {{ r.distance_name }} · {% if r.place_abs and r.total_participants %}{{ r.place_abs }} из {{ r.total_participants }}{% else %}{{ r.place_abs or '—' }} место{% endif %}</div>
                             </div>
                             <div class="list-row__end">
                                 <div class="num strong">{{ r.time_formatted }}</div>

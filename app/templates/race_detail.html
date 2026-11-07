@@ -19,7 +19,7 @@
             <a href="/events-view/{{ event.id }}" style="text-decoration: none;">{{ event.title }}</a> · {{ ui.date_ru(event.date_begin) }}{% if event.place or event.address %} · {{ event.place or event.address }}{% endif %}
         </div>
         <div class="grid-2" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));">
-            <div class="tile"><div class="tile__value num">{{ competition.total_finishers if competition else results|length }}</div><div class="tile__label">финишёров</div></div>
+            {% set fin_cnt = competition.total_finishers if competition else results|length %}<div class="tile"><div class="tile__value num">{{ fin_cnt }}</div><div class="tile__label">{{ ui.plural(fin_cnt, 'финишёр', 'финишёра', 'финишёров') }}</div></div>
             {% if competition %}
                 <div class="tile"><div class="tile__value num">{{ ui.hms(competition.median_time_s) }}</div><div class="tile__label">медиана</div></div>
                 <div class="tile"><div class="tile__value num">{{ ui.hms(competition.p25_time_s) }}</div><div class="tile__label">граница топ-25%</div></div>
@@ -71,7 +71,7 @@
                         <span class="medal medal--{{ loop.index }} num">{{ loop.index }}</span>
                         <span style="min-width: 0;">
                             <a href="/athletes-view/{{ r.athlete_id }}" class="list-row__title">{{ r.full_name_raw }}</a>
-                            <span class="list-row__meta">место в общем рейтинге: {{ r.rating_rank }} · {{ r.rating_starts }} стартов</span>
+                            <span class="list-row__meta">место в общем рейтинге: {{ r.rating_rank }} · {{ r.rating_starts }} {{ ui.plural(r.rating_starts, 'старт', 'старта', 'стартов') }}</span>
                         </span>
                         <span class="list-row__end">
                             <span class="num strong">{{ '%.1f'|format(r.rating_points) }}</span>

@@ -119,6 +119,7 @@ async def rating_view(
     request: Request,
     gender: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    athlete_id: Optional[int] = Query(None),
     db=Depends(get_db),
 ):
     """Страница сохранённого рейтинга бегунов за последние 365 дней."""
@@ -130,6 +131,62 @@ async def rating_view(
         search=clean_search or None,
         limit=100,
     )
+    me_row = None
+    if athlete_id:
+        ar = db.execute(
+            """
+            SELECT a.id AS athlete_id, a.display_name, a.birth_year, a.gender,
+                   ar.points, ar.best_points, ar.starts_count, ar.rank AS overall_rank
+            FROM athlete a
+            LEFT JOIN running_athlete_rating ar
+              ON ar.athlete_id = a.id AND ar.formula_version = 'run-v1'
+            WHERE a.id = ?
+            ORDER BY ar.period_end DESC
+            LIMIT 1
+            """,
+            (athlete_id,)
+        ).fetchone()
+
+        if ar and ar["points"] is not None:
+            athlete_gender = ar["gender"]
+            # Если выбран фильтр по полу, и спортсмен другого пола — скрываем его
+            if clean_gender and athlete_gender != clean_gender:
+                me_row = None
+            else:
+                if clean_gender:
+                    # Пересчитываем место именно среди участников данного пола
+                    rank = db.execute(
+                        """
+                        SELECT COUNT(*) + 1 AS rank
+                        FROM running_athlete_rating rar
+                        JOIN athlete a ON a.id = rar.athlete_id
+                        WHERE rar.formula_version = 'run-v1'
+                          AND a.gender = ?
+                          AND (
+                              rar.points > ?
+                              OR (rar.points = ? AND rar.best_points > ?)
+                              OR (rar.points = ? AND rar.best_points = ? AND rar.starts_count > ?)
+                              OR (rar.points = ? AND rar.best_points = ? AND rar.starts_count = ? AND rar.athlete_id < ?)
+                          )
+                        """,
+                        (clean_gender, ar["points"], ar["points"], ar["best_points"],
+                         ar["points"], ar["best_points"], ar["starts_count"],
+                         ar["points"], ar["best_points"], ar["starts_count"], ar["athlete_id"])
+                    ).fetchone()[0]
+                else:
+                    rank = ar["overall_rank"]
+
+                me_row = {
+                    "rank": rank,
+                    "athlete_id": ar["athlete_id"],
+                    "display_name": ar["display_name"],
+                    "birth_year": ar["birth_year"],
+                    "gender": ar["gender"],
+                    "points": ar["points"],
+                    "best_points": ar["best_points"],
+                    "starts_count": ar["starts_count"],
+                }
+
     return templates.TemplateResponse(
         request=request,
         name="rating.html",
@@ -137,6 +194,8 @@ async def rating_view(
             "rating": rating,
             "gender": clean_gender,
             "search_query": clean_search,
+            "athlete_id": athlete_id,
+            "me_row": me_row,
         },
     )
 

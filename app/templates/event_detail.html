@@ -20,7 +20,7 @@
         {% set finishers = event.races|map(attribute='total_count')|select|sum %}
         <div class="grid-2" style="max-width: 420px;">
             <div class="tile"><div class="tile__value num">{{ event.races|length }}</div><div class="tile__label">{{ ui.plural(event.races|length, 'дистанция', 'дистанции', 'дистанций') }}</div></div>
-            <div class="tile"><div class="tile__value num">{{ finishers or '—' }}</div><div class="tile__label">участников в протоколах</div></div>
+            <div class="tile"><div class="tile__value num">{{ finishers or '—' }}</div><div class="tile__label">{% if finishers %}{{ ui.plural(finishers, 'участник', 'участника', 'участников') }} в протоколах{% else %}участников в протоколах{% endif %}</div></div>
         </div>
     </div>
 </section>

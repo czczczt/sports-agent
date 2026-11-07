@@ -36,11 +36,12 @@ def match_city(query: str, place: str, address: str) -> bool:
 
 def get_db_connection() -> sqlite3.Connection:
     """Возвращает соединение с базой данных SQLite."""
-    conn = sqlite3.connect(SQLITE_DB_PATH, check_same_thread=False)
+    conn = sqlite3.connect(SQLITE_DB_PATH, timeout=20, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.create_function("ru_lower", 1, lambda s: (s or "").lower().replace("ё", "е"))
     conn.create_function("match_city", 3, match_city)
     conn.execute("PRAGMA foreign_keys = ON;")
+    conn.execute("PRAGMA journal_mode = WAL;")
     return conn
 
 

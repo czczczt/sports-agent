@@ -1,3 +1,21 @@
+<style>
+.rating-table tbody tr.me-row, .rating-table tbody tr.me-row:hover {
+    background: var(--me-row-bg) !important;
+    box-shadow: inset 4px 0 0 var(--me-row-edge);
+}
+</style>
+{% if athlete_id %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var el = document.getElementById('me-row');
+    if (el) {
+        setTimeout(function() {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 150);
+    }
+});
+</script>
+{% endif %}
 {% extends "base.html" %}
 {% import "_ui.html" as ui %}
 
@@ -11,40 +29,26 @@
             <p class="rating-page__subtitle">Последние 365 дней · обновлён {{ ui.date_ru(rating.period_end) }}</p>
         </div>
         <nav class="rating-sports" aria-label="Виды спорта">
-            <a class="rating-sport rating-sport--active" href="/rating-view">{{ ui.icon('run', 'icon-sm') }}Бег</a>
-            <span class="rating-sport rating-sport--disabled">{{ ui.icon('run', 'icon-sm') }}Лыжи</span>
-            <span class="rating-sport rating-sport--disabled">{{ ui.icon('trophy', 'icon-sm') }}Триатлон</span>
-            <span class="rating-sport rating-sport--disabled">{{ ui.icon('flag', 'icon-sm') }}Трейл</span>
+            <a class="rating-sport rating-sport--active" href="/rating-view">Бег</a>
+            <span class="rating-sport rating-sport--disabled">Лыжи</span>
+            <span class="rating-sport rating-sport--disabled">Триатлон</span>
+            <span class="rating-sport rating-sport--disabled">Трейл</span>
         </nav>
     </header>
 
-    <form method="GET" action="/rating-view" class="rating-filters">
-        <label class="rating-filter">
-            <span>Период</span>
-            <select name="period" aria-label="Период">
-                <option value="365">365 дней</option>
-            </select>
-        </label>
+    <div class="rating-filters">
         <div class="rating-filter">
             <span>Пол</span>
             <div class="rating-segment">
-                <a href="/rating-view{% if search_query %}?search={{ search_query|urlencode }}{% endif %}"
+                <a href="/rating-view{% if athlete_id %}?athlete_id={{ athlete_id }}{% endif %}"
                    class="{% if not gender %}is-active{% endif %}">Все</a>
-                <a href="/rating-view?gender=M{% if search_query %}&search={{ search_query|urlencode }}{% endif %}"
+                <a href="/rating-view?gender=M{% if athlete_id %}&athlete_id={{ athlete_id }}{% endif %}"
                    class="{% if gender == 'M' %}is-active{% endif %}">Мужчины</a>
-                <a href="/rating-view?gender=F{% if search_query %}&search={{ search_query|urlencode }}{% endif %}"
+                <a href="/rating-view?gender=F{% if athlete_id %}&athlete_id={{ athlete_id }}{% endif %}"
                    class="{% if gender == 'F' %}is-active{% endif %}">Женщины</a>
             </div>
         </div>
-        <label class="rating-filter">
-            <span>Группа</span>
-            <select aria-label="Возрастная группа" disabled><option>Все возрасты</option></select>
-        </label>
-        <label class="rating-search">
-            <span class="sr-only">Поиск спортсмена</span>
-            <input type="search" name="search" value="{{ search_query }}" placeholder="Поиск спортсмена">
-        </label>
-    </form>
+    </div>
 
     <div class="rating-layout">
         <section class="rating-board">
@@ -65,20 +69,36 @@
                                 <th>Место</th>
                                 <th>Спортсмен</th>
                                 <th class="right">Баллы</th>
-                                <th class="right">За месяц</th>
                                 <th class="right">Стартов</th>
                             </tr>
                         </thead>
                         <tbody>
+                            {% set is_me_in_rows = me_row and rating.rows|selectattr('athlete_id', 'equalto', athlete_id)|list|length > 0 %}
+                            {% if me_row and not is_me_in_rows %}
+                                <tr class="me-row" id="me-row">
+                                    <td><span class="rating-place rating-place--plain">{{ me_row.rank }}</span></td>
+                                    <td>
+                                        <a href="/athletes-view/{{ me_row.athlete_id }}" class="rating-athlete">{{ me_row.display_name }}</a>
+                                        <span class="rating-birth">{{ me_row.birth_year or 'год не указан' }}</span>
+                                    </td>
+                                    <td class="right strong num">{{ '%.1f'|format(me_row.points) }}</td>
+                                    <td class="right muted num">{{ me_row.starts_count }}</td>
+                                </tr>
+                                <tr class="gap-row" style="border: none;">
+                                    <td class="muted" style="padding: 6px 0 6px 24px; font-size: 13px; line-height: 0.85; letter-spacing: 0; text-align: left;">
+                                        &bull;<br>&bull;<br>&bull;
+                                    </td>
+                                    <td colspan="3" style="padding: 6px 0;"></td>
+                                </tr>
+                            {% endif %}
                             {% for row in rating.rows %}
-                                <tr>
+                                <tr {% if athlete_id and row.athlete_id == athlete_id %}class="me-row" id="me-row"{% endif %}>
                                     <td><span class="rating-place rating-place--{{ row.rank if row.rank <= 3 else 'plain' }}">{{ row.rank }}</span></td>
                                     <td>
                                         <a href="/athletes-view/{{ row.athlete_id }}" class="rating-athlete">{{ row.display_name }}</a>
                                         <span class="rating-birth">{{ row.birth_year or 'год не указан' }}</span>
                                     </td>
                                     <td class="right strong num">{{ '%.1f'|format(row.points) }}</td>
-                                    <td class="right rating-delta">—</td>
                                     <td class="right muted num">{{ row.starts_count }}</td>
                                 </tr>
                             {% endfor %}
@@ -92,17 +112,15 @@
         </section>
 
         <aside class="rating-sidebar">
+            {% if me_row %}
+                <section class="rating-side-card">
+                    <strong class="rating-side-card__rank">{{ me_row.rank }}</strong>
+                    <p class="rating-side-card__muted">{{ me_row.display_name }} · {{ '%.1f'|format(me_row.points) }} балла</p>
+                    <a href="/athletes-view/{{ me_row.athlete_id }}" class="rating-side-card__link">В профиль →</a>
+                </section>
+            {% endif %}
             <section class="rating-side-card">
-                <span class="rating-side-card__label">Это вы</span>
-                <strong class="rating-side-card__rank">—</strong>
-                <p class="rating-side-card__muted">Найдите себя в рейтинге или откройте карточку спортсмена.</p>
-                <a href="/" class="rating-side-card__link">Найти себя</a>
-            </section>
-            <section class="rating-side-card">
-                <h2>Как считается беговой рейтинг</h2>
-                <p>Сумма баллов всех зачётных стартов за период.</p>
-                <p class="rating-formula">норматив / время × 1000</p>
-                <a href="/rating-formula" class="rating-side-card__link">Подробнее о формуле →</a>
+                <a href="/rating-formula" class="rating-side-card__title-link" style="color: var(--text-primary); font-size: 14px; font-weight: 600; line-height: 1.4; text-decoration: none; display: block;" onmouseover="this.style.color='var(--rating-green)'" onmouseout="this.style.color='var(--text-primary)'">Как считается беговой рейтинг</a>
             </section>
         </aside>
     </div>
