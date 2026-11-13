@@ -54,7 +54,7 @@ export function RatingPage() {
           <span>Пол</span>
           <div className="rating-segment">
             {GENDERS.map((g) => (
-              <Link key={g.label} to={genderLink(g.value)} className={gender === g.value ? 'is-active' : undefined}>{g.label}</Link>
+              <Link key={g.label} to={genderLink(g.value)} preventScrollReset className={gender === g.value ? 'is-active' : undefined}>{g.label}</Link>
             ))}
           </div>
         </div>

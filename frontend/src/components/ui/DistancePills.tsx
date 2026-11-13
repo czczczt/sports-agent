@@ -45,7 +45,7 @@ export function DistancePills({ items, activeId, label }: { items: PillItem[]; a
     <nav ref={ref} className="pills" aria-label={label}
       data-fade-start={fade.start || undefined} data-fade-end={fade.end || undefined}>
       {items.map((it) => (
-        <Link key={it.id} to={it.to} className="pill" aria-current={it.id === activeId ? 'page' : undefined}>{it.label}</Link>
+        <Link key={it.id} to={it.to} preventScrollReset className="pill" aria-current={it.id === activeId ? 'page' : undefined}>{it.label}</Link>
       ))}
     </nav>
   );

@@ -6,6 +6,7 @@ import { agentReviewApi } from '@/api/endpoints';
 import type { AgentReviewItem, AgentReviewPage as AgentReviewData } from '@/api/types';
 import { EmptyState, ErrorState, Icon, Loader } from '@/components/ui';
 import { useApi } from '@/hooks/useApi';
+import { KEEP_SCROLL } from '@/hooks/keepScroll';
 import { SITE_TITLE, useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { dateTimeRu, sourceName } from '@/lib/format';
 
@@ -28,7 +29,7 @@ export function AgentReviewPage() {
           <p className="lead">Сгенерированные ИИ-агентом решения и адаптеры для сбора протоколов соревнований, ожидающие проверки человеком.</p>
         </div>
         <ReviewFilters key={`${status}|${source}`} data={data} status={status} source={source}
-          onApply={(st, src) => setParams(src ? { status: st, source: src } : { status: st })} />
+          onApply={(st, src) => setParams(src ? { status: st, source: src } : { status: st }, KEEP_SCROLL)} />
       </div>
 
       {error && !data ? <ErrorState error={error} onRetry={reload} />

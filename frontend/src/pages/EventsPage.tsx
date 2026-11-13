@@ -6,6 +6,7 @@ import type { EventItem } from '@/api/types';
 import { DateRangePicker } from '@/components/forms/DateRangePicker';
 import { EmptyState, ErrorState, Loader } from '@/components/ui';
 import { useApi } from '@/hooks/useApi';
+import { KEEP_SCROLL } from '@/hooks/keepScroll';
 import { SITE_TITLE, useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { dateRu, monthTitle, plural, SOURCE_KEYS, sourceName } from '@/lib/format';
 
@@ -38,7 +39,7 @@ export function EventsPage() {
   const apply = (next: Required<EventFilters>) => {
     const q: Record<string, string> = {};
     for (const k of FILTER_KEYS) if (next[k]) q[k] = next[k];
-    setParams(q);
+    setParams(q, KEEP_SCROLL);
   };
   const hasFilters = FILTER_KEYS.some((k) => filters[k]);
   const count = events?.length ?? 0;
@@ -54,7 +55,7 @@ export function EventsPage() {
         </div>
       </div>
 
-      <EventFiltersForm key={filtersKey} initial={filters} hasFilters={hasFilters} onApply={apply} onReset={() => setParams({})} />
+      <EventFiltersForm key={filtersKey} initial={filters} hasFilters={hasFilters} onApply={apply} onReset={() => setParams({}, KEEP_SCROLL)} />
 
       {error && !events ? <ErrorState error={error} onRetry={reload} />
         : !events || (loading && !events.length) ? <Loader />

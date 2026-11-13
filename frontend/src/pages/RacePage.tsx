@@ -7,6 +7,7 @@ import { DistributionChart } from '@/components/charts/DistributionChart';
 import { BackLink, EmptyState, Icon, NotFound, PageState, StatusChip } from '@/components/ui';
 import { DistancePills } from '@/components/ui/DistancePills';
 import { useApi } from '@/hooks/useApi';
+import { KEEP_SCROLL } from '@/hooks/keepScroll';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { dateRu, fixed1, genderLabel, hms, plural } from '@/lib/format';
 
@@ -26,7 +27,7 @@ export function RacePage() {
     const q: Record<string, string> = {};
     if (athleteId) q.athlete_id = String(athleteId);
     if (value) q.search = value;
-    setParams(q);
+    setParams(q, KEEP_SCROLL);
   };
 
   return (
@@ -271,7 +272,7 @@ function ProtocolSearch({ initial, onSearch, resetTo }: { initial: string; onSea
         onChange={(e) => setValue(e.target.value)} placeholder="Фамилия или номер" />
       <button type="submit" className="btn btn--primary" style={{ minHeight: 40 }}>Найти</button>
       {initial && (
-        <Link to={resetTo} className="btn btn--ghost" style={{ minHeight: 40 }}>Сбросить</Link>
+        <Link to={resetTo} preventScrollReset className="btn btn--ghost" style={{ minHeight: 40 }}>Сбросить</Link>
       )}
     </form>
   );
