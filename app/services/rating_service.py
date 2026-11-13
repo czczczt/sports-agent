@@ -372,3 +372,100 @@ def get_rating_page(
         "rows": rows,
         "total": total,
     }
+
+
+def get_rating_me_row(
+    conn: sqlite3.Connection,
+    athlete_id: int,
+    gender: Optional[str] = None,
+) -> Optional[dict[str, Any]]:
+    """Строка «это вы» для страницы рейтинга.
+
+    Если выбран фильтр по полу, место пересчитывается среди спортсменов этого пола
+    (с теми же тай-брейками, что и общий рейтинг). Спортсмен другого пола скрывается.
+    """
+    ar = conn.execute(
+        """
+        SELECT a.id AS athlete_id, a.display_name, a.birth_year, a.gender,
+               ar.points, ar.best_points, ar.starts_count, ar.rank AS overall_rank
+        FROM athlete a
+        LEFT JOIN running_athlete_rating ar
+          ON ar.athlete_id = a.id AND ar.formula_version = ?
+        WHERE a.id = ?
+        ORDER BY ar.period_end DESC
+        LIMIT 1
+        """,
+        (FORMULA_VERSION, athlete_id),
+    ).fetchone()
+    if not ar or ar["points"] is None:
+        return None
+    if gender and ar["gender"] != gender:
+        return None
+
+    if gender:
+        rank = conn.execute(
+            """
+            SELECT COUNT(*) + 1 AS rank
+            FROM running_athlete_rating rar
+            JOIN athlete a ON a.id = rar.athlete_id
+            WHERE rar.formula_version = ?
+              AND a.gender = ?
+              AND (
+                  rar.points > ?
+                  OR (rar.points = ? AND rar.best_points > ?)
+                  OR (rar.points = ? AND rar.best_points = ? AND rar.starts_count > ?)
+                  OR (rar.points = ? AND rar.best_points = ? AND rar.starts_count = ? AND rar.athlete_id < ?)
+              )
+            """,
+            (FORMULA_VERSION, gender, ar["points"], ar["points"], ar["best_points"],
+             ar["points"], ar["best_points"], ar["starts_count"],
+             ar["points"], ar["best_points"], ar["starts_count"], ar["athlete_id"]),
+        ).fetchone()[0]
+    else:
+        rank = ar["overall_rank"]
+
+    return {
+        "rank": rank,
+        "athlete_id": ar["athlete_id"],
+        "display_name": ar["display_name"],
+        "birth_year": ar["birth_year"],
+        "gender": ar["gender"],
+        "points": ar["points"],
+        "best_points": ar["best_points"],
+        "starts_count": ar["starts_count"],
+    }
+
+
+def get_rating_norms(conn: sqlite3.Connection, year: int = 2026) -> dict[str, Any]:
+    """Нормативы года и период действующего рейтинга — для страницы «Как посчитано»."""
+    norms = conn.execute(
+        """
+        SELECT distance_class, gender, value, unit
+        FROM rating_norm
+        WHERE year = ?
+        ORDER BY CASE distance_class
+            WHEN '60m' THEN 1 WHEN '100m' THEN 2 WHEN '200m' THEN 3
+            WHEN '400m' THEN 4 WHEN '800m' THEN 5 WHEN '1000m' THEN 6
+            WHEN '1500m' THEN 7 WHEN '1mile' THEN 8 WHEN '3000m' THEN 9
+            WHEN '5000m' THEN 10 WHEN '10000m' THEN 11
+            WHEN 'half_marathon' THEN 12 WHEN 'marathon' THEN 13
+            WHEN '100km' THEN 14 WHEN '24h' THEN 15 ELSE 99 END,
+            gender
+        """,
+        (year,),
+    ).fetchall()
+    period = conn.execute(
+        """
+        SELECT period_start, period_end
+        FROM running_athlete_rating
+        WHERE formula_version = ?
+        ORDER BY period_end DESC LIMIT 1
+        """,
+        (FORMULA_VERSION,),
+    ).fetchone()
+    return {
+        "year": year,
+        "norms": [dict(row) for row in norms],
+        "period_start": period["period_start"] if period else None,
+        "period_end": period["period_end"] if period else None,
+    }

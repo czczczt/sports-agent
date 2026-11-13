@@ -438,3 +438,43 @@ def get_race_competition(
         distribution_bins=bins,
         athlete_result=athlete_res
     )
+
+
+def get_race_page(
+    conn: sqlite3.Connection,
+    race_id: int,
+    search_query: Optional[str] = None,
+    athlete_id: Optional[int] = None,
+    limit: int = 300,
+) -> Optional[Dict[str, Any]]:
+    """Все данные страницы дистанции одним ответом: старт, протокол, «Конкуренция», топ по рейтингу.
+
+    Если передан athlete_id и поиск не активен, а спортсмен занял место > 100
+    (или не финишировал), его строка выносится наверх протокола (pinned_athlete_result)
+    и убирается из основного списка, чтобы не дублироваться.
+    """
+    race_row = conn.execute(
+        "SELECT id, event_id, name_raw, norm_distance, distance_m FROM race WHERE id = ?",
+        (race_id,),
+    ).fetchone()
+    if not race_row:
+        return None
+
+    event = get_event_by_id(conn, event_id=race_row["event_id"])
+    results = get_race_results(conn, race_id=race_id, search_query=search_query, limit=limit, offset=0)
+
+    pinned = None
+    if athlete_id and not search_query:
+        athlete_item = get_athlete_race_result(conn, race_id=race_id, athlete_id=athlete_id)
+        if athlete_item and (athlete_item.place_abs is None or athlete_item.place_abs > 100):
+            pinned = athlete_item
+            results = [r for r in results if r.athlete_id != athlete_id]
+
+    return {
+        "race": dict(race_row),
+        "event": event,
+        "results": results,
+        "pinned_athlete_result": pinned,
+        "competition": get_race_competition(conn, race_id=race_id, athlete_id=athlete_id),
+        "rating_leaders": get_race_rating_leaders(conn, race_id=race_id),
+    }

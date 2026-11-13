@@ -176,24 +176,52 @@ class TestSportsAgentMVP(unittest.TestCase):
         self.assertTrue(data2["cached"], "Повторный вызов должен возвращаться из кэша")
         self.assertEqual(data1["assessment_text"], data2["assessment_text"])
 
-    def test_07_html_views(self):
-        """Проверка рендеринга страниц чернового веб-интерфейса."""
-        # Поиск
-        resp_search = client.get("/")
-        self.assertEqual(resp_search.status_code, 200)
-        self.assertIn("Найти себя", resp_search.text)
-
-        # Каталог стартов
-        resp_events = client.get("/events-view")
-        self.assertEqual(resp_events.status_code, 200)
-        self.assertIn("<h1 class=\"h1\">Старты</h1>", resp_events.text)
-
-        # Профиль первого спортсмена
+    def test_07_web_interface(self):
+        """Интерфейс (React, frontend/) отдаётся на прежних адресах, а неизвестный /api/... — честная 404."""
         cur = self.conn.cursor()
         aid = cur.execute("SELECT id FROM athlete LIMIT 1").fetchone()["id"]
-        resp_profile = client.get(f"/athletes-view/{aid}")
-        self.assertEqual(resp_profile.status_code, 200)
-        self.assertIn("ИИ-оценка", resp_profile.text)
+        for path in ("/", "/events-view", f"/athletes-view/{aid}", "/rating-view", "/agent-review"):
+            resp = client.get(path)
+            # 200 — собранный frontend/dist; 503 — сборки нет, сервер объясняет, как собрать
+            self.assertIn(resp.status_code, (200, 503), path)
+            self.assertIn("text/html", resp.headers["content-type"], path)
+            if resp.status_code == 200:
+                self.assertIn('<div id="root">', resp.text, path)
+
+        resp_api = client.get("/api/no-such-endpoint")
+        self.assertEqual(resp_api.status_code, 404)
+        self.assertEqual(resp_api.headers["content-type"], "application/json")
+
+    def test_08_page_endpoints(self):
+        """JSON-эндпоинты, которые раньше были зашиты в HTML-маршруты: рейтинг, формула, страница дистанции."""
+        rating = client.get("/api/rating?limit=5")
+        self.assertEqual(rating.status_code, 200)
+        data = rating.json()
+        self.assertIn("rows", data)
+        self.assertIn("total", data)
+        self.assertIsNone(data["me_row"])
+
+        if data["rows"]:
+            first = data["rows"][0]
+            me = client.get(f"/api/rating?athlete_id={first['athlete_id']}").json()["me_row"]
+            self.assertEqual(me["athlete_id"], first["athlete_id"])
+            # Спортсмен другого пола при фильтре по полу скрывается
+            other = "F" if first["gender"] == "M" else "M"
+            hidden = client.get(f"/api/rating?athlete_id={first['athlete_id']}&gender={other}").json()["me_row"]
+            self.assertIsNone(hidden)
+
+        formula = client.get("/api/rating/formula")
+        self.assertEqual(formula.status_code, 200)
+        self.assertIn("norms", formula.json())
+
+        cur = self.conn.cursor()
+        race_id = cur.execute("SELECT race_id FROM result GROUP BY race_id ORDER BY COUNT(*) DESC LIMIT 1").fetchone()["race_id"]
+        page = client.get(f"/api/races/{race_id}")
+        self.assertEqual(page.status_code, 200)
+        body = page.json()
+        self.assertEqual(body["race"]["id"], race_id)
+        self.assertTrue(body["results"])
+        self.assertEqual(client.get("/api/races/999999999").status_code, 404)
 
 
 if __name__ == "__main__":

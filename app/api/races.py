@@ -2,10 +2,28 @@ import sqlite3
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from app.db import get_db
-from app.models import RaceProtocolItem, CompetitionDistribution
-from app.services.events_service import get_race_results, get_race_competition
+from app.models import RaceProtocolItem, CompetitionDistribution, RacePageResponse
+from app.services.events_service import get_race_results, get_race_competition, get_race_page
 
 router = APIRouter(prefix="/races", tags=["races"])
+
+
+@router.get("/{race_id}", response_model=RacePageResponse)
+def get_race_page_endpoint(
+    race_id: int,
+    search: Optional[str] = Query(None, description="Поиск по фамилии или стартовому номеру (bib)"),
+    athlete_id: Optional[int] = Query(None, description="ID спортсмена для подсветки «это вы»"),
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """
+    Карточка дистанции целиком: старт, протокол (до 300 строк), блок «Конкуренция»
+    и топ участников по общему рейтингу. Спортсмен с местом > 100 выносится
+    в pinned_athlete_result.
+    """
+    page = get_race_page(db, race_id=race_id, search_query=search, athlete_id=athlete_id)
+    if not page:
+        raise HTTPException(status_code=404, detail="Дистанция не найдена")
+    return page
 
 
 @router.get("/{race_id}/results", response_model=List[RaceProtocolItem])

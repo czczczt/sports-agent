@@ -4,8 +4,9 @@
 (list_items, decide, apply_approved), поэтому результат решений одинаковый.
 Данные — в PostgreSQL парсера (DATABASE_URL из .env), а не в SQLite сайта.
 
-В составе сайта: /agent-review (роутер подключён в app/main.py).
-Отдельно, без SQLite сайта:
+Здесь только JSON API (/api/agent-review/...), страницу рисует React (frontend/src/pages/AgentReviewPage.tsx).
+В составе сайта: роутер подключён в app/main.py, страница — /agent-review.
+Отдельно, без SQLite сайта (нужна сборка frontend/dist):
     python -m uvicorn app.agent_review:standalone --port 8001     → http://127.0.0.1:8001/agent-review
 """
 from __future__ import annotations
@@ -14,10 +15,9 @@ import sys
 import json
 from pathlib import Path
 
-from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from fastapi import APIRouter, FastAPI, HTTPException, Query
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 PARSER_DIR = Path(__file__).resolve().parents[1] / "parser_running"
@@ -27,13 +27,23 @@ if str(PARSER_DIR) not in sys.path:
 import agent_queue as aq          # noqa: E402  (модули парсера: путь добавлен выше)
 import db as parser_db            # noqa: E402
 
-templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
-router = APIRouter(prefix="/agent-review", tags=["agent-review"])
+router = APIRouter(prefix="/api/agent-review", tags=["agent-review"])
 STATUSES = ["proposed", "approved", "rejected", "resolved", "known", "new", "all"]
 
 
+CONNECT_TIMEOUT_S = 5
+
+
+def _with_connect_timeout(url: str) -> str:
+    """Без connect_timeout недоступная база держит запрос минуту и больше — экран «висит».
+    Ограничиваем ожидание, чтобы страница быстро показала сообщение об ошибке."""
+    if "connect_timeout=" in url:
+        return url
+    return f"{url}{'&' if '?' in url else '?'}connect_timeout={CONNECT_TIMEOUT_S}"
+
+
 def _con():
-    con = parser_db.connect()
+    con = parser_db.connect(_with_connect_timeout(parser_db.database_url()))
     aq.ensure_schema(con)
     return con
 
@@ -49,27 +59,25 @@ class ApplyIn(BaseModel):
     push: bool = False
 
 
-@router.get("", response_class=HTMLResponse, include_in_schema=False)
-def review_page(request: Request, status: str = Query("proposed"), source: str | None = Query(None)):
-    db_error = None
+@router.get("/page")
+def api_page(status: str = Query("proposed"), source: str | None = Query(None)):
+    """Всё для экрана проверки: задачи, фильтры и автор по умолчанию.
+    Если база парсера недоступна — 200 с db_error, чтобы экран показал понятное сообщение."""
+    base = {"statuses": STATUSES, "status": status, "source": source or ""}
     try:
         con = _con()
     except (RuntimeError, Exception) as ex:
-        return templates.TemplateResponse(request=request, name="agent_review.html", context={
-            "items": [], "sources": [], "statuses": STATUSES, "status": status,
-            "source": source or "", "default_author": "operator", "db_error": str(ex),
-        }, status_code=503)
+        return {**base, "items": [], "sources": [], "default_author": "operator", "db_error": str(ex)}
     try:
         items = aq.list_items(con, None if status == "all" else status, source or None)
         sources = aq.sources(con)
     finally:
         con.close()
-    return templates.TemplateResponse(request=request, name="agent_review.html", context={
-        "items": items, "sources": sources, "statuses": STATUSES, "status": status, "source": source or "",
-        "default_author": aq.default_author()})
+    return jsonable_encoder({**base, "items": items, "sources": sources,
+                             "default_author": aq.default_author(), "db_error": None})
 
 
-@router.get("/api/items")
+@router.get("/items")
 def api_items(status: str = "proposed", source: str | None = None):
     try:
         con = _con()
@@ -85,7 +93,7 @@ def api_items(status: str = "proposed", source: str | None = None):
     return items
 
 
-@router.post("/api/{issue_id}/decide")
+@router.post("/{issue_id}/decide")
 def api_decide(issue_id: int, body: DecisionIn):
     try:
         con = _con()
@@ -99,7 +107,7 @@ def api_decide(issue_id: int, body: DecisionIn):
         con.close()
 
 
-@router.post("/api/{issue_id}/reset")
+@router.post("/{issue_id}/reset")
 def api_reset(issue_id: int):
     try:
         con = _con()
@@ -114,7 +122,7 @@ def api_reset(issue_id: int):
         con.close()
 
 
-@router.post("/api/reset-demo")
+@router.post("/reset-demo")
 def api_reset_demo():
     try:
         con = _con()
@@ -174,24 +182,7 @@ def _cleanup_issue_files(con, issue_id: int) -> list[str]:
     return deleted
 
 
-@router.delete("/api/{issue_id}")
-def api_delete_issue(issue_id: int):
-    try:
-        con = _con()
-    except (RuntimeError, Exception) as ex:
-        raise HTTPException(503, str(ex)) from ex
-    try:
-        deleted = _cleanup_issue_files(con, issue_id)
-        con.execute("DELETE FROM agent_review WHERE issue_id = %s", (issue_id,))
-        con.execute("DELETE FROM agent_run WHERE issue_id = %s", (issue_id,))
-        con.execute("DELETE FROM issue WHERE id = %s", (issue_id,))
-        con.commit()
-        return {"status": "deleted", "issue_id": issue_id, "deleted_files": deleted}
-    finally:
-        con.close()
-
-
-@router.delete("/api/clear-all")
+@router.delete("/clear-all")
 def api_clear_all():
     try:
         con = _con()
@@ -211,8 +202,24 @@ def api_clear_all():
         con.close()
 
 
+@router.delete("/{issue_id}")
+def api_delete_issue(issue_id: int):
+    try:
+        con = _con()
+    except (RuntimeError, Exception) as ex:
+        raise HTTPException(503, str(ex)) from ex
+    try:
+        deleted = _cleanup_issue_files(con, issue_id)
+        con.execute("DELETE FROM agent_review WHERE issue_id = %s", (issue_id,))
+        con.execute("DELETE FROM agent_run WHERE issue_id = %s", (issue_id,))
+        con.execute("DELETE FROM issue WHERE id = %s", (issue_id,))
+        con.commit()
+        return {"status": "deleted", "issue_id": issue_id, "deleted_files": deleted}
+    finally:
+        con.close()
 
-@router.post("/api/{issue_id}/apply")
+
+@router.post("/{issue_id}/apply")
 def api_apply(issue_id: int, body: ApplyIn):
     try:
         con = _con()
@@ -231,9 +238,13 @@ def api_apply(issue_id: int, body: ApplyIn):
 # отдельный запуск без SQLite-базы сайта
 standalone = FastAPI(title="Подтверждение правок агента")
 standalone.include_router(router)
-standalone.mount("/static", StaticFiles(directory=str(Path(__file__).resolve().parent / "static")), name="static")
 
 
 @standalone.get("/", include_in_schema=False)
 def _root():
     return RedirectResponse("/agent-review")
+
+
+from app.frontend import mount_frontend  # noqa: E402
+
+mount_frontend(standalone)

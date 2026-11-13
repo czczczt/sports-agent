@@ -32,12 +32,12 @@ run.py (парсер) ── проверки упали ──► issue (new, a
 | Файл | Что это |
 |---|---|
 | `parser_running/agent_queue.py` | Вся логика: песочница, прогон агента, решения, применение. Командная строка + функции для сайта |
-| `app/agent_review.py` | Роутер FastAPI `/agent-review`: HTML-страница и JSON API. Логику не дублирует, вызывает функции `agent_queue` |
-| `app/templates/agent_review.html` | Шаблон страницы на классах `theme.css` и макросах `_ui.html` (ADR-0001); цвета только через токены, тёмная тема работает |
-| `app/main.py` | +2 строки: импорт и `app.include_router(agent_review_router)` |
-| `app/templates/base.html` | +1 пункт «Правки агента» в верхней навигации, раздел `agent` для подсветки. В нижнюю мобильную панель не добавлен: она свёрстана на 2 пункта, а экран по SPEC десктопный (админка) |
+| `app/agent_review.py` | Роутер FastAPI `/api/agent-review/...`: только JSON API. Логику не дублирует, вызывает функции `agent_queue`. Подключение к базе ограничено 5 с (`connect_timeout`) |
+| `frontend/src/pages/AgentReviewPage.tsx` | Страница на React (ADR-0002) на классах `theme.css` (ADR-0001); цвета только через токены, тёмная тема работает |
+| `app/main.py` | Импорт и `app.include_router(agent_review_router)` |
+| `frontend/src/config/navigation.ts` | Пункт «Правки агента» в верхней навигации (`mobile: false` — в нижнюю мобильную панель не выводится: экран по SPEC десктопный, админка) |
 
-Файлы коллег, кроме этих трёх строк, не менялись. `db.py` парсера не менялся.
+`db.py` парсера не менялся.
 
 ## База данных
 
@@ -76,16 +76,19 @@ python agent_queue.py apply 38 [--no-push]
 
 | Метод | Путь | Что |
 |---|---|---|
-| GET | `/agent-review?status=proposed&source=runc` | Страница: фильтры, дифф, отчёт, обоснование, кнопки |
-| GET | `/agent-review/api/items?status=&source=` | То же в JSON |
-| POST | `/agent-review/api/{issue_id}/decide` | `{"decision": "approve"\|"reject", "author", "comment", "retry"}` |
-| POST | `/agent-review/api/{issue_id}/apply` | `{"push": false}` |
+| GET | `/agent-review?status=proposed&source=runc` | Страница (React): фильтры, дифф, отчёт, обоснование, кнопки |
+| GET | `/api/agent-review/page?status=&source=` | Всё для страницы: задачи, площадки, статусы, автор по умолчанию; без базы — `200` с `db_error` |
+| GET | `/api/agent-review/items?status=&source=` | Только задачи в JSON |
+| POST | `/api/agent-review/{issue_id}/decide` | `{"decision": "approve"\|"reject", "author", "comment", "retry"}` |
+| POST | `/api/agent-review/{issue_id}/apply` | `{"push": false}` |
+| POST | `/api/agent-review/{issue_id}/reset` | Сбросить решение, вернуть задачу в `proposed` |
+| DELETE | `/api/agent-review/{issue_id}` | Удалить задачу и сгенерированные файлы парсера с диска |
 
 Ошибки решения (не тот статус, нет комментария при отклонении) — `400` с текстом в `detail`.
 
 Запуск:
 - в составе сайта — роутер уже подключён в `app/main.py`, страница `/agent-review`;
-- отдельно, без SQLite сайта: из корня `python -m uvicorn app.agent_review:standalone --port 8001`.
+- отдельно, без SQLite сайта: из корня `python -m uvicorn app.agent_review:standalone --port 8001` (нужна сборка `frontend/dist`, см. `frontend/README.md`).
 
 ## Что проверено
 

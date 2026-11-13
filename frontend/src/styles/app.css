@@ -1,0 +1,114 @@
+/*
+ * Дополнения к theme.css, нужные React-версии, и стили отдельных страниц,
+ * которые раньше лежали в <style> внутри Jinja-шаблонов.
+ * Цвета — только через токены theme.css (ADR-0001), иначе сломается тёмная тема.
+ */
+
+/* Обёртка React не должна ломать flex-каркас body (шапка → .page { flex: 1 } → подвал). */
+#root { display: contents; }
+
+/*
+ * Нижняя панель на телефоне: в theme.css она свёрстана на 2 колонки, а пунктов 3 —
+ * третий («Найти себя») уезжал на вторую строку за край экрана. Колонки по числу пунктов
+ * (config/navigation.ts, mobile: true), поэтому новый пункт тоже встанет в ряд.
+ */
+.bottom-nav { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+
+/* ---------- Найти себя ---------- */
+a.chip--run {
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+a.chip--run:hover {
+  filter: brightness(1.2);
+  box-shadow: 0 0 0 1px var(--sport-run);
+  transform: translateY(-1px);
+}
+/* Колонка карточек не должна раздуваться от длинного имени (nowrap) — иначе на 320 px карточка шире экрана. */
+.grid-cards { grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); }
+@media (max-width: 760px) { .grid-cards { grid-template-columns: minmax(0, 1fr); } }
+.candidate-card { min-width: 0; }
+.candidate-card { display: flex; flex-direction: column; justify-content: space-between; gap: 14px; }
+.candidate-card__head { flex-wrap: nowrap; gap: 14px; min-width: 0; align-items: flex-start; }
+.candidate-card__name { font-size: 17px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.candidate-card__meta { margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/*
+ * Страницы профиля и рейтинга в Jinja-версии рендерились в quirks-режиме (перед <!DOCTYPE> стоял <style>).
+ * В этом режиме таблицы не наследуют line-height и размер шрифта от body. React-версия работает
+ * в стандартном режиме, поэтому повторяем это явно — иначе строки таблиц станут выше, чем были.
+ */
+.table--legacy-metrics { line-height: normal; }
+.rating-table { line-height: normal; font-size: medium; }
+/* Там же строка со ссылкой «В профиль →» не растягивалась до line-height карточки. */
+.rating-side-card__link { display: block; width: fit-content; }
+
+/* ---------- Профиль спортсмена ---------- */
+.rating-profile-link:hover { color: var(--brand-text) !important; }
+.profile-head { padding: 24px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between; }
+.rating-big-num { margin-top: 8px; font-size: 24px; letter-spacing: -0.02em; }
+
+/* ---------- Рейтинг ---------- */
+.rating-table tbody tr.me-row, .rating-table tbody tr.me-row:hover {
+  background: var(--me-row-bg) !important;
+  box-shadow: inset 4px 0 0 var(--me-row-edge);
+}
+.gap-row td.gap-row__dots { padding: 6px 0 6px 24px; font-size: 13px; line-height: 0.85; letter-spacing: 0; text-align: left; }
+.gap-row td.gap-row__rest { padding: 6px 0; }
+.gap-row { border: none; }
+.list-row--gap { padding: 6px 0; border: none; min-height: auto; }
+.list-row--gap .muted { display: block; font-size: 13px; line-height: 0.85; text-align: left; padding-left: 4px; }
+
+/* ---------- Выбор дистанции (components/ui/DistancePills.tsx) ---------- */
+/* Компьютер и планшет: перенос на новые строки вместо прокрутки — видно все дистанции. */
+.pills { flex-wrap: wrap; overflow: visible; padding-bottom: 0; }
+@media (max-width: 760px) {
+  /* Телефон: лента листается пальцем, полоса прокрутки скрыта. */
+  .pills {
+    flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity; scroll-padding-inline: 16px;
+    /* Лента на всю ширину экрана, чтобы пилюли уходили за край, а не обрезались внутри отступов. */
+    margin-inline: -16px; padding-inline: 16px;
+  }
+  .pills::-webkit-scrollbar { display: none; }
+  .pills .pill { scroll-snap-align: start; }
+  /* Затухание у края, за которым есть ещё дистанции — подсказка, что ленту можно листать. */
+  .pills[data-fade-end] { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+  .pills[data-fade-start] { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px); mask-image: linear-gradient(to right, transparent, #000 40px); }
+  .pills[data-fade-start][data-fade-end] { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+}
+
+/* ---------- Каталог стартов ---------- */
+.date-field { min-width: 200px; }
+.date-field__box { position: relative; }
+.date-field__box .input { cursor: pointer; padding-right: 32px; }
+.date-field__icon {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  pointer-events: none; color: var(--text-muted); display: flex;
+}
+.month-label { padding: 14px 16px 6px; text-transform: uppercase; letter-spacing: .04em; }
+.month-label--sep { border-top: 1px solid var(--border); }
+
+/* ---------- Правки агента ---------- */
+.diff { margin: 0; padding: 12px 0; background: var(--surface-2); border-radius: var(--radius-sm);
+        font: 13px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; overflow-x: auto; }
+.diff span { display: block; padding: 0 14px; white-space: pre; }
+.diff .add { background: var(--brand-soft); color: var(--status-counted); }
+.diff .del { background: var(--status-error-soft); color: var(--status-error); }
+.diff .meta { color: var(--text-muted); }
+.report { margin: 0; padding: 12px 14px; background: var(--surface-2); border-radius: var(--radius-sm);
+          font: 13px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; }
+.label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }
+.review-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.review-filters .field { width: 200px; }
+.decide-grid { display: grid; grid-template-columns: 220px 1fr; gap: 12px; width: 100%; }
+.msg-error { color: var(--status-error); font-size: 14px; }
+.btn--danger { color: #ef4444; }
+.review-card { transition: opacity 0.2s, transform 0.2s; }
+.review-card--removing { opacity: 0.3; }
+@media (max-width: 760px) {
+  .decide-grid { grid-template-columns: 1fr; }
+  .review-filters .field { width: 100%; }
+}

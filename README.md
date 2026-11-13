@@ -6,7 +6,7 @@
 2. [Что реализовано в коде](#2-что-реализовано-в-коде)
 3. [Модуль сбора беговых протоколов (`parser_running`)](#3-модуль-сбора-беговых-протоколов-parser_running)
 4. [Модуль сбора биатлонных протоколов (`parser_biathlon`)](#4-модуль-сбора-биатлонных-протоколов-parser_biathlon)
-5. [Веб-платформа и пользовательский интерфейс (`app`)](#5-веб-платформа-и-пользовательский-интерфейс-app)
+5. [Веб-платформа и пользовательский интерфейс (`app`, `frontend`)](#5-веб-платформа-и-пользовательский-интерфейс-app-frontend)
 6. [Спецификация API и веб-маршрутов](#6-спецификация-api-и-веб-маршрутов)
 7. [ИИ-агенты и контур самовосстановления (GigaChat + MCP)](#7-ии-агенты-и-контур-самовосстановления-gigachat--mcp)
 8. [Рейтинговый движок и методика расчета баллов](#8-рейтинговый-движок-и-методика-расчета-баллов)
@@ -39,7 +39,7 @@
 
 * **Бэкенд:** Python 3.12 / 3.14, FastAPI, Starlette, Uvicorn, Pydantic v2.
 * **База данных:** SQLite 3 в режиме высокой производительности (`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=20000; PRAGMA synchronous=NORMAL;`). Поддерживаются оконные функции `ROW_NUMBER() OVER (...)`. Схемы таблиц также совместимы с PostgreSQL (`docker-compose.yaml`).
-* **Фронтенд:** Серверный рендеринг Jinja2, ванильный JavaScript (ES6+), CSS с кастомной дизайн-системой токенов (`theme.css`), шрифты Unbounded и Golos Text, Chart.js 4.4.1 (графики динамики темпа и гистограммы распределения), Air Datepicker 3.5.3 (выбор дат).
+* **Фронтенд (`frontend/`):** SPA на React 18 + TypeScript, сборка Vite 5, маршрутизация React Router 6; CSS с кастомной дизайн-системой токенов (`theme.css`, ADR-0001), шрифты Unbounded и Golos Text, Chart.js 4.4.1 (графики динамики темпа и гистограммы распределения), Air Datepicker 3.5.3 (выбор дат). Бэкенд отдаёт JSON (`/api/...`) и собранный `frontend/dist` (ADR-0002).
 * **Сбор и парсинг:** `requests`, `httpx`, `beautifulsoup4`, `pdfplumber`, `pillow`, `pytesseract` (Tesseract OCR 5).
 * **ИИ и LLM-стек:** GigaChat API (модели `GigaChat-2-Pro`, `GigaChat-Pro`), SDK `gigachat`, Model Context Protocol (MCP) orchestrator, автономный агент исправления парсеров (`parse_url.py`).
 
@@ -109,7 +109,9 @@
 
 ---
 
-## 5. Веб-платформа и пользовательский интерфейс (`app`)
+## 5. Веб-платформа и пользовательский интерфейс (`app`, `frontend`)
+
+Интерфейс — React-приложение в `frontend/` ([ADR-0002](docs/adr/0002-react-frontend.md), устройство и добавление страниц — [frontend/README.md](frontend/README.md)). FastAPI отдаёт JSON API под `/api/...` и собранный интерфейс (`frontend/dist`) на прежних адресах страниц; дизайн-система — [ADR-0001](docs/adr/0001-frontend-design-system.md). На телефоне (до 760 px) — мобильная раскладка: нижняя панель навигации, таблицы заменены списками.
 
 ### 5.1 Реализованные разделы веб-приложения
 
@@ -129,7 +131,7 @@
 
 ## 6. Спецификация API и веб-маршрутов
 
-### 6.1 Веб-маршруты (HTML)
+### 6.1 Страницы интерфейса (React Router, отдаёт `frontend/dist/index.html`)
 
 ```
 GET  /                             — Главная страница (поиск спортсменов)
@@ -146,19 +148,26 @@ GET  /docs                         — Swagger UI документация API
 ### 6.2 REST API
 
 ```
-GET    /athletes/search            — Поиск кандидатов (last_name, birth_year, limit)
-GET    /athletes/{id}/results      — Список финишей спортсмена
-GET    /athletes/{id}/summary      — Сводка: личные рекорды, динамика темпа, рейтинг
-POST   /athletes/{id}/assessment   — Генерация персональной ИИ-оценки (GigaChat API + кэш)
-GET    /events                     — Каталог соревнований с фильтрами
-GET    /events/{id}                — Карточка соревнования и список дистанций
-GET    /races/{id}/results         — Финишный протокол (поиск по имени, номеру)
-GET    /races/{id}/competition     — Распределение результатов (квантили, гистограмма)
-GET    /api/agent-review/tasks     — Список задач инцидент-очереди issue для ревью
-POST   /api/agent-review/{id}/decide — Подтверждение / отклонение решения агента (approve / reject)
-POST   /api/agent-review/{id}/apply  — Применение сгенерированного патча в кодовую базу
-DELETE /api/agent-review/{id}        — Удаление инцидента и связанных тестовых файлов с диска
+GET    /api/athletes/search            — Поиск кандидатов (last_name, birth_year, limit)
+GET    /api/athletes/{id}/results      — Список финишей спортсмена
+GET    /api/athletes/{id}/summary      — Сводка: личные рекорды, динамика темпа, рейтинг
+POST   /api/athletes/{id}/assessment   — Генерация персональной ИИ-оценки (GigaChat API + кэш)
+GET    /api/events                     — Каталог соревнований с фильтрами
+GET    /api/events/{id}                — Карточка соревнования и список дистанций
+GET    /api/races/{id}                 — Страница дистанции: протокол, «Конкуренция», топ по рейтингу (search, athlete_id)
+GET    /api/races/{id}/results         — Финишный протокол (поиск по имени, номеру)
+GET    /api/races/{id}/competition     — Распределение результатов (квантили, гистограмма)
+GET    /api/rating                     — Рейтинг за 365 дней + строка спортсмена me_row (gender, athlete_id, limit)
+GET    /api/rating/formula             — Нормативы года для страницы «Как посчитано»
+GET    /api/agent-review/page          — Экран правок агента: задачи, фильтры, автор (status, source)
+GET    /api/agent-review/items         — Список задач инцидент-очереди issue для ревью
+POST   /api/agent-review/{id}/decide   — Подтверждение / отклонение решения агента (approve / reject)
+POST   /api/agent-review/{id}/apply    — Применение сгенерированного патча в кодовую базу
+POST   /api/agent-review/{id}/reset    — Сброс решения, задача снова в proposed
+DELETE /api/agent-review/{id}          — Удаление инцидента и связанных тестовых файлов с диска
 ```
+
+Адреса без префикса `/api` (`/athletes/...`, `/events...`, `/races/...`) оставлены для совместимости со старыми клиентами и тестами; в Swagger не показываются.
 
 ---
 
@@ -244,6 +253,7 @@ $$\text{Баллы} = 10 \times \left(\text{Дистанция (км)} + \frac{\
 
 * **ОС:** Windows (PowerShell / WSL), Linux, macOS.
 * **Python:** 3.12 или 3.14.
+* **Node.js:** 18+ (сборка веб-интерфейса `frontend/`).
 * **Tesseract OCR 5** (только для распознавания биатлонных PDF-протоколов).
 
 ### 9.2 Быстрый старт веб-сервиса
@@ -270,8 +280,20 @@ cp env.example .env
 # 5. Индексация спортсменов из базы результатов (при первом запуске)
 python init_athletes.py
 
-# 6. Запуск веб-сервера с наблюдением за директорией app
+# 6. Сборка веб-интерфейса (React) → frontend/dist
+npm --prefix frontend install
+npm --prefix frontend run build
+
+# 7. Запуск веб-сервера с наблюдением за директорией app
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir app
+```
+
+Без шага 6 API работает, а страницы отвечают 503 с подсказкой, как собрать интерфейс.
+
+При разработке интерфейса удобнее dev-сервер Vite с горячей перезагрузкой — http://localhost:5173 (запросы `/api` он проксирует на uvicorn :8000):
+
+```bash
+npm --prefix frontend run dev
 ```
 
 После старта веб-сервис доступен по адресам:
@@ -302,6 +324,9 @@ python parse_url.py https://probeg.org/race/129181/
 ```bash
 # Комплексный тест функционала MVP (поиск, UI, API, аналитика)
 python test_mvp.py
+
+# Проверка типов и сборка веб-интерфейса
+npm --prefix frontend run build
 
 # Тестирование MCP-агента и валидатора данных
 python test_mcp_agent.py

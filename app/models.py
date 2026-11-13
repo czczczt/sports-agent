@@ -148,3 +148,67 @@ class CompetitionDistribution(BaseModel):
     p75_time_s: float
     distribution_bins: List[DistributionBin]
     athlete_result: Optional[Dict[str, Any]] = None
+
+
+# ---------- Ответы для страниц React-интерфейса (frontend/) ----------
+
+class RatingRow(BaseModel):
+    rank: int
+    athlete_id: int
+    display_name: str
+    birth_year: Optional[int] = None
+    gender: Optional[str] = None
+    points: float
+    best_points: Optional[float] = None
+    starts_count: int = 0
+
+
+class RatingPageResponse(BaseModel):
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
+    rows: List[RatingRow]
+    total: int
+    me_row: Optional[RatingRow] = None
+
+
+class RatingNorm(BaseModel):
+    distance_class: str
+    gender: str
+    value: float
+    unit: str
+
+
+class RatingFormulaResponse(BaseModel):
+    year: int
+    norms: List[RatingNorm]
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
+
+
+class RaceInfo(BaseModel):
+    id: int
+    event_id: int
+    name_raw: str
+    norm_distance: Optional[str] = None
+    distance_m: Optional[int] = None
+
+
+class RaceRatingLeader(BaseModel):
+    athlete_id: int
+    result_id: int
+    full_name_raw: str
+    rating_rank: int
+    rating_points: float
+    rating_starts: int
+    place_abs: Optional[int] = None
+    chip_time_s: Optional[float] = None
+    gun_time_s: Optional[float] = None
+
+
+class RacePageResponse(BaseModel):
+    race: RaceInfo
+    event: Optional[EventItem] = None
+    results: List[RaceProtocolItem]
+    pinned_athlete_result: Optional[RaceProtocolItem] = None
+    competition: Optional[CompetitionDistribution] = None
+    rating_leaders: List[RaceRatingLeader] = []

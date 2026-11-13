@@ -1,7 +1,6 @@
 # Основной стек FastAPI MVP сайта
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
-jinja2>=3.1.4
 pydantic>=2.9.0
 
 # HTTP-клиент для вызова GigaChat API и тестирования

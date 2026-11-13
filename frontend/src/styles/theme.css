@@ -302,15 +302,6 @@ button, input, select { font: inherit; color: inherit; }
 .rating-segment a.is-active { color: var(--brand-on-fill); background: var(--brand-fill); }
 .rating-layout { display: grid; grid-template-columns: minmax(0, 1fr) 216px; gap: 16px; align-items: start; }
 .rating-board, .rating-side-card { background: var(--rating-surface); border: 1px solid var(--rating-line); border-radius: 11px; overflow: hidden; }
-.rating-podium { height: 174px; display: flex; justify-content: center; align-items: end; gap: 12px; padding: 18px 42px 0; border-bottom: 1px dashed var(--border-strong); }
-.rating-podium__item { width: 23%; min-width: 120px; color: var(--text-primary); text-align: center; text-decoration: none; display: flex; flex-direction: column; align-items: center; }
-.rating-podium__name { font-size: 13px; white-space: nowrap; overflow: hidden; max-width: 100%; text-overflow: ellipsis; }
-.rating-podium__points { font-size: 16px; margin: 3px 0 7px; }
-.rating-podium__bar { width: 100%; display: grid; place-items: center; color: #101512; font: 700 24px var(--font-display); border-radius: 6px 6px 0 0; }
-.rating-podium__item--1 { order: 2; }.rating-podium__item--2 { order: 1; }.rating-podium__item--3 { order: 3; }
-.rating-podium__item--1 .rating-podium__bar { height: 76px; background: #e8b929; }
-.rating-podium__item--2 .rating-podium__bar { height: 56px; background: #b9c3ca; }
-.rating-podium__item--3 .rating-podium__bar { height: 44px; background: #d78c4a; }
 .rating-table { width: 100%; border-collapse: collapse; }
 .rating-table th { color: var(--rating-muted); font-size: 12px; font-weight: 500; text-align: left; padding: 10px 16px; border-bottom: 1px solid var(--rating-line); }
 .rating-table td { padding: 10px 16px; border-bottom: 1px solid #1d2723; }
@@ -699,8 +690,8 @@ a.list-row:hover { background: var(--surface-2); color: var(--text-primary); }
   .rating-sports { overflow-x: auto; gap: 18px; margin-top: 18px; }.rating-sport { white-space: nowrap; font-size: 13px; }
   .rating-filters { align-items: stretch; flex-wrap: wrap; margin-top: 20px; }.rating-filter { flex-wrap: wrap; }
   .rating-search { width: 100%; margin-left: 0; }.rating-search input { width: 100%; }
-  .rating-layout { display: block; }.rating-sidebar { margin-top: 14px; }.rating-podium { padding: 18px 12px 0; gap: 7px; }
-  .rating-podium__item { min-width: 0; width: 32%; }.rating-podium__name { font-size: 11px; }.rating-podium__points { font-size: 13px; }
+  .rating-layout { display: block; }.rating-sidebar { margin-top: 14px; }
+  
   .rating-table th, .rating-table td { padding: 9px 7px; }.rating-table th:nth-child(4), .rating-table td:nth-child(4) { display: none; }
   .formula-page--simple { padding: 24px 14px 32px; margin: -4px -8px 0; border-radius: 0; }.formula-simple-header h1 { font-size: 30px; margin-top: 24px; }.formula-simple-card { padding: 20px 16px; }.formula-simple-card__heading h2 { font-size: 19px; }.formula-simple-equation { gap: 8px; padding: 18px 6px; margin: 22px 0; }.formula-simple-equation > span:first-child { font-size: 13px; }.formula-simple-equation > b { font-size: 17px; }.formula-simple-equation > strong { font-size: 15px; }.formula-simple-fraction { min-width: 82px; gap: 3px; }.formula-simple-fraction strong { font-size: 11px; padding: 0 5px 3px; }.formula-simple-fraction i { font-size: 9px; }.formula-simple-example { display: block; }.formula-simple-example strong { font-size: 14px; }.formula-simple-example p { margin-top: 14px; }.formula-simple-header p { flex-wrap: wrap; }.formula-simple-table { min-width: 500px; }
 }
