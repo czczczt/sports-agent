@@ -152,6 +152,23 @@ class CompetitionDistribution(BaseModel):
 
 # ---------- Ответы для страниц React-интерфейса (frontend/) ----------
 
+class UserOut(BaseModel):
+    username: str
+    role: str  # "user" | "admin"
+    display_name: str
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserOut
+
+
 class RatingRow(BaseModel):
     rank: int
     athlete_id: int

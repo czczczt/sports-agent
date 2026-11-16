@@ -3,6 +3,8 @@ import { Link, Outlet, ScrollRestoration, useMatches } from 'react-router-dom';
 import { NAV_ITEMS, type Section } from '@/config/navigation';
 import { Icon } from '@/components/ui/Icon';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useAuth } from '@/context/AuthContext';
+import { AuthModal } from '@/components/auth/AuthModal';
 
 /** Данные маршрута (handle в src/routes.tsx), которые нужны каркасу. */
 export interface RouteHandle {
@@ -41,9 +43,45 @@ function ThemeControls() {
   );
 }
 
+function AuthControls() {
+  const { user, openAuthModal, logout } = useAuth();
+
+  if (user) {
+    return (
+      <div className="user-nav">
+        <div className="user-badge" title={user.username}>
+          <span className="user-badge__icon"><Icon name="user" className="icon-sm" /></span>
+          <span className="user-badge__name">{user.display_name}</span>
+          {user.role === 'admin' && <span className="chip chip--sm chip--brand">админ</span>}
+        </div>
+        <button
+          type="button"
+          className="btn btn--sm btn--ghost"
+          onClick={logout}
+          title="Выйти из учётной записи"
+        >
+          Выйти
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="btn btn--sm btn--ghost"
+      onClick={openAuthModal}
+    >
+      Войти
+    </button>
+  );
+}
+
 export function AppLayout() {
   const { section = 'search', pageClass } = useRouteHandle();
+  const { isAdmin } = useAuth();
   const current = (s: Section) => (s === section ? 'page' : undefined);
+  const visibleNavItems = NAV_ITEMS.filter((item) => item.section !== 'agent' || isAdmin);
 
   return (
     <>
@@ -55,13 +93,14 @@ export function AppLayout() {
               <span className="brand__name">Рейтинг <br className="br" />спортсменов</span>
             </Link>
             <nav className="top-nav" aria-label="Разделы">
-              {NAV_ITEMS.map((item) => (
+              {visibleNavItems.map((item) => (
                 <Link key={item.section} to={item.to} aria-current={current(item.section)}>{item.label}</Link>
               ))}
             </nav>
           </div>
           <div className="app-header__right">
             <ThemeControls />
+            <AuthControls />
           </div>
         </div>
       </header>
@@ -78,13 +117,14 @@ export function AppLayout() {
       </footer>
 
       <nav className="bottom-nav" aria-label="Разделы">
-        {NAV_ITEMS.filter((item) => item.mobile).map((item) => (
+        {visibleNavItems.filter((item) => item.mobile).map((item) => (
           <Link key={item.section} to={item.to} aria-current={current(item.section)}>
             <Icon name={item.icon} />{item.label}
           </Link>
         ))}
       </nav>
 
+      <AuthModal />
       <ScrollRestoration />
     </>
   );

@@ -1,6 +1,23 @@
 // Типы ответов API. Повторяют pydantic-модели из app/models.py —
 // при изменении модели на бэкенде обновите и этот файл.
 
+export interface User {
+  username: string;
+  role: 'user' | 'admin';
+  display_name: string;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: User;
+}
+
 export interface AthleteCandidate {
   id: number;
   display_name: string;

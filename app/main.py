@@ -5,6 +5,7 @@ from fastapi import APIRouter, FastAPI
 from app.config import SQLITE_DB_PATH, APP_HOST, APP_PORT
 from app.db import get_db_connection
 from app.api.athletes import router as athletes_router
+from app.api.auth import router as auth_router
 from app.api.events import router as events_router
 from app.api.races import router as races_router
 from app.api.rating import router as rating_router
@@ -48,7 +49,7 @@ app = FastAPI(
 # REST API. Интерфейс (frontend/) ходит только в /api/...; старые адреса без префикса
 # (/athletes, /events, /races) оставлены для совместимости и скрыты из Swagger.
 api = APIRouter(prefix="/api")
-for domain_router in (athletes_router, events_router, races_router, rating_router):
+for domain_router in (athletes_router, events_router, races_router, rating_router, auth_router):
     api.include_router(domain_router)
 app.include_router(api)
 for legacy_router in (athletes_router, events_router, races_router):

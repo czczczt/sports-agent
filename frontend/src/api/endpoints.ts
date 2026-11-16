@@ -2,8 +2,14 @@
 import { api } from './client';
 import type {
   AgentApplyResult, AgentReviewPage, Assessment, AthleteCandidate, AthleteResultItem, AthleteSummary,
-  EventItem, RacePage, RatingFormula, RatingPage,
+  AuthResponse, EventItem, LoginRequest, RacePage, RatingFormula, RatingPage, User,
 } from './types';
+
+export const authApi = {
+  login: (body: LoginRequest) => api.post<AuthResponse>('/api/auth/login', body),
+  logout: () => api.post<{ status: string }>('/api/auth/logout'),
+  me: (signal?: AbortSignal) => api.get<User>('/api/auth/me', undefined, signal),
+};
 
 export const athletesApi = {
   search: (lastName: string, birthYear: number, signal?: AbortSignal) =>

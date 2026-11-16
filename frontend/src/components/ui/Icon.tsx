@@ -18,6 +18,7 @@ const ICONS = {
   flag: <path d="M5 21V4h11l-1.5 4L16 12H5" />,
   chevron: <path d="M9 6l6 6-6 6" />,
   empty: (<><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5M8.5 11h5" /></>),
+  close: <path d="M18 6L6 18M6 6l12 12" />,
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof ICONS;

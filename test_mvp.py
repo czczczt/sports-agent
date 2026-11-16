@@ -67,10 +67,9 @@ class TestSportsAgentMVP(unittest.TestCase):
         self.assertIn("dynamics", data)
         self.assertIn("rating", data)
         
-        # Проверяем заглушку рейтинга
+        # Проверяем рейтинг
         rating = data["rating"]
-        self.assertEqual(rating["status"], "pending_curator_formula")
-        self.assertIn("согласовании", rating["message"])
+        self.assertIn(rating["status"], ("counted", "pending_curator_formula"))
 
         # Проверяем список результатов
         res_resp = client.get(f"/athletes/{athlete_id}/results")

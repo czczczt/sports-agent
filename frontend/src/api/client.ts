@@ -23,7 +23,16 @@ export function buildQuery(params?: Query): string {
 }
 
 async function request<T>(method: string, path: string, opts: { query?: Query; body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
-  const init: RequestInit = { method, signal: opts.signal, headers: { Accept: 'application/json' } };
+  const init: RequestInit = {
+    method,
+    signal: opts.signal,
+    credentials: 'same-origin',
+    headers: { Accept: 'application/json' },
+  };
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  if (token) {
+    (init.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+  }
   if (opts.body !== undefined) {
     init.headers = { ...init.headers, 'Content-Type': 'application/json' };
     init.body = JSON.stringify(opts.body);

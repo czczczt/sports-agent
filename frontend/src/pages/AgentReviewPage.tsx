@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { agentReviewApi } from '@/api/endpoints';
 import type { AgentReviewItem, AgentReviewPage as AgentReviewData } from '@/api/types';
 import { EmptyState, ErrorState, Icon, Loader } from '@/components/ui';
+import { useAuth } from '@/context/AuthContext';
 import { useApi } from '@/hooks/useApi';
 import { KEEP_SCROLL } from '@/hooks/keepScroll';
 import { SITE_TITLE, useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -12,14 +13,28 @@ import { dateTimeRu, sourceName } from '@/lib/format';
 
 export function AgentReviewPage() {
   useDocumentTitle(`Правки агента · ${SITE_TITLE}`);
+  const { isAdmin, openAuthModal } = useAuth();
   const [params, setParams] = useSearchParams();
   const status = params.get('status') || 'proposed';
   const source = params.get('source') || '';
 
   const { data, error, loading, reload } = useApi(
-    (signal) => agentReviewApi.page({ status, source }, signal),
-    [status, source],
+    (signal) => (isAdmin ? agentReviewApi.page({ status, source }, signal) : Promise.resolve(undefined as unknown as AgentReviewData)),
+    [status, source, isAdmin],
   );
+
+  if (!isAdmin) {
+    return (
+      <div className="card empty agent-auth-guard">
+        <span className="empty__icon"><Icon name="user" /></span>
+        <div className="strong">Требуются права администратора</div>
+        <p className="small muted">Для просмотра и утверждения правок агента войдите под учётной записью администратора.</p>
+        <button type="button" className="btn btn--primary" onClick={openAuthModal}>
+          Войти как администратор
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>
