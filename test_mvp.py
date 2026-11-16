@@ -11,6 +11,8 @@ import unittest
 from fastapi.testclient import TestClient
 from app.main import app
 from app.db import get_db_connection
+from app.api.auth import get_current_user
+from app.models import UserOut
 
 client = TestClient(app)
 
@@ -20,10 +22,14 @@ class TestSportsAgentMVP(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.conn = get_db_connection()
+        app.dependency_overrides[get_current_user] = lambda: UserOut(
+            username="admin", role="admin", display_name="Администратор"
+        )
 
     @classmethod
     def tearDownClass(cls):
         cls.conn.close()
+        app.dependency_overrides.pop(get_current_user, None)
 
     def test_01_athlete_search_case_and_yo(self):
         """1. Поиск спортсмена без учета регистра и с заменой е/ё."""

@@ -66,6 +66,20 @@ class TestAuth(unittest.TestCase):
         me_resp = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
         self.assertEqual(me_resp.status_code, 401)
 
+    def test_protected_endpoints_require_auth(self):
+        # Без авторизации доступ к спортсменам запрещён (401)
+        resp = client.get("/api/athletes/search?last_name=иванов&birth_year=1990")
+        self.assertEqual(resp.status_code, 401)
+
+        # С авторизацией доступ разрешён (200)
+        login_resp = client.post("/api/auth/login", json={"username": "user", "password": "user"})
+        token = login_resp.json()["access_token"]
+        resp_auth = client.get(
+            "/api/athletes/search?last_name=иванов&birth_year=1990",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        self.assertEqual(resp_auth.status_code, 200)
+
 
 if __name__ == "__main__":
     unittest.main()

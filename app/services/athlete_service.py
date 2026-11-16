@@ -1,7 +1,7 @@
-import sqlite3
 import json
 import re
 from typing import List, Optional, Dict, Any
+from app.db import AsyncPGConnection
 from app.models import (
     AthleteCandidate, AthleteResultItem, PersonalBestItem,
     RatingPlaceholder, DynamicsPoint, AthleteSummaryResponse
@@ -26,8 +26,6 @@ DISTANCE_TITLES = {
     "24h": "Суточный бег (24 ч)",
 }
 
-
-
 DUMMY_CLUBS_EXACT = {"нет", "лично", "индивидуально", "-", "—", "none", "null", "self", "individual", ""}
 DUMMY_CLUBS_SUBSTR = ("нет клуба", "no club", "без клуба")
 
@@ -49,6 +47,7 @@ def clean_club(club: Optional[str]) -> Optional[str]:
     if is_dummy_club(club):
         return None
     return club.strip()
+
 
 def normalize_term(term: str) -> str:
     """Нормализует строку поиска: нижний регистр, замена ё -> е, удаление спецсимволов."""
@@ -92,8 +91,8 @@ def get_pace_seconds(time_s: Optional[float], dist_m: Optional[float]) -> Option
     return time_s / (dist_m / 1000.0)
 
 
-def search_athletes(
-    conn: sqlite3.Connection,
+async def search_athletes(
+    conn: AsyncPGConnection,
     last_name: str,
     birth_year: Optional[int] = None,
     limit: int = 50
@@ -107,7 +106,6 @@ def search_athletes(
     if not norm:
         return []
 
-    cur = conn.cursor()
     pattern = f"%{norm}%"
 
     if birth_year is not None:
@@ -123,7 +121,7 @@ def search_athletes(
                 id ASC
             LIMIT ?
         """
-        rows = cur.execute(query, (pattern, birth_year, limit)).fetchall()
+        rows = await conn.fetch(query, pattern, birth_year, limit)
     else:
         query = """
             SELECT id, display_name, birth_year, gender, city, region, club, starts_count, results_count
@@ -133,7 +131,7 @@ def search_athletes(
             ORDER BY starts_count DESC, results_count DESC, id ASC
             LIMIT ?
         """
-        rows = cur.execute(query, (pattern, limit)).fetchall()
+        rows = await conn.fetch(query, pattern, limit)
 
     return [
         AthleteCandidate(
@@ -151,14 +149,13 @@ def search_athletes(
     ]
 
 
-def get_athlete_by_id(conn: sqlite3.Connection, athlete_id: int) -> Optional[AthleteCandidate]:
+async def get_athlete_by_id(conn: AsyncPGConnection, athlete_id: int) -> Optional[AthleteCandidate]:
     """Получает данные спортсмена по ID."""
-    cur = conn.cursor()
-    row = cur.execute("""
+    row = await conn.fetchrow("""
         SELECT id, display_name, birth_year, gender, city, region, club, starts_count, results_count
         FROM athlete
         WHERE id = ?
-    """, (athlete_id,)).fetchone()
+    """, athlete_id)
     if not row:
         return None
     return AthleteCandidate(
@@ -174,10 +171,9 @@ def get_athlete_by_id(conn: sqlite3.Connection, athlete_id: int) -> Optional[Ath
     )
 
 
-def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[AthleteResultItem]:
+async def get_athlete_results(conn: AsyncPGConnection, athlete_id: int) -> List[AthleteResultItem]:
     """Возвращает все результаты спортсмена (включая DNS, DNF, DSQ)."""
-    cur = conn.cursor()
-    rows = cur.execute("""
+    rows = await conn.fetch("""
         SELECT 
             r.id AS result_id,
             e.id AS event_id,
@@ -211,7 +207,7 @@ def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[Athle
           AND r.status = 'FIN'
           AND r.duplicate_of IS NULL
         ORDER BY e.date_begin DESC, r.id DESC
-    """, (athlete_id,)).fetchall()
+    """, athlete_id)
 
     results = []
     for r in rows:
@@ -255,13 +251,13 @@ def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[Athle
     return results
 
 
-def get_athlete_summary(conn: sqlite3.Connection, athlete_id: int) -> Optional[AthleteSummaryResponse]:
+async def get_athlete_summary(conn: AsyncPGConnection, athlete_id: int) -> Optional[AthleteSummaryResponse]:
     """Формирует сводку по спортсмену: профиль, личные рекорды, динамику, рейтинг-заглушку."""
-    athlete = get_athlete_by_id(conn, athlete_id)
+    athlete = await get_athlete_by_id(conn, athlete_id)
     if not athlete:
         return None
 
-    results = get_athlete_results(conn, athlete_id)
+    results = await get_athlete_results(conn, athlete_id)
 
     # Вычисление личных рекордов (Personal Bests) по нормализованным дистанциям
     pb_dict: Dict[str, Dict[str, Any]] = {}
@@ -316,13 +312,12 @@ def get_athlete_summary(conn: sqlite3.Connection, athlete_id: int) -> Optional[A
             ))
 
     # Проверка наличия кэшированной оценки
-    cur = conn.cursor()
-    has_cache = cur.execute(
+    has_cache = await conn.fetchval(
         "SELECT 1 FROM athlete_assessment_cache WHERE athlete_id = ?",
-        (athlete_id,)
-    ).fetchone() is not None
+        athlete_id
+    ) is not None
 
-    rating_row = cur.execute(
+    rating_row = await conn.fetchrow(
         """
         SELECT points, rank, starts_count, period_start, period_end
         FROM running_athlete_rating
@@ -330,8 +325,8 @@ def get_athlete_summary(conn: sqlite3.Connection, athlete_id: int) -> Optional[A
         ORDER BY period_end DESC
         LIMIT 1
         """,
-        (athlete_id,)
-    ).fetchone()
+        athlete_id
+    )
 
     return AthleteSummaryResponse(
         athlete=athlete,

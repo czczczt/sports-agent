@@ -1,13 +1,13 @@
-import sqlite3
 import math
 from typing import Dict, Any, List
+from app.db import AsyncPGConnection
 from app.services.athlete_service import (
     get_athlete_results, get_athlete_by_id, format_time, format_pace,
     get_pace_seconds, DISTANCE_TITLES
 )
 
 
-def compute_athlete_metrics(conn: sqlite3.Connection, athlete_id: int) -> Dict[str, Any]:
+async def compute_athlete_metrics(conn: AsyncPGConnection, athlete_id: int) -> Dict[str, Any]:
     """
     Вычисляет все аналитические метрики для спортсмена:
     - Личные рекорды по дистанциям
@@ -16,11 +16,11 @@ def compute_athlete_metrics(conn: sqlite3.Connection, athlete_id: int) -> Dict[s
     - Показатель стабильности (вариация темпа)
     - Определение сильных и слабых сторон
     """
-    athlete = get_athlete_by_id(conn, athlete_id)
+    athlete = await get_athlete_by_id(conn, athlete_id)
     if not athlete:
         return {}
 
-    all_results = get_athlete_results(conn, athlete_id)
+    all_results = await get_athlete_results(conn, athlete_id)
     results = [r for r in all_results if r.status == 'FIN']
     if not results:
         return {
@@ -30,8 +30,6 @@ def compute_athlete_metrics(conn: sqlite3.Connection, athlete_id: int) -> Dict[s
             "finishes_count": 0,
             "message": "Недостаточно данных."
         }
-
-    cur = conn.cursor()
 
     # 1. Личные рекорды
     pb_dict = {}
@@ -55,14 +53,12 @@ def compute_athlete_metrics(conn: sqlite3.Connection, athlete_id: int) -> Dict[s
     race_stats = []
     percentiles = []
     for r in results:
-        # Получаем общее количество финишеров на данной дистанции
-        total_fin = cur.execute("""
+        total_fin = await conn.fetchval("""
             SELECT count(*) FROM result 
             WHERE race_id = ? AND status = 'FIN' AND duplicate_of IS NULL
-        """, (r.race_id,)).fetchone()[0]
+        """, r.race_id)
 
         if total_fin and r.place_abs and total_fin > 0:
-            # Процентиль: процент участников, которых спортсмен обогнал (или финишировал вровень)
             pct = round(100.0 * (total_fin - r.place_abs + 1) / total_fin, 1)
             percentiles.append(pct)
             race_stats.append({
@@ -79,7 +75,6 @@ def compute_athlete_metrics(conn: sqlite3.Connection, athlete_id: int) -> Dict[s
     best_percentile = max(percentiles) if percentiles else None
 
     # 3. Динамика по дистанциям (прогресс)
-    # Группируем результаты по norm_distance и сортируем по дате
     by_dist: Dict[str, List] = {}
     for r in sorted([x for x in results if x.event_date], key=lambda x: x.event_date or ""):
         nd = r.norm_distance
@@ -99,7 +94,6 @@ def compute_athlete_metrics(conn: sqlite3.Connection, athlete_id: int) -> Dict[s
             first_time = items[0]["time_s"]
             last_time = items[-1]["time_s"]
             delta = last_time - first_time
-            # Положительный процент — улучшение (стал быстрее)
             pct_improvement = round((first_time - last_time) / first_time * 100.0, 1)
             dist_title = DISTANCE_TITLES.get(nd, nd)
             progress_summary.append({
@@ -156,7 +150,6 @@ def compute_athlete_metrics(conn: sqlite3.Connection, athlete_id: int) -> Dict[s
         else:
             weaknesses.append("Пока находится во второй половине протоколов, есть существенный потенциал для роста.")
 
-    # Самая сильная дистанция по процентилю
     best_dist = None
     best_dist_pct = -1
     for r_stat in race_stats:

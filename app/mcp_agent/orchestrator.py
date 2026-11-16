@@ -85,10 +85,11 @@ def report_quality_issue(
         INSERT INTO issue (source_id, stage, kind, object_ref, fingerprint, details, status, assignee, occurrences)
         VALUES (?, ?, ?, ?, ?, ?, 'agent_working', 'agent', 1)
         ON CONFLICT(fingerprint) DO UPDATE SET
-            occurrences = occurrences + 1,
+            occurrences = issue.occurrences + 1,
             last_seen = CURRENT_TIMESTAMP,
             details = excluded.details,
-            status = 'agent_working'
+            status = 'agent_working',
+            assignee = 'agent'
     """, (source_id, stage, kind, object_ref, fp, details))
     conn.commit()
 

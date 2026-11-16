@@ -1,42 +1,34 @@
 from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, Depends, FastAPI
 
-from app.config import SQLITE_DB_PATH, APP_HOST, APP_PORT
-from app.db import get_db_connection
+from app.config import APP_HOST, APP_PORT
+from app.db import get_db_pool, close_db_pool
 from app.api.athletes import router as athletes_router
-from app.api.auth import router as auth_router
+from app.api.auth import router as auth_router, get_current_user
 from app.api.events import router as events_router
 from app.api.races import router as races_router
 from app.api.rating import router as rating_router
 from app.agent_review import router as agent_review_router
 from app.frontend import mount_frontend
-from app.services.rating_service import recalculate as recalculate_rating
-from init_athletes import setup_schema, populate_athletes
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Жизненный цикл приложения: проверка БД при старте."""
-    conn = get_db_connection()
-    setup_schema(conn)
-    # Если таблица athlete не заполнена, запускаем наполнение
-    count = conn.execute("SELECT count(*) FROM athlete").fetchone()[0]
-    conn.close()
-    if count == 0:
-        print("[Startup] Таблица athlete пуста. Запуск инициализации...")
-        populate_athletes(SQLITE_DB_PATH)
-    else:
-        print(f"[Startup] База данных готова. Спортсменов в индексе: {count}")
-    rating_conn = get_db_connection()
-    rating_report = recalculate_rating(rating_conn)
-    rating_conn.close()
-    print(
-        "[Startup] Рейтинг бега пересчитан: "
-        f"{rating_report['athletes_rated']} спортсменов, "
-        f"{rating_report['results_scored']} результатов"
-    )
-    yield
+    """Жизненный цикл приложения: инициализация пула PostgreSQL при старте."""
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        athlete_count = await conn.fetchval("SELECT count(*) FROM athlete")
+        rating_count = await conn.fetchval("SELECT count(*) FROM running_athlete_rating")
+        print(
+            f"[Startup] PostgreSQL подключен. Спортсменов в базе: {athlete_count}, "
+            f"записей в рейтинге: {rating_count}"
+        )
+    try:
+        yield
+    finally:
+        await close_db_pool()
+        print("[Shutdown] Пул PostgreSQL закрыт.")
 
 
 app = FastAPI(
@@ -46,15 +38,20 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# REST API. Интерфейс (frontend/) ходит только в /api/...; старые адреса без префикса
-# (/athletes, /events, /races) оставлены для совместимости и скрыты из Swagger.
+# REST API. Сервис для внутреннего пользования: все доменные эндпоинты требуют авторизации.
+# /api/auth открыт для входа по логину и паролю.
 api = APIRouter(prefix="/api")
-for domain_router in (athletes_router, events_router, races_router, rating_router, auth_router):
-    api.include_router(domain_router)
+api.include_router(auth_router)
+
+protected_api = APIRouter(dependencies=[Depends(get_current_user)])
+for domain_router in (athletes_router, events_router, races_router, rating_router):
+    protected_api.include_router(domain_router)
+api.include_router(protected_api)
 app.include_router(api)
+
 for legacy_router in (athletes_router, events_router, races_router):
-    app.include_router(legacy_router, include_in_schema=False)
-app.include_router(agent_review_router)   # /api/agent-review/... — экран подтверждения правок агента
+    app.include_router(legacy_router, dependencies=[Depends(get_current_user)], include_in_schema=False)
+app.include_router(agent_review_router, dependencies=[Depends(get_current_user)])
 
 # React-интерфейс (frontend/dist) и SPA-fallback. Строго последним: перехватывает все прочие GET.
 mount_frontend(app)

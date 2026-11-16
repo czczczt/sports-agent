@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import json
 import math
-import sqlite3
 from datetime import date, timedelta
 from typing import Any, Optional
 
+from app.db import AsyncPGConnection
 
 FORMULA_VERSION = "run-v1"
 RATING_PERIOD_DAYS = 365
@@ -66,12 +66,16 @@ CREATE INDEX IF NOT EXISTS ix_running_athlete_rating_rank
 """
 
 
-def initialize(conn: sqlite3.Connection) -> None:
-    conn.executescript(DDL)
+def initialize(conn: Any) -> None:
+    if hasattr(conn, "executescript"):
+        conn.executescript(DDL)
+    else:
+        conn.execute(DDL)
     conn.executemany(
         """
-        INSERT OR IGNORE INTO rating_norm(year, distance_class, gender, value, unit)
+        INSERT INTO rating_norm(year, distance_class, gender, value, unit)
         VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT DO NOTHING
         """,
         [
             (2026, distance_class, gender, value, "km" if distance_class == "24h" else "s")
@@ -163,7 +167,7 @@ def _calculate_score(
 
 
 def recalculate(
-    conn: sqlite3.Connection,
+    conn: Any,
     *,
     as_of: Optional[date] = None,
     formula_version: str = FORMULA_VERSION,
@@ -293,15 +297,15 @@ def recalculate(
     }
 
 
-def get_rating_page(
-    conn: sqlite3.Connection,
+async def get_rating_page(
+    conn: AsyncPGConnection,
     *,
     gender: Optional[str] = None,
     search: Optional[str] = None,
     limit: int = 100,
 ) -> dict[str, Any]:
     """Возвращает сохранённый рейтинг для страницы рейтинга."""
-    period = conn.execute(
+    period = await conn.fetchrow(
         """
         SELECT period_start, period_end
         FROM running_athlete_rating
@@ -309,8 +313,8 @@ def get_rating_page(
         ORDER BY period_end DESC
         LIMIT 1
         """,
-        (FORMULA_VERSION,),
-    ).fetchone()
+        FORMULA_VERSION,
+    )
     if not period:
         return {"period_start": None, "period_end": None, "rows": [], "total": 0}
 
@@ -332,7 +336,7 @@ def get_rating_page(
         params.append(f"%{search.lower().replace('ё', 'е')}%")
 
     where_clause = " AND ".join(conditions)
-    rows = conn.execute(
+    rows = await conn.fetch(
         f"""
         SELECT ar.rank, a.id AS athlete_id, a.display_name, a.birth_year,
                a.gender, ar.points, ar.best_points, ar.starts_count
@@ -342,17 +346,17 @@ def get_rating_page(
         ORDER BY ar.points DESC, ar.best_points DESC, ar.starts_count DESC, ar.athlete_id
         LIMIT ?
         """,
-        (*params, limit),
-    ).fetchall()
-    total = conn.execute(
+        *params, limit,
+    )
+    total = await conn.fetchval(
         f"""
         SELECT COUNT(*)
         FROM running_athlete_rating ar
         JOIN athlete a ON a.id = ar.athlete_id
         WHERE {where_clause}
         """,
-        params,
-    ).fetchone()[0]
+        *params,
+    )
     rows = [
         {
             "rank": index,
@@ -370,12 +374,12 @@ def get_rating_page(
         "period_start": period["period_start"],
         "period_end": period["period_end"],
         "rows": rows,
-        "total": total,
+        "total": total or 0,
     }
 
 
-def get_rating_me_row(
-    conn: sqlite3.Connection,
+async def get_rating_me_row(
+    conn: AsyncPGConnection,
     athlete_id: int,
     gender: Optional[str] = None,
 ) -> Optional[dict[str, Any]]:
@@ -384,7 +388,7 @@ def get_rating_me_row(
     Если выбран фильтр по полу, место пересчитывается среди спортсменов этого пола
     (с теми же тай-брейками, что и общий рейтинг). Спортсмен другого пола скрывается.
     """
-    ar = conn.execute(
+    ar = await conn.fetchrow(
         """
         SELECT a.id AS athlete_id, a.display_name, a.birth_year, a.gender,
                ar.points, ar.best_points, ar.starts_count, ar.rank AS overall_rank
@@ -395,15 +399,15 @@ def get_rating_me_row(
         ORDER BY ar.period_end DESC
         LIMIT 1
         """,
-        (FORMULA_VERSION, athlete_id),
-    ).fetchone()
+        FORMULA_VERSION, athlete_id,
+    )
     if not ar or ar["points"] is None:
         return None
     if gender and ar["gender"] != gender:
         return None
 
     if gender:
-        rank = conn.execute(
+        rank = await conn.fetchval(
             """
             SELECT COUNT(*) + 1 AS rank
             FROM running_athlete_rating rar
@@ -417,10 +421,10 @@ def get_rating_me_row(
                   OR (rar.points = ? AND rar.best_points = ? AND rar.starts_count = ? AND rar.athlete_id < ?)
               )
             """,
-            (FORMULA_VERSION, gender, ar["points"], ar["points"], ar["best_points"],
-             ar["points"], ar["best_points"], ar["starts_count"],
-             ar["points"], ar["best_points"], ar["starts_count"], ar["athlete_id"]),
-        ).fetchone()[0]
+            FORMULA_VERSION, gender, ar["points"], ar["points"], ar["best_points"],
+            ar["points"], ar["best_points"], ar["starts_count"],
+            ar["points"], ar["best_points"], ar["starts_count"], ar["athlete_id"],
+        )
     else:
         rank = ar["overall_rank"]
 
@@ -436,9 +440,9 @@ def get_rating_me_row(
     }
 
 
-def get_rating_norms(conn: sqlite3.Connection, year: int = 2026) -> dict[str, Any]:
+async def get_rating_norms(conn: AsyncPGConnection, year: int = 2026) -> dict[str, Any]:
     """Нормативы года и период действующего рейтинга — для страницы «Как посчитано»."""
-    norms = conn.execute(
+    norms = await conn.fetch(
         """
         SELECT distance_class, gender, value, unit
         FROM rating_norm
@@ -452,17 +456,17 @@ def get_rating_norms(conn: sqlite3.Connection, year: int = 2026) -> dict[str, An
             WHEN '100km' THEN 14 WHEN '24h' THEN 15 ELSE 99 END,
             gender
         """,
-        (year,),
-    ).fetchall()
-    period = conn.execute(
+        year,
+    )
+    period = await conn.fetchrow(
         """
         SELECT period_start, period_end
         FROM running_athlete_rating
         WHERE formula_version = ?
         ORDER BY period_end DESC LIMIT 1
         """,
-        (FORMULA_VERSION,),
-    ).fetchone()
+        FORMULA_VERSION,
+    )
     return {
         "year": year,
         "norms": [dict(row) for row in norms],

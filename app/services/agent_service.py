@@ -1,12 +1,12 @@
 import json
 import re
 import uuid
-import sqlite3
-import httpx
 from typing import Dict, Any, Tuple
+import httpx
 from app.config import (
     GIGACHAT_CREDENTIALS, GIGACHAT_SCOPE, GIGACHAT_MODEL, GIGACHAT_VERIFY_SSL
 )
+from app.db import AsyncPGConnection
 from app.services.analytics_service import compute_athlete_metrics
 from app.models import AssessmentResponse
 
@@ -32,7 +32,6 @@ def clean_assessment_text(text: str) -> str:
     """Очищает текст от случайных эмодзи и дублирующихся шаблонных дисклеймеров."""
     if not text:
         return ""
-    # Удаляем нежелательный текст дисклеймера
     text = re.sub(
         r"(?i)\*?Оценка носит справочный характер и предназначена для информирования[^\n]*\*?",
         "",
@@ -43,7 +42,6 @@ def clean_assessment_text(text: str) -> str:
         "",
         text
     )
-    # Удаляем любые эмодзи
     text = re.sub(r"[\U00010000-\U0010ffff]|[\u2600-\u27BF]", "", text)
     return text.strip()
 
@@ -170,7 +168,7 @@ def generate_local_expert_assessment(metrics: Dict[str, Any]) -> str:
 
 
 async def get_or_generate_assessment(
-    conn: sqlite3.Connection,
+    conn: AsyncPGConnection,
     athlete_id: int
 ) -> AssessmentResponse:
     """
@@ -178,14 +176,12 @@ async def get_or_generate_assessment(
     1. Проверяет кэш.
     2. Если в кэше нет — рассчитывает метрики, вызывает GigaChat (или fallback), кэширует результат.
     """
-    cur = conn.cursor()
-
     # 1. Проверяем кэш
-    cached_row = cur.execute("""
+    cached_row = await conn.fetchrow("""
         SELECT assessment_text, metrics_json, model
         FROM athlete_assessment_cache
         WHERE athlete_id = ?
-    """, (athlete_id,)).fetchone()
+    """, athlete_id)
 
     if cached_row:
         metrics = json.loads(cached_row["metrics_json"])
@@ -200,7 +196,7 @@ async def get_or_generate_assessment(
         )
 
     # 2. Расчет метрик на бэкенде
-    metrics = compute_athlete_metrics(conn, athlete_id)
+    metrics = await compute_athlete_metrics(conn, athlete_id)
     athlete_name = metrics.get("athlete_name", f"Атлет #{athlete_id}")
     used_model = "local-analytics-engine"
     assessment_text = ""
@@ -224,21 +220,22 @@ async def get_or_generate_assessment(
             assessment_text = await call_gigachat_chat(token, GIGACHAT_MODEL, user_msg, GIGACHAT_VERIFY_SSL)
             used_model = f"GigaChat ({GIGACHAT_MODEL})"
         except Exception as exc:
-            # Fallback на структурированный генератор при ошибке сети/авторизации
             assessment_text = generate_local_expert_assessment(metrics)
             used_model = "local-analytics-fallback"
     else:
-        # Токен не задан: используем локальную аналитическую генерацию
         assessment_text = generate_local_expert_assessment(metrics)
         used_model = "local-analytics-engine"
 
     # 3. Сохраняем в кэш
     metrics_json = json.dumps(metrics, ensure_ascii=False)
-    cur.execute("""
-        INSERT OR REPLACE INTO athlete_assessment_cache (athlete_id, assessment_text, metrics_json, model)
+    await conn.execute("""
+        INSERT INTO athlete_assessment_cache (athlete_id, assessment_text, metrics_json, model)
         VALUES (?, ?, ?, ?)
-    """, (athlete_id, assessment_text, metrics_json, used_model))
-    conn.commit()
+        ON CONFLICT (athlete_id) DO UPDATE SET
+            assessment_text = EXCLUDED.assessment_text,
+            metrics_json = EXCLUDED.metrics_json,
+            model = EXCLUDED.model
+    """, athlete_id, assessment_text, metrics_json, used_model)
 
     return AssessmentResponse(
         athlete_id=athlete_id,

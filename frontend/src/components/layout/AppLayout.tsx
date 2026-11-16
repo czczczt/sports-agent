@@ -1,10 +1,10 @@
 // Каркас всех страниц: шапка, <main class="page">, подвал и нижняя навигация (перенос base.html).
 import { Link, Outlet, ScrollRestoration, useMatches } from 'react-router-dom';
 import { NAV_ITEMS, type Section } from '@/config/navigation';
-import { Icon } from '@/components/ui/Icon';
+import { Icon, Loader } from '@/components/ui';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useAuth } from '@/context/AuthContext';
-import { AuthModal } from '@/components/auth/AuthModal';
+import { AuthCard, AuthModal } from '@/components/auth/AuthModal';
 
 /** Данные маршрута (handle в src/routes.tsx), которые нужны каркасу. */
 export interface RouteHandle {
@@ -79,9 +79,49 @@ function AuthControls() {
 
 export function AppLayout() {
   const { section = 'search', pageClass } = useRouteHandle();
-  const { isAdmin } = useAuth();
+  const { user, isAdmin, isLoading } = useAuth();
   const current = (s: Section) => (s === section ? 'page' : undefined);
   const visibleNavItems = NAV_ITEMS.filter((item) => item.section !== 'agent' || isAdmin);
+
+  if (isLoading) {
+    return (
+      <div className="auth-gate-loading">
+        <Loader text="Загрузка…" inCard={false} />
+      </div>
+    );
+  }
+
+  // Сервис для внутреннего пользования: без авторизации доступ ко всем данным закрыт
+  if (!user) {
+    return (
+      <>
+        <header className="app-header">
+          <div className="app-header__inner">
+            <div className="app-header__left">
+              <span className="brand">
+                <span className="brand__mark" aria-hidden="true"><Icon name="logo" /></span>
+                <span className="brand__name">Рейтинг <br className="br" />спортсменов</span>
+              </span>
+            </div>
+            <div className="app-header__right">
+              <ThemeControls />
+            </div>
+          </div>
+        </header>
+
+        <main className="page page--narrow auth-gate-page">
+          <AuthCard />
+        </main>
+
+        <footer className="app-footer">
+          <div className="app-footer__inner">
+            <span>Платформа для расчёта рейтинга спортсменов · внутренний сервис</span>
+            <span>Для доступа к данным требуется авторизация</span>
+          </div>
+        </footer>
+      </>
+    );
+  }
 
   return (
     <>

@@ -1,14 +1,14 @@
-import sqlite3
 import re
 from typing import List, Optional, Dict, Any
+from app.db import AsyncPGConnection
 from app.models import (
     EventItem, RaceItem, RaceProtocolItem, CompetitionDistribution, DistributionBin
 )
 from app.services.athlete_service import format_time, format_pace, normalize_term, clean_club
 
 
-def list_events(
-    conn: sqlite3.Connection,
+async def list_events(
+    conn: AsyncPGConnection,
     query: Optional[str] = None,
     title: Optional[str] = None,
     date_from: Optional[str] = None,
@@ -19,7 +19,6 @@ def list_events(
     offset: int = 0
 ) -> List[EventItem]:
     """Возвращает каталог стартов с фильтрами по названию забега, дате, городу и площадке."""
-    cur = conn.cursor()
     conditions = ["1=1"]
     params: List[Any] = []
 
@@ -50,7 +49,7 @@ def list_events(
         params.append(source.lower())
 
     where_clause = " AND ".join(conditions)
-    query = f"""
+    sql_query = f"""
         SELECT 
             e.id, e.source_id, s.name AS source_name, e.title,
             e.date_begin, e.date_end, e.place, e.address
@@ -61,18 +60,18 @@ def list_events(
         LIMIT ? OFFSET ?
     """
     params.extend([limit, offset])
-    rows = cur.execute(query, params).fetchall()
+    rows = await conn.fetch(sql_query, *params)
 
     events = []
     for r in rows:
         eid = r["id"]
         # Подгружаем дистанции старта
-        races_rows = cur.execute("""
+        races_rows = await conn.fetch("""
             SELECT id, name_raw, norm_distance, distance_m, distance_km_raw, total_count
             FROM race
             WHERE event_id = ?
             ORDER BY distance_m ASC, id ASC
-        """, (eid,)).fetchall()
+        """, eid)
 
         races = [
             RaceItem(
@@ -101,26 +100,25 @@ def list_events(
     return events
 
 
-def get_event_by_id(conn: sqlite3.Connection, event_id: int) -> Optional[EventItem]:
+async def get_event_by_id(conn: AsyncPGConnection, event_id: int) -> Optional[EventItem]:
     """Возвращает информацию о старте и всех его дистанциях."""
-    cur = conn.cursor()
-    row = cur.execute("""
+    row = await conn.fetchrow("""
         SELECT 
             e.id, e.source_id, s.name AS source_name, e.title,
             e.date_begin, e.date_end, e.place, e.address
         FROM event e
         JOIN source s ON s.id = e.source_id
         WHERE e.id = ?
-    """, (event_id,)).fetchone()
+    """, event_id)
     if not row:
         return None
 
-    races_rows = cur.execute("""
+    races_rows = await conn.fetch("""
         SELECT id, name_raw, norm_distance, distance_m, distance_km_raw, total_count
         FROM race
         WHERE event_id = ?
         ORDER BY distance_m ASC, id ASC
-    """, (event_id,)).fetchall()
+    """, event_id)
 
     races = [
         RaceItem(
@@ -147,7 +145,7 @@ def get_event_by_id(conn: sqlite3.Connection, event_id: int) -> Optional[EventIt
     )
 
 
-def _row_to_protocol_item(r: sqlite3.Row, dist_m: Optional[int]) -> RaceProtocolItem:
+def _row_to_protocol_item(r: Any, dist_m: Optional[int]) -> RaceProtocolItem:
     time_s = r["chip_time_s"] if r["chip_time_s"] is not None else r["gun_time_s"]
     raw_age = r["age"]
     if raw_age == 0 or (raw_age is None and r["birth_year"] == 2026):
@@ -173,25 +171,19 @@ def _row_to_protocol_item(r: sqlite3.Row, dist_m: Optional[int]) -> RaceProtocol
     )
 
 
-def get_race_results(
-    conn: sqlite3.Connection,
+async def get_race_results(
+    conn: AsyncPGConnection,
     race_id: int,
     search_query: Optional[str] = None,
     limit: int = 300,
     offset: int = 0
 ) -> List[RaceProtocolItem]:
     """Возвращает протокол дистанции с поиском по фамилии или стартовому номеру."""
-    cur = conn.cursor()
-    race = cur.execute("SELECT distance_m FROM race WHERE id = ?", (race_id,)).fetchone()
+    race = await conn.fetchrow("SELECT distance_m FROM race WHERE id = ?", race_id)
     dist_m = race["distance_m"] if race else None
 
     conditions = ["r.race_id = ?", "r.duplicate_of IS NULL"]
     params: List[Any] = [race_id]
-
-    try:
-        conn.create_function("ru_lower", 1, lambda s: (s or "").lower().replace("ё", "е"))
-    except Exception:
-        pass
 
     if search_query:
         sq = search_query.strip()
@@ -212,7 +204,7 @@ def get_race_results(
                 params.extend([pat, pat])
 
     where_clause = " AND ".join(conditions)
-    query = f"""
+    sql_query = f"""
         SELECT 
             r.id AS result_id,
             ral.athlete_id,
@@ -238,22 +230,21 @@ def get_race_results(
         LIMIT ? OFFSET ?
     """
     params.extend([limit, offset])
-    rows = cur.execute(query, params).fetchall()
+    rows = await conn.fetch(sql_query, *params)
 
     return [_row_to_protocol_item(r, dist_m) for r in rows]
 
 
-def get_athlete_race_result(
-    conn: sqlite3.Connection,
+async def get_athlete_race_result(
+    conn: AsyncPGConnection,
     race_id: int,
     athlete_id: int
 ) -> Optional[RaceProtocolItem]:
     """Находит результат конкретного спортсмена на данной дистанции (даже если он DNS/DNF)."""
-    cur = conn.cursor()
-    race = cur.execute("SELECT distance_m FROM race WHERE id = ?", (race_id,)).fetchone()
+    race = await conn.fetchrow("SELECT distance_m FROM race WHERE id = ?", race_id)
     dist_m = race["distance_m"] if race else None
 
-    row = cur.execute("""
+    row = await conn.fetchrow("""
         SELECT 
             r.id AS result_id,
             ral.athlete_id,
@@ -272,20 +263,20 @@ def get_athlete_race_result(
         JOIN result_athlete ral ON ral.result_id = r.id
         WHERE r.race_id = ? AND ral.athlete_id = ? AND r.duplicate_of IS NULL
         LIMIT 1
-    """, (race_id, athlete_id)).fetchone()
+    """, race_id, athlete_id)
 
     if not row:
         return None
     return _row_to_protocol_item(row, dist_m)
 
 
-def get_race_rating_leaders(
-    conn: sqlite3.Connection,
+async def get_race_rating_leaders(
+    conn: AsyncPGConnection,
     race_id: int,
     limit: int = 3,
 ) -> List[dict]:
     """Возвращает сильнейших участников дистанции по общему рейтингу бега."""
-    rows = conn.execute(
+    rows = await conn.fetch(
         """
         SELECT ar.rank AS rating_rank, ar.points AS rating_points,
                ar.starts_count AS rating_starts,
@@ -307,13 +298,14 @@ def get_race_rating_leaders(
                  ar.rank ASC
         LIMIT ?
         """,
-        (race_id, limit),
-    ).fetchall()
+        race_id,
+        limit,
+    )
     return [dict(row) for row in rows]
 
 
-def get_race_competition(
-    conn: sqlite3.Connection,
+async def get_race_competition(
+    conn: AsyncPGConnection,
     race_id: int,
     athlete_id: Optional[int] = None
 ) -> Optional[CompetitionDistribution]:
@@ -322,23 +314,22 @@ def get_race_competition(
     - Распределение времен всех финишеров (гистограмма)
     - Положение выбранного спортсмена среди участников дистанции
     """
-    cur = conn.cursor()
-    race = cur.execute("""
+    race = await conn.fetchrow("""
         SELECT id, name_raw, norm_distance, distance_m 
         FROM race 
         WHERE id = ?
-    """, (race_id,)).fetchone()
+    """, race_id)
     if not race:
         return None
 
-    rows = cur.execute("""
+    rows = await conn.fetch("""
         SELECT r.id, r.chip_time_s, r.gun_time_s, r.place_abs, ral.athlete_id
         FROM result r
         LEFT JOIN result_athlete ral ON ral.result_id = r.id
         WHERE r.race_id = ?
           AND r.status = 'FIN'
           AND r.duplicate_of IS NULL
-    """, (race_id,)).fetchall()
+    """, race_id)
 
     if not rows:
         return None
@@ -361,13 +352,13 @@ def get_race_competition(
 
     # Если спортсмен не финишировал (DNS / DNF / DSQ), подгружаем его статус для бокового блока
     if athlete_id and not athlete_res:
-        non_fin_row = cur.execute("""
+        non_fin_row = await conn.fetchrow("""
             SELECT r.id, r.status, r.place_abs, r.chip_time_s, r.gun_time_s
             FROM result r
             JOIN result_athlete ral ON ral.result_id = r.id
             WHERE r.race_id = ? AND ral.athlete_id = ? AND r.duplicate_of IS NULL
             LIMIT 1
-        """, (race_id, athlete_id)).fetchone()
+        """, race_id, athlete_id)
         if non_fin_row:
             status = non_fin_row["status"]
             athlete_res = {
@@ -440,8 +431,8 @@ def get_race_competition(
     )
 
 
-def get_race_page(
-    conn: sqlite3.Connection,
+async def get_race_page(
+    conn: AsyncPGConnection,
     race_id: int,
     search_query: Optional[str] = None,
     athlete_id: Optional[int] = None,
@@ -453,19 +444,19 @@ def get_race_page(
     (или не финишировал), его строка выносится наверх протокола (pinned_athlete_result)
     и убирается из основного списка, чтобы не дублироваться.
     """
-    race_row = conn.execute(
+    race_row = await conn.fetchrow(
         "SELECT id, event_id, name_raw, norm_distance, distance_m FROM race WHERE id = ?",
-        (race_id,),
-    ).fetchone()
+        race_id,
+    )
     if not race_row:
         return None
 
-    event = get_event_by_id(conn, event_id=race_row["event_id"])
-    results = get_race_results(conn, race_id=race_id, search_query=search_query, limit=limit, offset=0)
+    event = await get_event_by_id(conn, event_id=race_row["event_id"])
+    results = await get_race_results(conn, race_id=race_id, search_query=search_query, limit=limit, offset=0)
 
     pinned = None
     if athlete_id and not search_query:
-        athlete_item = get_athlete_race_result(conn, race_id=race_id, athlete_id=athlete_id)
+        athlete_item = await get_athlete_race_result(conn, race_id=race_id, athlete_id=athlete_id)
         if athlete_item and (athlete_item.place_abs is None or athlete_item.place_abs > 100):
             pinned = athlete_item
             results = [r for r in results if r.athlete_id != athlete_id]
@@ -475,6 +466,6 @@ def get_race_page(
         "event": event,
         "results": results,
         "pinned_athlete_result": pinned,
-        "competition": get_race_competition(conn, race_id=race_id, athlete_id=athlete_id),
-        "rating_leaders": get_race_rating_leaders(conn, race_id=race_id),
+        "competition": await get_race_competition(conn, race_id=race_id, athlete_id=athlete_id),
+        "rating_leaders": await get_race_rating_leaders(conn, race_id=race_id),
     }
