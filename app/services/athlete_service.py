@@ -110,11 +110,12 @@ async def search_athletes(
 
     if birth_year is not None:
         query = """
-            SELECT id, display_name, birth_year, gender, city, region, club, starts_count, results_count
+            SELECT id, display_name, first_name, last_name, middle_name, birth_date, birth_year, gender, city, region, club, employee_status, is_hidden, starts_count, results_count
             FROM athlete
             WHERE name_key LIKE ?
               AND starts_count > 0
               AND birth_year = ?
+              AND is_hidden = FALSE
             ORDER BY 
                 starts_count DESC,
                 results_count DESC, 
@@ -124,10 +125,11 @@ async def search_athletes(
         rows = await conn.fetch(query, pattern, birth_year, limit)
     else:
         query = """
-            SELECT id, display_name, birth_year, gender, city, region, club, starts_count, results_count
+            SELECT id, display_name, first_name, last_name, middle_name, birth_date, birth_year, gender, city, region, club, employee_status, is_hidden, starts_count, results_count
             FROM athlete
             WHERE name_key LIKE ?
               AND starts_count > 0
+              AND is_hidden = FALSE
             ORDER BY starts_count DESC, results_count DESC, id ASC
             LIMIT ?
         """
@@ -137,11 +139,17 @@ async def search_athletes(
         AthleteCandidate(
             id=r["id"],
             display_name=r["display_name"],
+            first_name=r["first_name"],
+            last_name=r["last_name"],
+            middle_name=r["middle_name"],
+            birth_date=r["birth_date"],
             birth_year=r["birth_year"],
             gender=r["gender"],
             city=r["city"],
             region=r["region"],
             club=clean_club(r["club"]),
+            employee_status=r["employee_status"],
+            is_hidden=r["is_hidden"],
             starts_count=r["starts_count"],
             results_count=r["results_count"],
         )
@@ -152,7 +160,7 @@ async def search_athletes(
 async def get_athlete_by_id(conn: AsyncPGConnection, athlete_id: int) -> Optional[AthleteCandidate]:
     """Получает данные спортсмена по ID."""
     row = await conn.fetchrow("""
-        SELECT id, display_name, birth_year, gender, city, region, club, starts_count, results_count
+        SELECT id, display_name, first_name, last_name, middle_name, birth_date, birth_year, gender, city, region, club, employee_status, is_hidden, starts_count, results_count
         FROM athlete
         WHERE id = ?
     """, athlete_id)
@@ -161,11 +169,17 @@ async def get_athlete_by_id(conn: AsyncPGConnection, athlete_id: int) -> Optiona
     return AthleteCandidate(
         id=row["id"],
         display_name=row["display_name"],
+        first_name=row["first_name"],
+        last_name=row["last_name"],
+        middle_name=row["middle_name"],
+        birth_date=row["birth_date"],
         birth_year=row["birth_year"],
         gender=row["gender"],
         city=row["city"],
         region=row["region"],
         club=clean_club(row["club"]),
+        employee_status=row["employee_status"],
+        is_hidden=row["is_hidden"],
         starts_count=row["starts_count"],
         results_count=row["results_count"],
     )

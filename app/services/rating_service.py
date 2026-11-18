@@ -322,6 +322,8 @@ async def get_rating_page(
         "ar.formula_version = ?",
         "ar.period_start = ?",
         "ar.period_end = ?",
+        "a.is_hidden = FALSE",
+        "a.employee_status != 'not_employee'",
     ]
     params: list[Any] = [
         FORMULA_VERSION,

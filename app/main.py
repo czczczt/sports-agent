@@ -9,6 +9,7 @@ from app.api.auth import router as auth_router, get_current_user
 from app.api.events import router as events_router
 from app.api.races import router as races_router
 from app.api.rating import router as rating_router
+from app.api.reports import router as reports_router
 from app.agent_review import router as agent_review_router
 from app.frontend import mount_frontend
 
@@ -44,7 +45,7 @@ api = APIRouter(prefix="/api")
 api.include_router(auth_router)
 
 protected_api = APIRouter(dependencies=[Depends(get_current_user)])
-for domain_router in (athletes_router, events_router, races_router, rating_router):
+for domain_router in (athletes_router, events_router, races_router, rating_router, reports_router):
     protected_api.include_router(domain_router)
 api.include_router(protected_api)
 app.include_router(api)

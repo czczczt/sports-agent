@@ -5,11 +5,17 @@ from typing import Optional, List, Dict, Any, Union
 class AthleteCandidate(BaseModel):
     id: int
     display_name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    birth_date: Optional[str] = None
     birth_year: Optional[int] = None
     gender: Optional[str] = None
     city: Optional[str] = None
     region: Optional[str] = None
     club: Optional[str] = None
+    employee_status: Optional[str] = "presumed"
+    is_hidden: bool = False
     starts_count: int = 0
     results_count: int = 0
 
@@ -229,3 +235,26 @@ class RacePageResponse(BaseModel):
     pinned_athlete_result: Optional[RaceProtocolItem] = None
     competition: Optional[CompetitionDistribution] = None
     rating_leaders: List[RaceRatingLeader] = []
+
+
+class ReportCreateRequest(BaseModel):
+    kind: str  # not_me, add_start, other_club, hide_me, link_me, data_error
+    athlete_id: Optional[int] = None
+    result_id: Optional[int] = None
+    event_id: Optional[int] = None
+    url: Optional[str] = None
+    message: str
+
+
+class ReportOut(BaseModel):
+    id: int
+    kind: str
+    user_id: Optional[int] = None
+    athlete_id: Optional[int] = None
+    result_id: Optional[int] = None
+    event_id: Optional[int] = None
+    url: Optional[str] = None
+    message: Optional[str] = None
+    status: str
+    created_at: Optional[str] = None
+
