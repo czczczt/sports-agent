@@ -241,12 +241,17 @@ class RacePageResponse(BaseModel):
 
 
 class ReportCreateRequest(BaseModel):
-    kind: str  # not_me, add_start, other_club, hide_me, link_me, data_error
+    kind: str  # not_me, add_start, other_club, hide_me, link_me, data_error, merge_profile, other
     athlete_id: Optional[int] = None
     result_id: Optional[int] = None
     event_id: Optional[int] = None
     url: Optional[str] = None
     message: str
+
+
+class ReportDecisionRequest(BaseModel):
+    decision: str  # "accepted" | "resolved" | "rejected"
+    moderator_comment: Optional[str] = None
 
 
 class ReportOut(BaseModel):
@@ -259,5 +264,45 @@ class ReportOut(BaseModel):
     url: Optional[str] = None
     message: Optional[str] = None
     status: str
+    decided_by: Optional[str] = None
+    decided_at: Optional[str] = None
+    moderator_comment: Optional[str] = None
     created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class RegisterRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+    first_name: str
+    last_name: str
+    middle_name: Optional[str] = None
+    birth_date: Optional[str] = None  # ГГГГ-ММ-ДД
+    city: Optional[str] = None
+    consent: bool = True
+    consent_version: Optional[str] = "v1.0"
+
+
+class AccessRequestOut(BaseModel):
+    id: int
+    username: str
+    email: Optional[str] = None
+    role: str
+    status: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    birth_date: Optional[str] = None
+    city: Optional[str] = None
+    athlete_id: Optional[int] = None
+    candidate_athlete_id: Optional[int] = None
+    candidate_athlete_name: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class AccessRequestDecision(BaseModel):
+    decision: str  # "approve" | "reject"
+    athlete_id: Optional[int] = None
+    comment: Optional[str] = None
 

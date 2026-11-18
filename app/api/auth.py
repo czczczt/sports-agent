@@ -25,7 +25,7 @@ from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Response,
 
 from app.config import DATABASE_URL
 from app.db import AsyncPGConnection, get_db
-from app.models import AuthResponse, LoginRequest, UserOut
+from app.models import AuthResponse, LoginRequest, UserOut, RegisterRequest
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -282,3 +282,64 @@ async def logout(
 async def me(user: CurrentUserDep) -> UserOut:
     """Возвращает профиль текущего авторизованного пользователя."""
     return user
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+async def register(
+    data: RegisterRequest,
+    conn: AsyncPGConnection = Depends(get_db),
+):
+    """
+    Подача заявки на регистрацию/доступ (SPEC v1.3 §3.1, §8.6).
+    Создаёт запись app_user со статусом 'pending' до подтверждения капитаном или администратором.
+    """
+    # Проверка уникальности логина и email
+    existing = await conn.fetchrow(
+        "SELECT id FROM app_user WHERE username = ? OR email = ?",
+        data.username,
+        data.email,
+    )
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Пользователь с таким логином или email уже существует",
+        )
+
+    pwd_hash = _HASHER.hash(data.password)
+    display_name = f"{data.last_name} {data.first_name}".strip()
+
+    parsed_birth_date = None
+    if data.birth_date:
+        from datetime import date
+        try:
+            parsed_birth_date = date.fromisoformat(data.birth_date)
+        except Exception:
+            parsed_birth_date = None
+
+    row = await conn.fetchrow(
+        """
+        INSERT INTO app_user (
+            username, email, password_hash, role, status, display_name,
+            first_name, last_name, middle_name, birth_date, city,
+            consent_at, consent_version
+        )
+        VALUES (?, ?, ?, 'user', 'pending', ?, ?, ?, ?, ?, ?, NOW(), ?)
+        RETURNING id, username, email, role, status, display_name, created_at
+        """,
+        data.username,
+        data.email,
+        pwd_hash,
+        display_name,
+        data.first_name,
+        data.last_name,
+        data.middle_name,
+        parsed_birth_date,
+        data.city,
+        data.consent_version,
+    )
+
+    return {
+        "status": "pending",
+        "message": "Заявка на доступ успешно подана и ожидает подтверждения капитаном или администратором",
+        "user_id": row["id"],
+    }
