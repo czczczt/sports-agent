@@ -1,117 +1,65 @@
-# Агент-ремонтник в бою: очередь, решения людей, применение, экран
+# Очередь задач агента-ремонтника: жизненный цикл, БД и интерфейс
 
-Ветка `feature/repair-agent` (в неё влита `feature/running-fixes-issues-clubcode` с дизайном сайта).
-Закрывает задачи из [agent-spec.md §9](agent-spec.md): воспроизведение задачи в песочнице, сквозной прогон,
-решение человека из командной строки, применение подтверждённого предложения, экран подтверждения.
-Сам агент (модель GigaChat, цикл, промпт) описан в
-[parser_running/evals/agents/GIGACHAT_AGENT.md](../parser_running/evals/agents/GIGACHAT_AGENT.md).
+Документ описывает взаимодействие агента с конвейером сбора, структуру очередей в единой базе данных PostgreSQL и сценарии подтверждения рецептов администратором.
 
-## Как всё связано
+---
+
+## 1. Схема конвейера ремонта
 
 ```
-run.py (парсер) ── проверки упали ──► issue (new, agent)        сохранённые ответы площадки → таблица raw
-                                         │
-   agent_queue.py process <id> ─────────►│ agent_working
-      песочница: копия *.py парсера + ответы этой дистанции из data/raw, без сети
-      агент (evals/agents/<имя>.solve) ─► предложение ─► проверяющий модуль + перезапуск коннектора
-                                         │
-                       ┌─────────────────┼──────────────────────────────┐
-                    proposed      new / human (не справился)     blocked / infra (сеть)
-                       │                 каждая попытка — строка в agent_run
-   человек: CLI decide / страница /agent-review
-          ├─ reject (+ комментарий) ─► rejected, или new/agent с --retry: агент видит комментарий
-          └─ approve ─► approved ─► apply
-                ├─ patch: ветка agent/issue-N-run-M в отдельной копии репо (git worktree), перезапуск,
-                │         коммит, push, PR  ─► resolved      (правка не легла, но проверки проходят ─► already_fixed / resolved)
-                ├─ known_exception: строка в known_exception, если не ловит соседние дистанции ─► known
-                └─ заготовка кейса для стенда: evals/cases/drafts/issue_N.py
+Конвейер сбора (worker) ──► ошибка валидации протокола ──► запись в issue
+                                                                 │
+                                                                 ▼
+фоновый воркер (procrastinate) ◄────── статус issue = 'new', assignee = 'agent'
+        │
+        ├─ 1. Загрузка текущего рецепта из recipe_version
+        ├─ 2. Чтение упавшего HTML-образца из кэша
+        ├─ 3. Вызов агента (LangGraph / Pydantic AI): подбор новых селекторов
+        ├─ 4. Тестовое извлечение Crawl4AI в песочнице
+        ├─ 5. Валидация ResultRow + проверка регрессии на golden-set
+        │
+        ├─ УСПЕХ: создание новой версии recipe_version (status = 'proposed')
+        │         issue переходит в статус 'proposed'
+        │
+        └─ ОШИБКА (исчерпан лимит 3 попыток):
+                  issue переходит в статус 'human_needed' с описанием причин
 ```
 
-## Файлы
+---
 
-| Файл | Что это |
-|---|---|
-| `parser_running/agent_queue.py` | Вся логика: песочница, прогон агента, решения, применение. Командная строка + функции для сайта |
-| `app/agent_review.py` | Роутер FastAPI `/api/agent-review/...`: только JSON API. Логику не дублирует, вызывает функции `agent_queue`. Подключение к базе ограничено 5 с (`connect_timeout`) |
-| `frontend/src/pages/AgentReviewPage.tsx` | Страница на React (ADR-0002) на классах `theme.css` (ADR-0001); цвета только через токены, тёмная тема работает |
-| `app/main.py` | Импорт и `app.include_router(agent_review_router)` |
-| `frontend/src/config/navigation.ts` | Пункт «Правки агента» в верхней навигации (`mobile: false` — в нижнюю мобильную панель не выводится: экран по SPEC десктопный, админка) |
+## 2. Модель данных в PostgreSQL
 
-`db.py` парсера не менялся.
+Вся система работает с единой базой данных PostgreSQL 16 (схема `public`):
 
-## База данных
-
-**Важно:** страница работает с **PostgreSQL парсера** (`DATABASE_URL` из `.env`, `parser_running/db.py`),
-а не с SQLite сайта (`running.db`). Это две разные базы — нужно решить, какая будет общей.
-
-| Таблица | Кто пишет | Что |
+| Таблица | Кто пишет | Назначение |
 |---|---|---|
-| `issue` | парсер, `agent_queue` | Очередь задач. `agent_queue` меняет `status` и `assignee` |
-| `raw` | парсер | Какой сохранённый ответ площадки к какому старту/дистанции относится (`raw.object_ref = issue.object_ref`) |
-| `agent_run` | `agent_queue` | Каждая попытка агента: модель, токены (in/out), действие, результат, предложение (JSON в `patch`), отчёт проверок, время |
-| `known_exception` | `agent_queue apply` | Новые правила-исключения, `journal_ref = issue-N` |
-| **`agent_review`** (новая) | `agent_queue decide/apply` | Решение человека: `decision`, `author`, `comment`, `decided_at`, итог применения, ссылка на PR. Создаётся автоматически (`CREATE TABLE IF NOT EXISTS`) при запуске `agent_queue.py` или страницы |
+| **`issue`** | Воркер сбора, агент | Очередь обнаруженных инцидентов. Поля: `source_code`, `race_id`, `stage` (`parse`), `kind` (`parse_failed`, `zero_rows`), `details` (текст ошибки валидации), `status` (`new`, `working`, `proposed`, `resolved`, `escalated`). |
+| **`recipe`** | Миграции, админ | Реестр источников парсинга. Поля: `source_code`, `recipe_type` (`crawl4ai_css`, `api_json`), `active_version_id`. |
+| **`recipe_version`** | Агент, админ | Версии декларативных JSON-рецептов. Поля: `recipe_id`, `version`, `schema_json`, `status` (`draft`, `proposed`, `active`, `archived`), `author` (`agent` или ФИО админа), `tokens_spent`. |
+| **`agent_run`** | Агент-ремонтник | Журнал попыток починки. Поля: `issue_id`, `model_name`, `tokens_in`, `tokens_out`, `proposed_diff_json`, `validation_report_json`, `created_at`. |
 
-Статусы задачи: `new → agent_working → proposed → approved | rejected → resolved | known`; плюс `blocked`.
-Результаты попытки в `agent_run.result`: `proposed`, `escalated`, `not_reproducible`, `unsafe`, `bad_patch`,
-`not_fixed`, `regression`, `repeat_rejected`, `error`. Итог применения в `agent_review.applied_result`:
-`pr_created`, `branch_created`, `already_fixed`, `patch_conflict`, `rerun_failed`, `known_exception_added`, `ke_too_broad`.
+---
 
-## Командная строка
+## 3. Человек в контуре (Human-in-the-Loop)
 
-Из `parser_running/` (нужны `.env` с `DATABASE_URL`, запущенный `docker compose up -d db`; на Windows `$env:PYTHONUTF8 = "1"`):
+1. **Подтверждение нового источника:**
+   - При подключении новой площадки агент синтезирует черновой рецепт.
+   - В интерфейсе админки (`/agent-review` или вкладка «Источники» $\rightarrow$ «Рецепты») администратор видит:
+     - Список найденных CSS-селекторов;
+     - Превью первых 20 извлечённых строк (ФИО, время, нагрудный номер, клуб);
+     - Кнопку **«Одобрить и активировать»** (переводит `recipe_version` в `active`) или **«Отклонить»** с комментарием для повторной генерации.
 
-```bash
-python agent_queue.py list                                   # задачи new для агента
-python agent_queue.py reproduce 36 [--keep]                  # воспроизвести: упадёт ли та же проверка
-python agent_queue.py process 38 --agent gigachat_agent      # агент разбирает задачу (по умолчанию --agent template)
-python agent_queue.py runs [38]                              # попытки из agent_run
-python agent_queue.py review [38] [--status proposed] [--source runc]
-python agent_queue.py decide 38 approve [--comment "…"] [--author Имя]
-python agent_queue.py decide 38 reject --comment "что не так" [--retry]
-python agent_queue.py apply 38 [--no-push]
-```
+2. **Автоматический и ручной ремонт:**
+   - Если отремонтированный агентом рецепт проходит 100% тестов golden-set без регрессии, система может автоматически активировать его в зависимости от настройки `auto_apply_safe_repairs`.
+   - Если есть сомнения или золотой набор частично расходится, рецепт получает статус `proposed` и ждёт подтверждения человека.
+   - **Откат в один клик:** если в бою замечены ошибки, администратор мгновенно переключает `recipe.active_version_id` на предыдущую стабильную версию без перезапуска приложения и без развёртывания кода.
 
-## Страница и API
+---
 
-| Метод | Путь | Что |
-|---|---|---|
-| GET | `/agent-review?status=proposed&source=runc` | Страница (React): фильтры, дифф, отчёт, обоснование, кнопки |
-| GET | `/api/agent-review/page?status=&source=` | Всё для страницы: задачи, площадки, статусы, автор по умолчанию; без базы — `200` с `db_error` |
-| GET | `/api/agent-review/items?status=&source=` | Только задачи в JSON |
-| POST | `/api/agent-review/{issue_id}/decide` | `{"decision": "approve"\|"reject", "author", "comment", "retry"}` |
-| POST | `/api/agent-review/{issue_id}/apply` | `{"push": false}` |
-| POST | `/api/agent-review/{issue_id}/reset` | Сбросить решение, вернуть задачу в `proposed` |
-| DELETE | `/api/agent-review/{issue_id}` | Удалить задачу и сгенерированные файлы парсера с диска |
+## 4. API интерфейса подтверждения (`/api/admin/recipes` и `/api/agent-review`)
 
-Ошибки решения (не тот статус, нет комментария при отклонении) — `400` с текстом в `detail`.
-
-Запуск:
-- в составе сайта — роутер уже подключён в `app/main.py`, страница `/agent-review`;
-- отдельно, без SQLite сайта: из корня `python -m uvicorn app.agent_review:standalone --port 8001` (нужна сборка `frontend/dist`, см. `frontend/README.md`).
-
-## Что проверено
-
-- Стенд evals: `gigachat_agent` на GigaChat-2-Max — 6/8, 0 нарушений, 0 регрессий.
-- На реальных задачах из прогона runc (ошибка E20 возвращалась в код временно):
-  воспроизведение (задача 36), шаблонный агент (37 → передан человеку), GigaChat (38 → `proposed`,
-  41/42 → честно переданы человеку), повторно взять задачу в работу нельзя, задачи без сохранённых ответов
-  (журнал) → `not_reproducible` с понятной причиной.
-- `review` из командной строки, страница: отображение, решение `approve`.
-- `apply` с созданием ветки, `known_exception` (узкое добавляется, широкое отклоняется), заготовка кейса,
-  `already_fixed` — проверены на тестовой базе с настоящим git и перезапуском коннектора.
-- **Не проверено вживую:** создание настоящего PR (нужна живая поломка в закоммиченном коде) и `reject --retry`
-  с повторным прогоном агента.
-
-## Открытые вопросы к бэкенду
-
-1. **Какая база общая** — PostgreSQL парсера или SQLite сайта. Сейчас страница ходит в PostgreSQL.
-2. **Кто автор решения.** Сейчас автор — поле на форме (по умолчанию `git config user.name`). Когда появится
-   вход в админку, автора надо брать из сессии, а страницу закрыть для всех, кроме администратора.
-3. **`apply` с сервера.** Применение делает `git worktree`, коммит и push из папки, где запущен сайт. На сервере
-   нужен доступ к репозиторию на запись и, по желанию, `gh` для автоматического PR (без него выдаётся ссылка
-   на создание PR). Возможно, применение лучше оставить только в командной строке.
-4. **`resolved` до слияния PR.** Задача закрывается, когда правка в PR и перезапуск на сохранённых ответах прошёл,
-   не дожидаясь слияния. Если нужно «закрывать после слияния» — нужен отдельный шаг или вебхук GitHub.
-5. Применение и прогон агента идут синхронно в запросе (секунды–минуты). Для очереди задач нужен фоновый
-   обработчик (`procrastinate` по SPEC).
+- `GET /api/admin/recipes/pending` — список задач на рассмотрении со статусом `proposed`.
+- `GET /api/admin/recipes/{id}/diff` — визуальное сравнение старой и новой версии JSON-селекторов.
+- `POST /api/admin/recipes/{id}/preview` — тестовое извлечение строк на образце HTML для проверки администратором.
+- `POST /api/admin/recipes/{id}/approve` — активация версии рецепта и автоматический перезапуск сбора упавшей дистанции.
+- `POST /api/admin/recipes/{id}/reject` — отклонение версии с передачей комментария в очередь агента на доработку.
