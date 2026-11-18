@@ -159,9 +159,12 @@ class CompetitionDistribution(BaseModel):
 # ---------- Ответы для страниц React-интерфейса (frontend/) ----------
 
 class UserOut(BaseModel):
+    id: Optional[int] = None
     username: str
-    role: str  # "user" | "admin"
+    role: str  # "user" | "admin" | "captain"
+    status: Optional[str] = "active"
     display_name: str
+    athlete_id: Optional[int] = None
 
 
 class LoginRequest(BaseModel):
