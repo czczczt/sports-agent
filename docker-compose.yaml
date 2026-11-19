@@ -1,6 +1,5 @@
 x-app: &app
   image: ${COMPOSE_PROJECT_NAME:-sports-agent}-app:local
-  build: .
   environment:
     DATABASE_URL: ${COMPOSE_DATABASE_URL:-postgresql://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-sports_agent}}
     APP_HOST: 0.0.0.0
@@ -38,6 +37,7 @@ services:
 
   migrate:
     <<: *app
+    build: .
     command: ["alembic", "upgrade", "head"]
     depends_on:
       db:

@@ -9,6 +9,12 @@ from app.core.database import async_postgres_url
 from app.main import app
 from app.pipeline.import_sqlite import migrate
 
+try:
+    from fastapi.routing import iter_route_contexts
+except ImportError:  # FastAPI versions that eagerly flatten included routers.
+    def iter_route_contexts(routes):
+        return iter(routes)
+
 
 def headers(client):
     response = client.post(
@@ -22,8 +28,8 @@ def test_every_domain_route_requires_auth():
     with TestClient(app) as client:
         routes = [
             route
-            for route in app.routes
-            if isinstance(route, APIRoute)
+            for route in iter_route_contexts(app.routes)
+            if isinstance(getattr(route, "original_route", route), APIRoute)
             and (
                 route.path.startswith("/api/")
                 or route.path.startswith(("/athletes", "/events", "/races"))
