@@ -79,7 +79,11 @@ export function AppLayout() {
   const { section = 'search', pageClass, isPublic } = useRouteHandle();
   const { user, isAdmin, isLoading } = useAuth();
   const current = (s: Section) => (s === section ? 'page' : undefined);
-  const visibleNavItems = NAV_ITEMS.filter((item) => item.section !== 'agent' || isAdmin);
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (item.section === 'agent') return isAdmin;
+    if (item.section === 'admin') return isAdmin || user?.role === 'captain';
+    return true;
+  });
 
   if (isLoading) {
     return (

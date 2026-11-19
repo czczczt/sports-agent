@@ -1,7 +1,8 @@
 import { api } from './client';
 import type {
+  AccessRequestDecisionPayload, AccessRequestItem,
   AgentApplyResult, AgentReviewPage, Assessment, AthleteCandidate, AthleteResultItem, AthleteSummary,
-  AuthResponse, EventItem, LoginRequest, PasswordResetConfirm, PasswordResetRequest, RacePage, RatingFormula, RatingPage, RegisterRequest, RegisterResponse, User,
+  AuthResponse, EventItem, LoginRequest, PasswordResetConfirm, PasswordResetRequest, RacePage, RatingFormula, RatingPage, RegisterRequest, RegisterResponse, ReportDecisionPayload, ReportItem, User,
 } from './types';
 
 export const authApi = {
@@ -56,4 +57,15 @@ export const agentReviewApi = {
   reset: (id: number) => api.post<unknown>(`/api/agent-review/${id}/reset`),
   apply: (id: number, push: boolean) => api.post<AgentApplyResult>(`/api/agent-review/${id}/apply`, { push }),
   remove: (id: number) => api.delete<unknown>(`/api/agent-review/${id}`),
+};
+
+export const adminApi = {
+  accessRequests: (statusFilter?: string, signal?: AbortSignal) =>
+    api.get<AccessRequestItem[]>('/api/admin/access-requests', { status_filter: statusFilter || undefined }, signal),
+  decideAccessRequest: (userId: number, body: AccessRequestDecisionPayload) =>
+    api.post<AccessRequestItem>(`/api/admin/access-requests/${userId}/decision`, body),
+  reports: (statusFilter?: string, signal?: AbortSignal) =>
+    api.get<ReportItem[]>('/api/reports', { status_filter: statusFilter || undefined }, signal),
+  decideReport: (reportId: number, body: ReportDecisionPayload) =>
+    api.post<ReportItem>(`/api/reports/${reportId}/decision`, body),
 };

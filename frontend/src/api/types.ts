@@ -312,3 +312,48 @@ export interface AgentApplyResult {
   status: string;
   pr_url?: string | null;
 }
+
+export interface AccessRequestItem {
+  id: number;
+  username: string;
+  email: string;
+  role: string;
+  status: string;
+  first_name: string;
+  last_name: string;
+  middle_name?: string | null;
+  birth_date?: string | null;
+  city?: string | null;
+  athlete_id?: number | null;
+  candidate_athlete_id?: number | null;
+  candidate_athlete_name?: string | null;
+  created_at?: string | null;
+}
+
+export interface AccessRequestDecisionPayload {
+  decision: 'approve' | 'reject';
+  athlete_id?: number | null;
+  comment?: string | null;
+}
+
+export interface ReportItem {
+  id: number;
+  kind: string;
+  user_id: number;
+  athlete_id?: number | null;
+  result_id?: number | null;
+  event_id?: number | null;
+  url?: string | null;
+  message: string;
+  status: string;
+  decided_by?: string | null;
+  decided_at?: string | null;
+  moderator_comment?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface ReportDecisionPayload {
+  decision: 'accepted' | 'resolved' | 'rejected';
+  moderator_comment?: string | null;
+}

@@ -10,6 +10,7 @@ import { EventPage } from '@/pages/EventPage';
 import { RacePage } from '@/pages/RacePage';
 import { AgentReviewPage } from '@/pages/AgentReviewPage';
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
+import { AdminRequestsPage } from '@/pages/AdminRequestsPage';
 
 const handle = (h: RouteHandle) => h;
 
@@ -25,6 +26,8 @@ export const routes: RouteObject[] = [
       { path: '/events-view', element: <EventsPage />, handle: handle({ section: 'events' }) },
       { path: '/events-view/:eventId', element: <EventPage />, handle: handle({ section: 'events' }) },
       { path: '/races-view/:raceId', element: <RacePage />, handle: handle({ section: 'events' }) },
+      { path: '/admin/requests', element: <AdminRequestsPage />, handle: handle({ section: 'admin' }) },
+      { path: '/admin', element: <AdminRequestsPage />, handle: handle({ section: 'admin' }) },
       { path: '/agent-review', element: <AgentReviewPage />, handle: handle({ section: 'agent' }) },
       { path: '*', element: <NotFound />, handle: handle({ section: 'search' }) },
     ],
