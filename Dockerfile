@@ -19,6 +19,7 @@ COPY --from=dependencies /opt/venv /opt/venv
 COPY --chown=appuser:appuser app/ ./app/
 COPY --chown=appuser:appuser parser_running/ ./parser_running/
 COPY --chown=appuser:appuser migrations/ ./migrations/
+COPY --chown=appuser:appuser scripts/ ./scripts/
 COPY --chown=appuser:appuser alembic.ini ./
 COPY --from=frontend --chown=appuser:appuser /build/frontend/dist ./frontend/dist
 USER appuser

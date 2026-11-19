@@ -6,6 +6,8 @@
 !migrations/**
 !app/
 !app/**
+!scripts/
+!scripts/**
 !parser_running/
 !parser_running/*.py
 !frontend/
