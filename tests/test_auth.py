@@ -103,7 +103,7 @@ def test_login_failed_attempts_lockout(client):
         "/api/auth/login", json={"username": "user", "password": "wrong_pwd"}
     )
     assert resp.status_code == 403
-    assert "заблокирована" in resp.json()["detail"].lower()
+    assert "заблокирован" in resp.json()["detail"].lower()
 
     resp_correct = client.post(
         "/api/auth/login", json={"username": "user", "password": "user"}

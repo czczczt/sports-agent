@@ -26,7 +26,6 @@ async def list_events(
     limit: int = 50,
     offset: int = 0,
 ) -> list[EventItem]:
-    """Возвращает каталог стартов с фильтрами по названию забега, дате, городу и площадке."""
     rows = await conn.list_events(
         query or title, date_from, date_to, city, source, limit, offset
     )
@@ -35,7 +34,6 @@ async def list_events(
     events = []
     for r in rows:
         eid = r["id"]
-        # Подгружаем дистанции старта
         races_rows = races_by_event.get(eid, [])
 
         races = [
@@ -68,7 +66,6 @@ async def list_events(
 
 
 async def get_event_by_id(conn: EventsWebRepository, event_id: int) -> EventItem | None:
-    """Возвращает информацию о старте и всех его дистанциях."""
     row = await conn.event(event_id)
     if not row:
         return None
@@ -107,15 +104,16 @@ def _row_to_protocol_item(r: dict, dist_m: int | None) -> RaceProtocolItem:
         display_age = 1
     else:
         display_age = raw_age
+    is_employee = bool(r.get("athlete_id"))
     return RaceProtocolItem(
         result_id=r["result_id"],
-        athlete_id=r["athlete_id"],
-        bib=r["bib"],
-        full_name_raw=r["full_name_raw"] or "Участник",
+        athlete_id=r["athlete_id"] if is_employee else None,
+        bib=r["bib"] if is_employee else None,
+        full_name_raw=r["full_name_raw"] if is_employee else "Участник",
         gender=r["gender"],
         age=display_age,
         birth_year=r["birth_year"],
-        club_raw=clean_club(r["club_raw"]),
+        club_raw=clean_club(r["club_raw"]) if is_employee else None,
         place_abs=r["place_abs"],
         place_gender=r["place_gender"],
         chip_time_s=r["chip_time_s"],
@@ -133,7 +131,6 @@ async def get_race_results(
     limit: int = 300,
     offset: int = 0,
 ) -> list[RaceProtocolItem]:
-    """Возвращает протокол дистанции с поиском по фамилии или стартовому номеру."""
     race = await conn.race(race_id)
     dist_m = race["distance_m"] if race else None
     rows = await conn.protocol(race_id, search_query, limit, offset)
@@ -144,7 +141,6 @@ async def get_race_results(
 async def get_athlete_race_result(
     conn: EventsWebRepository, race_id: int, athlete_id: int
 ) -> RaceProtocolItem | None:
-    """Находит результат конкретного спортсмена на данной дистанции (даже если он DNS/DNF)."""
     race = await conn.race_distance(race_id)
     dist_m = race["distance_m"] if race else None
 
@@ -160,7 +156,6 @@ async def get_race_rating_leaders(
     race_id: int,
     limit: int = 3,
 ) -> list[dict]:
-    """Возвращает сильнейших участников дистанции по общему рейтингу бега."""
     rows = await conn.rating_leaders(race_id, limit)
     return [dict(row) for row in rows]
 
@@ -168,11 +163,6 @@ async def get_race_rating_leaders(
 async def get_race_competition(
     conn: EventsWebRepository, race_id: int, athlete_id: int | None = None
 ) -> CompetitionDistribution | None:
-    """
-    Блок 'Конкуренция':
-    - Распределение времен всех финишеров (гистограмма)
-    - Положение выбранного спортсмена среди участников дистанции
-    """
     race = await conn.race(race_id)
     if not race:
         return None
@@ -198,7 +188,6 @@ async def get_race_competition(
                     "status": "FIN",
                 }
 
-    # Если спортсмен не финишировал (DNS / DNF / DSQ), подгружаем его статус для бокового блока
     if athlete_id and not athlete_res:
         non_fin_row = await conn.athlete_status(race_id, athlete_id)
         if non_fin_row:
@@ -221,12 +210,10 @@ async def get_race_competition(
     min_t = times[0]
     max_t = times[-1]
 
-    # Квантили
     p25 = times[int(0.25 * total_fin)]
     med = times[int(0.50 * total_fin)]
     p75 = times[int(0.75 * total_fin)]
 
-    # Если найден результат спортсмена, считаем его процентиль
     if athlete_res and isinstance(athlete_res.get("place_abs"), (int, float)):
         pl = athlete_res["place_abs"]
         pct = round(100.0 * (total_fin - pl + 1) / total_fin, 1)
@@ -242,7 +229,6 @@ async def get_race_competition(
         athlete_res["top_percent"] = None
         athlete_res["summary_text"] = f"Статус на дистанции: {status}"
 
-    # Построение 10 корзин распределения (бинов гистограммы)
     num_bins = 10
     step = (max_t - min_t) / num_bins if max_t > min_t else 1.0
     bins: list[DistributionBin] = []
@@ -288,12 +274,6 @@ async def get_race_page(
     athlete_id: int | None = None,
     limit: int = 300,
 ) -> dict[str, Any] | None:
-    """Все данные страницы дистанции одним ответом: старт, протокол, «Конкуренция», топ по рейтингу.
-
-    Если передан athlete_id и поиск не активен, а спортсмен занял место > 100
-    (или не финишировал), его строка выносится наверх протокола (pinned_athlete_result)
-    и убирается из основного списка, чтобы не дублироваться.
-    """
     race_row = await conn.race(race_id)
     if not race_row:
         return None

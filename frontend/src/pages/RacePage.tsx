@@ -1,4 +1,3 @@
-// Дистанция и протокол (/races-view/:id?athlete_id=…&search=…). Перенос race_detail.html.
 import { useState, type FormEvent } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { racesApi } from '@/api/endpoints';
@@ -38,7 +37,6 @@ export function RacePage() {
   );
 }
 
-/** «М · 34» для таблицы; возраст 0 и год рождения 2026 показываем как 1 (как в прежнем шаблоне). */
 function ageText(r: RaceProtocolItem): string {
   if (r.age != null && r.age > 0) return String(r.age);
   if (r.age === 0 || r.birth_year === 2026) return '1';
@@ -207,7 +205,6 @@ function RaceDetail({ data, athleteId, search, onSearch }: {
 
           {results.length || pinned ? (
             <>
-              {/* Десктоп: полная таблица */}
               <div className="table-wrap only-desktop">
                 <table className="table" style={{ minWidth: 760 }}>
                   <thead>
@@ -236,7 +233,6 @@ function RaceDetail({ data, athleteId, search, onSearch }: {
                 </table>
               </div>
 
-              {/* Телефон: компактные строки */}
               <div className="only-mobile">
                 {pinned && (
                   <>

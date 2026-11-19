@@ -1,4 +1,3 @@
-// Каталог стартов (/events-view). Перенос events_catalog.html: фильтры в адресе, группировка по месяцам.
 import { Fragment, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { eventsApi, type EventFilters } from '@/api/endpoints';
@@ -14,7 +13,6 @@ const FILTER_KEYS = ['query', 'date_from', 'date_to', 'city', 'source'] as const
 
 function readFilters(params: URLSearchParams): Required<EventFilters> {
   return {
-    // title — прежний алиас query
     query: params.get('query') || params.get('title') || '',
     date_from: params.get('date_from') || '',
     date_to: params.get('date_to') || '',
@@ -113,7 +111,6 @@ function EventsList({ events }: { events: EventItem[] }) {
 
   return (
     <>
-      {/* Десктоп: таблица, сгруппированная по месяцам */}
       <section className="card card--clip only-desktop">
         <div className="table-wrap">
           <table className="table" style={{ minWidth: 760 }}>
@@ -157,7 +154,6 @@ function EventsList({ events }: { events: EventItem[] }) {
         </div>
       </section>
 
-      {/* Телефон: список строк */}
       <section className="card card--clip only-mobile">
         {events.map((ev, i) => (
           <Fragment key={ev.id}>

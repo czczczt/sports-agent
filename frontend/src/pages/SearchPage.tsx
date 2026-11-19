@@ -1,5 +1,3 @@
-// «Найти себя» (/). Перенос search.html: поиск по фамилии и году рождения.
-// Параметры поиска живут в адресе (?last_name=…&birth_year=…), поэтому ссылку на выдачу можно отправить.
 import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { athletesApi } from '@/api/endpoints';
@@ -28,7 +26,6 @@ export function SearchPage() {
         <p className="lead">Введите фамилию и год рождения - мы найдём ваши старты. В профиле вы сможете увидеть личную статистику, историю и положение среди других спортсменов.</p>
       </div>
 
-      {/* key: при переходе по истории форма заново берёт значения из адреса */}
       <SearchForm
         key={params.toString()}
         initialLastName={lastName}

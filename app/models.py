@@ -160,7 +160,7 @@ class CompetitionDistribution(BaseModel):
 class UserOut(BaseModel):
     id: int | None = None
     username: str
-    role: str  # "user" | "admin" | "captain"
+    role: str
     status: str | None = "active"
     display_name: str
     athlete_id: int | None = None
@@ -186,6 +186,7 @@ class RatingRow(BaseModel):
     points: float
     best_points: float | None = None
     starts_count: int = 0
+    rank_delta: int | None = None
 
 
 class RatingPageResponse(BaseModel):
@@ -240,7 +241,7 @@ class RacePageResponse(BaseModel):
 
 
 class ReportCreateRequest(BaseModel):
-    kind: str  # not_me, add_start, other_club, hide_me, link_me, data_error, merge_profile, other
+    kind: str
     athlete_id: int | None = None
     result_id: int | None = None
     event_id: int | None = None
@@ -249,7 +250,7 @@ class ReportCreateRequest(BaseModel):
 
 
 class ReportDecisionRequest(BaseModel):
-    decision: str  # "accepted" | "resolved" | "rejected"
+    decision: str
     moderator_comment: str | None = None
 
 
@@ -321,6 +322,6 @@ class AccessRequestOut(BaseModel):
 
 
 class AccessRequestDecision(BaseModel):
-    decision: str  # "approve" | "reject"
+    decision: str
     athlete_id: int | None = None
     comment: str | None = None

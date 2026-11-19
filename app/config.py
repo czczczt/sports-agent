@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     max_login_attempts: int = 5
     lockout_minutes: int = 15
     frontend_base_url: str = "http://127.0.0.1:8000"
+    raw_ttl_days: int = 90
 
     @field_validator("database_url")
     @classmethod
@@ -65,3 +66,4 @@ SMTP_USE_TLS = settings.smtp_use_tls
 MAX_LOGIN_ATTEMPTS = settings.max_login_attempts
 LOCKOUT_MINUTES = settings.lockout_minutes
 FRONTEND_BASE_URL = settings.frontend_base_url
+RAW_TTL_DAYS = settings.raw_ttl_days

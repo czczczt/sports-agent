@@ -1,4 +1,3 @@
-// Рейтинг (/rating-view?gender=M|F&athlete_id=…). Перенос rating.html.
 import { useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ratingApi } from '@/api/endpoints';
@@ -87,7 +86,6 @@ function RatingBoard({ data, athleteId, loading }: { data: RatingPageData; athle
   const meInRows = !!me && data.rows.some((r) => r.athlete_id === athleteId);
   const scrolledFor = useRef<string | null>(null);
 
-  // Как раньше: при переходе «Место» из профиля прокручиваем к строке спортсмена.
   useEffect(() => {
     const key = `${athleteId}`;
     if (!athleteId || loading || scrolledFor.current === key) return;
@@ -101,7 +99,6 @@ function RatingBoard({ data, athleteId, loading }: { data: RatingPageData; athle
       <section className="rating-board">
         {data.rows.length ? (
           <>
-            {/* Пьедестал топ-3 убран: он дублировал первые строки таблицы (там уже есть медали 1–3). */}
             <div className="rating-table-wrap">
               <table className="rating-table">
                 <thead>

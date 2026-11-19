@@ -1,7 +1,6 @@
-from fastapi import APIRouter, HTTPException, Query
-
 from app.models import CompetitionDistribution, RacePageResponse, RaceProtocolItem
 from app.modules.events.dependencies import EventServiceDep
+from fastapi import APIRouter, HTTPException, Query
 
 router = APIRouter(prefix="/races", tags=["races"])
 
@@ -17,11 +16,6 @@ async def get_race_page_endpoint(
         None, description="ID спортсмена для подсветки «это вы»"
     ),
 ):
-    """
-    Карточка дистанции целиком: старт, протокол (до 300 строк), блок «Конкуренция»
-    и топ участников по общему рейтингу. Спортсмен с местом > 100 выносится
-    в pinned_athlete_result.
-    """
     page = await db.get_race_page(
         race_id=race_id, search_query=search, athlete_id=athlete_id
     )
@@ -40,10 +34,6 @@ async def get_race_results_endpoint(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ):
-    """
-    Протокол дистанции:
-    сортировка по местам, поддержка поиска по фамилии и номеру bib.
-    """
     results = await db.get_race_results(
         race_id=race_id, search_query=search, limit=limit, offset=offset
     )
@@ -58,11 +48,6 @@ async def get_race_competition_endpoint(
         None, description="ID спортсмена для подсветки в распределении"
     ),
 ):
-    """
-    Блок 'Конкуренция':
-    распределение времен всех участников дистанции (бины гистограммы)
-    и положение выбранного спортсмена среди финишеров.
-    """
     competition = await db.get_race_competition(race_id=race_id, athlete_id=athlete_id)
     if not competition:
         raise HTTPException(

@@ -1,7 +1,6 @@
-from fastapi import APIRouter, Query
-
 from app.models import RatingFormulaResponse, RatingPageResponse
 from app.modules.rating.dependencies import RatingServiceDep
+from fastapi import APIRouter, Query
 
 router = APIRouter(prefix="/rating", tags=["rating"])
 
@@ -16,11 +15,6 @@ async def get_rating_endpoint(
     ),
     limit: int = Query(100, ge=1, le=500),
 ):
-    """
-    Сохранённый рейтинг бегунов за последние 365 дней.
-    С athlete_id дополнительно возвращает строку спортсмена (me_row);
-    при фильтре по полу его место пересчитывается среди этого пола.
-    """
     clean_gender = gender if gender in ("M", "F") else None
     clean_search = (search or "").strip() or None
     return await db.page(clean_gender, clean_search, limit, athlete_id)
@@ -28,5 +22,4 @@ async def get_rating_endpoint(
 
 @router.get("/formula", response_model=RatingFormulaResponse)
 async def get_rating_formula_endpoint(db: RatingServiceDep):
-    """Нормативы 2026 года по дистанциям и полу — для страницы «Как посчитано»."""
     return await db.norms()

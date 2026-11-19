@@ -23,7 +23,6 @@ class EventsWebRepository(ReadRepository):
         if source:
             clauses.append("s.name=:source")
             params["source"] = source.lower()
-        # Match whole word prefixes, preserving the previous city filter semantics.
         if city:
             words = re.findall(r"\w+", city.lower().replace("ё", "е"))
             words = [
@@ -58,17 +57,35 @@ class EventsWebRepository(ReadRepository):
             for index, word in enumerate(re.findall(r"[a-zа-я0-9]+", number)):
                 key = f"word{index}"
                 name_clauses.append(
-                    f"(strpos(a.name_key,:{key})>0 OR strpos(search_text(r.full_name_raw),:{key})>0)"
+                    f"(strpos(a.name_key,:{key})>0 OR (a.id IS NOT NULL AND (a.employee_status IS NULL OR a.employee_status != 'not_employee') AND strpos(search_text(r.full_name_raw),:{key})>0))"
                 )
                 params[key] = word
             name_match = " AND ".join(name_clauses) or "false"
-            clauses.append(f"(search_text(r.bib)=:bib OR ({name_match}))")
+            clauses.append(
+                f"((a.id IS NOT NULL AND (a.employee_status IS NULL OR a.employee_status != 'not_employee') AND search_text(r.bib)=:bib) OR ({name_match}))"
+            )
         where = " AND ".join(clauses)
         return await self.rows(
             f"""
-            SELECT r.id AS result_id, r.athlete_id, r.bib, r.full_name_raw,
-                   r.gender, r.age, r.birth_year, r.club_raw, r.place_abs,
-                   r.place_gender, r.chip_time_s, r.gun_time_s, r.status
+            SELECT r.id AS result_id,
+                   CASE
+                       WHEN a.id IS NOT NULL AND (a.employee_status IS NULL OR a.employee_status != 'not_employee') THEN r.athlete_id
+                       ELSE NULL
+                   END AS athlete_id,
+                   CASE
+                       WHEN a.id IS NOT NULL AND (a.employee_status IS NULL OR a.employee_status != 'not_employee') THEN r.bib
+                       ELSE NULL
+                   END AS bib,
+                   CASE
+                       WHEN a.id IS NOT NULL AND (a.employee_status IS NULL OR a.employee_status != 'not_employee') THEN COALESCE(r.full_name_raw, 'Участник')
+                       ELSE 'Участник'
+                   END AS full_name_raw,
+                   r.gender, r.age, r.birth_year,
+                   CASE
+                       WHEN a.id IS NOT NULL AND (a.employee_status IS NULL OR a.employee_status != 'not_employee') THEN r.club_raw
+                       ELSE NULL
+                   END AS club_raw,
+                   r.place_abs, r.place_gender, r.chip_time_s, r.gun_time_s, r.status
             FROM web_result r LEFT JOIN athlete a ON a.id=r.athlete_id WHERE {where}
             ORDER BY CASE WHEN r.status='FIN' THEN 0 ELSE 1 END, r.place_abs NULLS LAST,
                      r.chip_time_s NULLS LAST, r.id LIMIT :limit OFFSET :offset

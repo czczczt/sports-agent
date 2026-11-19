@@ -238,6 +238,7 @@ export interface RatingRow {
   points: number;
   best_points?: number | null;
   starts_count: number;
+  rank_delta?: number | null;
 }
 
 export interface RatingPage {

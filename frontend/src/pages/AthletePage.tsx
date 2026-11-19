@@ -1,4 +1,3 @@
-// Профиль спортсмена (/athletes-view/:id). Перенос athlete_profile.html.
 import { Link, useParams } from 'react-router-dom';
 import { athletesApi } from '@/api/endpoints';
 import type { AthleteResultItem, AthleteSummary } from '@/api/types';
@@ -46,7 +45,6 @@ function AthleteProfile({ summary, results }: { summary: AthleteSummary; results
           <div style={{ minWidth: 0 }}>
             <h1 className="h1 h1-sm">{a.display_name}</h1>
             <div className="muted num" style={{ marginTop: 6 }}>{athleteMeta(a, false)}</div>
-            {a.club && <div className="small muted" style={{ marginTop: 2 }}>{a.club}</div>}
           </div>
         </div>
       </section>

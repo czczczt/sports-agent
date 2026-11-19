@@ -1,4 +1,3 @@
-// Карточка старта (/events-view/:id). Перенос event_detail.html.
 import { Link, useParams } from 'react-router-dom';
 import { eventsApi } from '@/api/endpoints';
 import type { EventItem } from '@/api/types';
@@ -7,7 +6,6 @@ import { useApi } from '@/hooks/useApi';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { dateRu, plural, sourceName } from '@/lib/format';
 
-/** «21.12.2025 — 22.12.2025 · Москва» */
 export function eventDates(ev: EventItem): string {
   let s = dateRu(ev.date_begin);
   if (ev.date_end && ev.date_end.slice(0, 10) !== (ev.date_begin || '').slice(0, 10)) s += ` — ${dateRu(ev.date_end)}`;

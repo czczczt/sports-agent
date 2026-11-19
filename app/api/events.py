@@ -1,7 +1,6 @@
-from fastapi import APIRouter, HTTPException, Query
-
 from app.models import EventItem
 from app.modules.events.dependencies import EventServiceDep
+from fastapi import APIRouter, HTTPException, Query
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -22,7 +21,6 @@ async def get_events_endpoint(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
-    """Каталог стартов с фильтрами по названию забега, дате, городу и площадке."""
     search_query = query or title
     events = await db.list_events(
         query=search_query,
@@ -41,7 +39,6 @@ async def get_event_detail_endpoint(
     db: EventServiceDep,
     event_id: int,
 ):
-    """Детальная карточка старта с дистанциями."""
     event = await db.get_event_by_id(event_id=event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Старт не найден")
