@@ -5,6 +5,23 @@ import math
 
 FORMULA_VERSION = 'run-v1'
 
+VALID_SPORTS = {'run', 'ski', 'biathlon', 'triathlon', 'trail'}
+
+TRIATHLON_RMAX = {
+    'full': 10000,
+    'half': 5000,
+    'olympic': 2500,
+    'sprint': 1250,
+    'supersprint': 625,
+    'indoor': 625,
+}
+
+TRIATHLON_K_MAP = {
+    'regular': 1.0,
+    'worlds': 1.10,
+    'kona': 1.15,
+}
+
 # Customer's normative table, 2026: seconds except 24h (achieved kilometres).
 _NORM_VALUES = (
     ('60m', 6.84, 7.5), ('100m', 10.62, 11.75), ('200m', 21.65, 24.4),
@@ -23,17 +40,19 @@ def calculate(result: dict, race: dict, norms: list[dict],
               formula_version: str = FORMULA_VERSION, synonyms: list[dict] | None = None) -> dict:
     """Pure result + stored race context + norms -> points and full explanation.
 
+    Supports running, ski, biathlon, triathlon, and trail per SPEC v1.3 §9.
     A present but invalid chip time is rejected, never silently replaced by gun time.
     """
+    sport = race.get('sport_type') or 'run'
     classification = None
-    if any(key in race for key in ('distance_m', 'name', 'class_source')):
+    if sport == 'run' and any(key in race for key in ('distance_m', 'name', 'class_source')):
         from distance_classification import classify
         classification = classify(race, synonyms)
         race = race | {'distance_type': classification['distance_class'],
                        'discipline': classification['discipline']}
     start = race.get('date_begin')
     breakdown = {
-        'sport': 'run', 'class': race.get('distance_type'), 'discipline': race.get('discipline'),
+        'sport': sport, 'class': race.get('distance_type'), 'discipline': race.get('discipline'),
         'gender': result.get('gender'), 'norm_value': None, 'norm_unit': None,
         'norm_year': None, 'norm_year_requested': start.year if start else None,
         'time_kind': None, 'time_s': None, 'formula': None, 'points': None,
@@ -48,14 +67,144 @@ def calculate(result: dict, race: dict, norms: list[dict],
         return missing('duplicate')
     if result.get('status') != 'FIN':
         return missing('not_finisher')
-    if race.get('sport_type') not in (None, 'run'):
+    if sport not in VALID_SPORTS:
         return missing('unsupported_sport')
-    if race.get('race_type') == 'relay':
-        return missing('relay')
     if result.get('gender') not in ('M', 'F'):
         return missing('unknown_gender')
     if not start:
         return missing('missing_date')
+
+    # 1. ЛЫЖНЫЕ ГОНКИ И БИАТЛОН (SPEC v1.3 §9.2)
+    if sport in ('ski', 'biathlon'):
+        if race.get('race_type') == 'relay':
+            return missing('relay')
+        if race.get('is_rl_series'):
+            rl_pts = result.get('rl_points')
+            if rl_pts is not None and isinstance(rl_pts, (int, float)) and math.isfinite(rl_pts) and rl_pts > 0:
+                pts = rl_pts / 7.0
+                breakdown.update(points=pts, formula=f"{rl_pts:g} / 7")
+                return {'points': pts, 'reason': None, 'breakdown': breakdown}
+            return missing('rl_series_excluded_from_place_scoring')
+
+        N = race.get('finishers_count')
+        if N is None:
+            N = race.get('total_finishers')
+        if N is None:
+            N = race.get('finishers_gender_count')
+        if N is None:
+            N = result.get('total_finishers')
+        if N is None:
+            N = result.get('finishers_gender_count')
+
+        place = result.get('place_gender')
+        if place is None:
+            place = result.get('place')
+        if place is None:
+            place = result.get('place_abs')
+
+        if N is None:
+            return missing('missing_finishers_count')
+        if not isinstance(N, (int, float)) or not math.isfinite(N) or N <= 0:
+            return missing('invalid_finishers_count')
+        if place is None:
+            return missing('missing_place')
+        if not isinstance(place, (int, float)) or not math.isfinite(place) or place <= 0 or place > N:
+            return missing('invalid_place')
+
+        pts = 100.0 * (N - place + 1) / N
+        kind = 'chip' if result.get('chip_time_s') is not None else ('gun' if result.get('gun_time_s') is not None else None)
+        seconds = result.get(f'{kind}_time_s') if kind else None
+        formula = f"100 × ({N:g} - {place:g} + 1) / {N:g}"
+        breakdown.update(place=place, finishers_count=N, time_kind=kind, time_s=seconds, formula=formula, points=pts)
+        return {'points': pts, 'reason': None, 'breakdown': breakdown}
+
+    # 2. ТРИАТЛОН (SPEC v1.3 §9.3)
+    if sport == 'triathlon':
+        if race.get('race_type') == 'relay':
+            return missing('relay')
+        dist_cls = race.get('distance_type') or race.get('norm_distance') or race.get('distance_class')
+        if not dist_cls or dist_cls not in TRIATHLON_RMAX:
+            return missing('unclassified_distance')
+        R_max = TRIATHLON_RMAX[dist_cls]
+
+        special = race.get('special') or race.get('event_special') or 'regular'
+        K = TRIATHLON_K_MAP.get(special, 1.0)
+
+        kind = 'chip' if result.get('chip_time_s') is not None else 'gun'
+        T_a = result.get(f'{kind}_time_s')
+        if T_a is None:
+            return missing('missing_time')
+        if not isinstance(T_a, (int, float)) or not math.isfinite(T_a) or T_a <= 0:
+            return missing('invalid_time')
+
+        T_l = race.get('leader_time_s') or result.get('leader_time_s') or race.get('group_leader_time_s')
+        if T_l is None:
+            return missing('missing_leader_time')
+        if not isinstance(T_l, (int, float)) or not math.isfinite(T_l) or T_l <= 0:
+            return missing('invalid_leader_time')
+
+        T_med = race.get('median_time_s') or result.get('median_time_s') or race.get('group_median_time_s')
+        if T_med is None:
+            return missing('missing_median_time')
+        if not isinstance(T_med, (int, float)) or not math.isfinite(T_med) or T_med <= 0:
+            return missing('invalid_median_time')
+
+        B_med = 2.0 * max(0.0, (T_med - T_a) / 60.0)
+        raw_pts = (R_max * (1.0 - (T_a - T_l) / T_l) + B_med) * K
+        pts = max(0.0, raw_pts)
+        formula = f"max(0, ({R_max:g} × (1 - ({T_a:g} - {T_l:g}) / {T_l:g}) + {B_med:.2f}) × {K:g})"
+        breakdown.update(time_kind=kind, time_s=T_a, leader_time_s=T_l, median_time_s=T_med,
+                         r_max=R_max, k=K, b_med=B_med, formula=formula, points=pts)
+        return {'points': pts, 'reason': None, 'breakdown': breakdown}
+
+    # 3. ТРЕЙЛ (SPEC v1.3 §9.4)
+    if sport == 'trail':
+        if race.get('race_type') == 'relay':
+            return missing('relay')
+        D_plus = race.get('elevation_gain_m') or race.get('d_plus')
+        if D_plus is None:
+            return missing('missing_elevation_gain')
+        if not isinstance(D_plus, (int, float)) or not math.isfinite(D_plus) or D_plus <= 0:
+            return missing('invalid_elevation_gain')
+
+        km = race.get('distance_km') or (race.get('distance_m') / 1000.0 if race.get('distance_m') else None)
+        if km is None:
+            return missing('missing_distance')
+        if not isinstance(km, (int, float)) or not math.isfinite(km) or km <= 0:
+            return missing('invalid_distance')
+
+        kind = 'chip' if result.get('chip_time_s') is not None else 'gun'
+        T_a = result.get(f'{kind}_time_s')
+        if T_a is None:
+            return missing('missing_time')
+        if not isinstance(T_a, (int, float)) or not math.isfinite(T_a) or T_a <= 0:
+            return missing('invalid_time')
+
+        T_l = race.get('leader_time_s') or result.get('leader_time_s') or race.get('group_leader_time_s')
+        if T_l is None:
+            return missing('missing_leader_time')
+        if not isinstance(T_l, (int, float)) or not math.isfinite(T_l) or T_l <= 0:
+            return missing('invalid_leader_time')
+
+        T_med = race.get('median_time_s') or result.get('median_time_s') or race.get('group_median_time_s')
+        if T_med is None:
+            return missing('missing_median_time')
+        if not isinstance(T_med, (int, float)) or not math.isfinite(T_med) or T_med <= 0:
+            return missing('invalid_median_time')
+
+        R_max = 10.0 * (km + D_plus / 100.0)
+        B_med = 2.0 * max(0.0, (T_med - T_a) / 60.0)
+        raw_pts = R_max * (1.0 - (T_a - T_l) / T_l) + B_med
+        pts = max(0.0, raw_pts)
+        formula = f"max(0, 10 × ({km:g} + {D_plus:g} / 100) × (1 - ({T_a:g} - {T_l:g}) / {T_l:g}) + {B_med:.2f})"
+        breakdown.update(distance_km=km, elevation_gain_m=D_plus, time_kind=kind, time_s=T_a,
+                         leader_time_s=T_l, median_time_s=T_med, r_max=R_max, b_med=B_med,
+                         formula=formula, points=pts)
+        return {'points': pts, 'reason': None, 'breakdown': breakdown}
+
+    # 4. БЕГ (RUN - по умолчанию)
+    if race.get('race_type') == 'relay':
+        return missing('relay')
     if not race.get('distance_type'):
         return missing(classification['reason'] if classification else 'unclassified_distance')
     candidates = [n for n in norms if n['distance_class'] == race['distance_type']
