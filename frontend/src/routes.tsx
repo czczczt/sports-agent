@@ -11,6 +11,7 @@ import { RacePage } from '@/pages/RacePage';
 import { AgentReviewPage } from '@/pages/AgentReviewPage';
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 import { AdminRequestsPage } from '@/pages/AdminRequestsPage';
+import { StatusPage } from '@/pages/StatusPage';
 
 const handle = (h: RouteHandle) => h;
 
@@ -19,6 +20,7 @@ export const routes: RouteObject[] = [
     element: <AppLayout />,
     children: [
       { path: '/', element: <SearchPage />, handle: handle({ section: 'search', pageClass: 'page--narrow' }) },
+      { path: '/status', element: <StatusPage />, handle: handle({ section: 'status', isPublic: true }) },
       { path: '/reset-password', element: <ResetPasswordPage />, handle: handle({ section: 'search', pageClass: 'page--narrow', isPublic: true }) },
       { path: '/athletes-view/:athleteId', element: <AthletePage />, handle: handle({ section: 'search' }) },
       { path: '/rating-view', element: <RatingPage />, handle: handle({ section: 'rating' }) },

@@ -63,5 +63,21 @@ services:
     restart: unless-stopped
     logging: *logging
 
+  worker:
+    <<: *app
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    logging: *logging
+
+  worker-browser:
+    image: mcr.microsoft.com/playwright/python:v1.49.0-noble
+    command: ["python", "-c", "import time; print('Playwright browser worker ready'); time.sleep(315360000)"]
+    restart: unless-stopped
+    mem_limit: 1g
+    logging: *logging
+
 volumes:
   pgdata:

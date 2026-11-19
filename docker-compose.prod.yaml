@@ -126,6 +126,32 @@ services:
       - backend
     logging: *logging
 
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "-m", "app.worker"]
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-sports_agent}
+      AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:?set AUTH_SECRET_KEY in .env}
+      RAW_TTL_DAYS: ${RAW_TTL_DAYS:-90}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - backend
+    logging: *logging
+
+  worker-browser:
+    image: mcr.microsoft.com/playwright/python:v1.49.0-noble
+    command: ["python", "-c", "import time; print('Playwright browser worker ready'); time.sleep(315360000)"]
+    restart: unless-stopped
+    mem_limit: 1g
+    networks:
+      - backend
+    logging: *logging
+
 volumes:
   pgdata:
   caddy_data:
