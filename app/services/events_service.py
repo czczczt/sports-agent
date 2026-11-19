@@ -1,77 +1,42 @@
-import re
-from typing import List, Optional, Dict, Any
-from app.db import AsyncPGConnection
+from typing import Any
+
 from app.models import (
-    EventItem, RaceItem, RaceProtocolItem, CompetitionDistribution, DistributionBin
+    CompetitionDistribution,
+    DistributionBin,
+    EventItem,
+    RaceItem,
+    RaceProtocolItem,
 )
-from app.services.athlete_service import format_time, format_pace, normalize_term, clean_club
+from app.modules.events.web_repository import EventsWebRepository
+from app.services.athlete_service import (
+    clean_club,
+    format_pace,
+    format_time,
+)
 
 
 async def list_events(
-    conn: AsyncPGConnection,
-    query: Optional[str] = None,
-    title: Optional[str] = None,
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
-    city: Optional[str] = None,
-    source: Optional[str] = None,
+    conn: EventsWebRepository,
+    query: str | None = None,
+    title: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    city: str | None = None,
+    source: str | None = None,
     limit: int = 50,
-    offset: int = 0
-) -> List[EventItem]:
+    offset: int = 0,
+) -> list[EventItem]:
     """Возвращает каталог стартов с фильтрами по названию забега, дате, городу и площадке."""
-    conditions = ["1=1"]
-    params: List[Any] = []
+    rows = await conn.list_events(
+        query or title, date_from, date_to, city, source, limit, offset
+    )
 
-    search_query = (query or title or "").strip()
-    if search_query:
-        q_words = [w for w in re.findall(r"\w+", search_query.lower().replace("ё", "е")) if w]
-        for w in q_words:
-            w_pat = f"%{w}%"
-            conditions.append(
-                "(ru_lower(e.title) LIKE ? OR EXISTS (SELECT 1 FROM race r WHERE r.event_id = e.id AND ru_lower(r.name_raw) LIKE ?))"
-            )
-            params.extend([w_pat, w_pat])
-
-    if date_from:
-        clean_from = date_from.strip()[:10]
-        conditions.append("substr(e.date_begin, 1, 10) >= ?")
-        params.append(clean_from)
-    if date_to:
-        clean_to = date_to.strip()[:10]
-        conditions.append("substr(e.date_begin, 1, 10) <= ?")
-        params.append(clean_to)
-    if city:
-        clean_city = city.strip()
-        conditions.append("match_city(?, e.place, e.address)")
-        params.append(clean_city)
-    if source:
-        conditions.append("s.name = ?")
-        params.append(source.lower())
-
-    where_clause = " AND ".join(conditions)
-    sql_query = f"""
-        SELECT 
-            e.id, e.source_id, s.name AS source_name, e.title,
-            e.date_begin, e.date_end, e.place, e.address
-        FROM event e
-        JOIN source s ON s.id = e.source_id
-        WHERE {where_clause}
-        ORDER BY e.date_begin DESC, e.id DESC
-        LIMIT ? OFFSET ?
-    """
-    params.extend([limit, offset])
-    rows = await conn.fetch(sql_query, *params)
-
+    races_by_event = await conn.races_for_events([r["id"] for r in rows])
     events = []
     for r in rows:
         eid = r["id"]
         # Подгружаем дистанции старта
-        races_rows = await conn.fetch("""
-            SELECT id, name_raw, norm_distance, distance_m, distance_km_raw, total_count
-            FROM race
-            WHERE event_id = ?
-            ORDER BY distance_m ASC, id ASC
-        """, eid)
+        races_rows = races_by_event.get(eid, [])
 
         races = [
             RaceItem(
@@ -80,45 +45,35 @@ async def list_events(
                 norm_distance=ra["norm_distance"],
                 distance_m=ra["distance_m"],
                 distance_km_raw=ra["distance_km_raw"],
-                total_count=ra["total_count"]
+                total_count=ra["total_count"],
             )
             for ra in races_rows
         ]
 
-        events.append(EventItem(
-            id=r["id"],
-            source_id=r["source_id"],
-            source_name=r["source_name"],
-            title=r["title"] or "Беговой старт",
-            date_begin=r["date_begin"],
-            date_end=r["date_end"],
-            place=r["place"],
-            address=r["address"],
-            races=races
-        ))
+        events.append(
+            EventItem(
+                id=r["id"],
+                source_id=r["source_id"],
+                source_name=r["source_name"],
+                title=r["title"] or "Беговой старт",
+                date_begin=r["date_begin"],
+                date_end=r["date_end"],
+                place=r["place"],
+                address=r["address"],
+                races=races,
+            )
+        )
 
     return events
 
 
-async def get_event_by_id(conn: AsyncPGConnection, event_id: int) -> Optional[EventItem]:
+async def get_event_by_id(conn: EventsWebRepository, event_id: int) -> EventItem | None:
     """Возвращает информацию о старте и всех его дистанциях."""
-    row = await conn.fetchrow("""
-        SELECT 
-            e.id, e.source_id, s.name AS source_name, e.title,
-            e.date_begin, e.date_end, e.place, e.address
-        FROM event e
-        JOIN source s ON s.id = e.source_id
-        WHERE e.id = ?
-    """, event_id)
+    row = await conn.event(event_id)
     if not row:
         return None
 
-    races_rows = await conn.fetch("""
-        SELECT id, name_raw, norm_distance, distance_m, distance_km_raw, total_count
-        FROM race
-        WHERE event_id = ?
-        ORDER BY distance_m ASC, id ASC
-    """, event_id)
+    races_rows = await conn.event_races(event_id)
 
     races = [
         RaceItem(
@@ -127,7 +82,7 @@ async def get_event_by_id(conn: AsyncPGConnection, event_id: int) -> Optional[Ev
             norm_distance=ra["norm_distance"],
             distance_m=ra["distance_m"],
             distance_km_raw=ra["distance_km_raw"],
-            total_count=ra["total_count"]
+            total_count=ra["total_count"],
         )
         for ra in races_rows
     ]
@@ -141,11 +96,11 @@ async def get_event_by_id(conn: AsyncPGConnection, event_id: int) -> Optional[Ev
         date_end=row["date_end"],
         place=row["place"],
         address=row["address"],
-        races=races
+        races=races,
     )
 
 
-def _row_to_protocol_item(r: Any, dist_m: Optional[int]) -> RaceProtocolItem:
+def _row_to_protocol_item(r: dict, dist_m: int | None) -> RaceProtocolItem:
     time_s = r["chip_time_s"] if r["chip_time_s"] is not None else r["gun_time_s"]
     raw_age = r["age"]
     if raw_age == 0 or (raw_age is None and r["birth_year"] == 2026):
@@ -167,103 +122,33 @@ def _row_to_protocol_item(r: Any, dist_m: Optional[int]) -> RaceProtocolItem:
         gun_time_s=r["gun_time_s"],
         time_formatted=format_time(time_s),
         pace_formatted=format_pace(time_s, dist_m),
-        status=r["status"]
+        status=r["status"],
     )
 
 
 async def get_race_results(
-    conn: AsyncPGConnection,
+    conn: EventsWebRepository,
     race_id: int,
-    search_query: Optional[str] = None,
+    search_query: str | None = None,
     limit: int = 300,
-    offset: int = 0
-) -> List[RaceProtocolItem]:
+    offset: int = 0,
+) -> list[RaceProtocolItem]:
     """Возвращает протокол дистанции с поиском по фамилии или стартовому номеру."""
-    race = await conn.fetchrow("SELECT distance_m FROM race WHERE id = ?", race_id)
+    race = await conn.race(race_id)
     dist_m = race["distance_m"] if race else None
-
-    conditions = ["r.race_id = ?", "r.duplicate_of IS NULL"]
-    params: List[Any] = [race_id]
-
-    if search_query:
-        sq = search_query.strip()
-        clean_num = re.sub(r"^[№#\s]+", "", sq)
-        if clean_num.isdigit():
-            conditions.append("(r.bib = ? OR a.name_key LIKE ?)")
-            params.extend([int(clean_num), f"%{clean_num}%"])
-        else:
-            tokens = re.findall(r"[a-zа-я0-9]+", sq.lower().replace("ё", "е"))
-            if tokens:
-                for token in tokens:
-                    pat = f"%{token}%"
-                    conditions.append("(a.name_key LIKE ? OR ru_lower(r.full_name_raw) LIKE ?)")
-                    params.extend([pat, pat])
-            else:
-                pat = f"%{sq.lower().replace('ё', 'е')}%"
-                conditions.append("(a.name_key LIKE ? OR ru_lower(r.full_name_raw) LIKE ?)")
-                params.extend([pat, pat])
-
-    where_clause = " AND ".join(conditions)
-    sql_query = f"""
-        SELECT 
-            r.id AS result_id,
-            ral.athlete_id,
-            r.bib,
-            r.full_name_raw,
-            r.gender,
-            r.age,
-            r.birth_year,
-            r.club_raw,
-            r.place_abs,
-            r.place_gender,
-            r.chip_time_s,
-            r.gun_time_s,
-            r.status
-        FROM result r
-        LEFT JOIN result_athlete ral ON ral.result_id = r.id
-        LEFT JOIN athlete a ON a.id = ral.athlete_id
-        WHERE {where_clause}
-        ORDER BY 
-            CASE WHEN r.status = 'FIN' THEN 0 ELSE 1 END,
-            CASE WHEN r.place_abs IS NOT NULL THEN r.place_abs ELSE 999999 END ASC,
-            r.chip_time_s ASC
-        LIMIT ? OFFSET ?
-    """
-    params.extend([limit, offset])
-    rows = await conn.fetch(sql_query, *params)
+    rows = await conn.protocol(race_id, search_query, limit, offset)
 
     return [_row_to_protocol_item(r, dist_m) for r in rows]
 
 
 async def get_athlete_race_result(
-    conn: AsyncPGConnection,
-    race_id: int,
-    athlete_id: int
-) -> Optional[RaceProtocolItem]:
+    conn: EventsWebRepository, race_id: int, athlete_id: int
+) -> RaceProtocolItem | None:
     """Находит результат конкретного спортсмена на данной дистанции (даже если он DNS/DNF)."""
-    race = await conn.fetchrow("SELECT distance_m FROM race WHERE id = ?", race_id)
+    race = await conn.race_distance(race_id)
     dist_m = race["distance_m"] if race else None
 
-    row = await conn.fetchrow("""
-        SELECT 
-            r.id AS result_id,
-            ral.athlete_id,
-            r.bib,
-            r.full_name_raw,
-            r.gender,
-            r.age,
-            r.birth_year,
-            r.club_raw,
-            r.place_abs,
-            r.place_gender,
-            r.chip_time_s,
-            r.gun_time_s,
-            r.status
-        FROM result r
-        JOIN result_athlete ral ON ral.result_id = r.id
-        WHERE r.race_id = ? AND ral.athlete_id = ? AND r.duplicate_of IS NULL
-        LIMIT 1
-    """, race_id, athlete_id)
+    row = await conn.athlete_result(race_id, athlete_id)
 
     if not row:
         return None
@@ -271,65 +156,28 @@ async def get_athlete_race_result(
 
 
 async def get_race_rating_leaders(
-    conn: AsyncPGConnection,
+    conn: EventsWebRepository,
     race_id: int,
     limit: int = 3,
-) -> List[dict]:
+) -> list[dict]:
     """Возвращает сильнейших участников дистанции по общему рейтингу бега."""
-    rows = await conn.fetch(
-        """
-        SELECT ar.rank AS rating_rank, ar.points AS rating_points,
-               ar.starts_count AS rating_starts,
-               ral.athlete_id, r.id AS result_id, r.full_name_raw,
-               r.place_abs, r.chip_time_s, r.gun_time_s
-        FROM result r
-        JOIN result_athlete ral ON ral.result_id = r.id
-        JOIN running_athlete_rating ar ON ar.athlete_id = ral.athlete_id
-        WHERE r.race_id = ?
-          AND r.status = 'FIN'
-          AND r.duplicate_of IS NULL
-          AND ar.formula_version = 'run-v1'
-          AND ar.period_end = (
-              SELECT MAX(period_end)
-              FROM running_athlete_rating
-              WHERE formula_version = 'run-v1'
-          )
-        ORDER BY ar.points DESC, ar.best_points DESC, ar.starts_count DESC,
-                 ar.rank ASC
-        LIMIT ?
-        """,
-        race_id,
-        limit,
-    )
+    rows = await conn.rating_leaders(race_id, limit)
     return [dict(row) for row in rows]
 
 
 async def get_race_competition(
-    conn: AsyncPGConnection,
-    race_id: int,
-    athlete_id: Optional[int] = None
-) -> Optional[CompetitionDistribution]:
+    conn: EventsWebRepository, race_id: int, athlete_id: int | None = None
+) -> CompetitionDistribution | None:
     """
     Блок 'Конкуренция':
     - Распределение времен всех финишеров (гистограмма)
     - Положение выбранного спортсмена среди участников дистанции
     """
-    race = await conn.fetchrow("""
-        SELECT id, name_raw, norm_distance, distance_m 
-        FROM race 
-        WHERE id = ?
-    """, race_id)
+    race = await conn.race(race_id)
     if not race:
         return None
 
-    rows = await conn.fetch("""
-        SELECT r.id, r.chip_time_s, r.gun_time_s, r.place_abs, ral.athlete_id
-        FROM result r
-        LEFT JOIN result_athlete ral ON ral.result_id = r.id
-        WHERE r.race_id = ?
-          AND r.status = 'FIN'
-          AND r.duplicate_of IS NULL
-    """, race_id)
+    rows = await conn.finishers(race_id)
 
     if not rows:
         return None
@@ -347,18 +195,12 @@ async def get_race_competition(
                     "time_s": t,
                     "time_formatted": format_time(t),
                     "pace_formatted": format_pace(t, race["distance_m"]),
-                    "status": "FIN"
+                    "status": "FIN",
                 }
 
     # Если спортсмен не финишировал (DNS / DNF / DSQ), подгружаем его статус для бокового блока
     if athlete_id and not athlete_res:
-        non_fin_row = await conn.fetchrow("""
-            SELECT r.id, r.status, r.place_abs, r.chip_time_s, r.gun_time_s
-            FROM result r
-            JOIN result_athlete ral ON ral.result_id = r.id
-            WHERE r.race_id = ? AND ral.athlete_id = ? AND r.duplicate_of IS NULL
-            LIMIT 1
-        """, race_id, athlete_id)
+        non_fin_row = await conn.athlete_status(race_id, athlete_id)
         if non_fin_row:
             status = non_fin_row["status"]
             athlete_res = {
@@ -368,7 +210,7 @@ async def get_race_competition(
                 "time_formatted": status,
                 "pace_formatted": status,
                 "status": status,
-                "summary_text": f"Статус на дистанции: {status}"
+                "summary_text": f"Статус на дистанции: {status}",
             }
 
     if not times:
@@ -391,7 +233,9 @@ async def get_race_competition(
         top_pct = round(100.0 * pl / total_fin, 1)
         athlete_res["percentile"] = pct
         athlete_res["top_percent"] = top_pct
-        athlete_res["summary_text"] = f"Финишировал на {pl} месте из {total_fin} участников (топ {top_pct}% протокола)."
+        athlete_res["summary_text"] = (
+            f"Финишировал на {pl} месте из {total_fin} участников (топ {top_pct}% протокола)."
+        )
     elif athlete_res and athlete_res.get("status") in ("DNS", "DNF", "DSQ", "NC"):
         status = athlete_res["status"]
         athlete_res["percentile"] = None
@@ -401,19 +245,25 @@ async def get_race_competition(
     # Построение 10 корзин распределения (бинов гистограммы)
     num_bins = 10
     step = (max_t - min_t) / num_bins if max_t > min_t else 1.0
-    bins: List[DistributionBin] = []
+    bins: list[DistributionBin] = []
 
     for i in range(num_bins):
         b_start = min_t + i * step
         b_end = min_t + (i + 1) * step
-        count = sum(1 for t in times if b_start <= t < b_end or (i == num_bins - 1 and t == b_end))
+        count = sum(
+            1
+            for t in times
+            if b_start <= t < b_end or (i == num_bins - 1 and t == b_end)
+        )
         label = f"{format_time(b_start)} - {format_time(b_end)}"
-        bins.append(DistributionBin(
-            bin_start_s=round(b_start, 1),
-            bin_end_s=round(b_end, 1),
-            label=label,
-            count=count
-        ))
+        bins.append(
+            DistributionBin(
+                bin_start_s=round(b_start, 1),
+                bin_end_s=round(b_end, 1),
+                label=label,
+                count=count,
+            )
+        )
 
     return CompetitionDistribution(
         race_id=race["id"],
@@ -427,45 +277,50 @@ async def get_race_competition(
         p25_time_s=p25,
         p75_time_s=p75,
         distribution_bins=bins,
-        athlete_result=athlete_res
+        athlete_result=athlete_res,
     )
 
 
 async def get_race_page(
-    conn: AsyncPGConnection,
+    conn: EventsWebRepository,
     race_id: int,
-    search_query: Optional[str] = None,
-    athlete_id: Optional[int] = None,
+    search_query: str | None = None,
+    athlete_id: int | None = None,
     limit: int = 300,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Все данные страницы дистанции одним ответом: старт, протокол, «Конкуренция», топ по рейтингу.
 
     Если передан athlete_id и поиск не активен, а спортсмен занял место > 100
     (или не финишировал), его строка выносится наверх протокола (pinned_athlete_result)
     и убирается из основного списка, чтобы не дублироваться.
     """
-    race_row = await conn.fetchrow(
-        "SELECT id, event_id, name_raw, norm_distance, distance_m FROM race WHERE id = ?",
-        race_id,
-    )
+    race_row = await conn.race(race_id)
     if not race_row:
         return None
 
     event = await get_event_by_id(conn, event_id=race_row["event_id"])
-    results = await get_race_results(conn, race_id=race_id, search_query=search_query, limit=limit, offset=0)
+    results = await get_race_results(
+        conn, race_id=race_id, search_query=search_query, limit=limit, offset=0
+    )
 
     pinned = None
     if athlete_id and not search_query:
-        athlete_item = await get_athlete_race_result(conn, race_id=race_id, athlete_id=athlete_id)
-        if athlete_item and (athlete_item.place_abs is None or athlete_item.place_abs > 100):
+        athlete_item = await get_athlete_race_result(
+            conn, race_id=race_id, athlete_id=athlete_id
+        )
+        if athlete_item and (
+            athlete_item.place_abs is None or athlete_item.place_abs > 100
+        ):
             pinned = athlete_item
             results = [r for r in results if r.athlete_id != athlete_id]
 
     return {
-        "race": dict(race_row),
+        "race": {**race_row, "name_raw": race_row["name_raw"] or "Дистанция"},
         "event": event,
         "results": results,
         "pinned_athlete_result": pinned,
-        "competition": await get_race_competition(conn, race_id=race_id, athlete_id=athlete_id),
+        "competition": await get_race_competition(
+            conn, race_id=race_id, athlete_id=athlete_id
+        ),
         "rating_leaders": await get_race_rating_leaders(conn, race_id=race_id),
     }

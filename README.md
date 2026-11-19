@@ -38,7 +38,7 @@
 ### 1.2 Технологический стек
 
 * **Бэкенд:** Python 3.12 / 3.14, FastAPI, Starlette, Uvicorn, Pydantic v2.
-* **База данных:** SQLite 3 в режиме высокой производительности (`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=20000; PRAGMA synchronous=NORMAL;`). Поддерживаются оконные функции `ROW_NUMBER() OVER (...)`. Схемы таблиц также совместимы с PostgreSQL (`docker-compose.yaml`).
+* **База данных:** PostgreSQL 16 для веб-приложения и парсеров; SQLAlchemy/asyncpg для веб-запросов, Alembic для схемы. SQLite используется только как источник одноразового импорта старых данных.
 * **Фронтенд (`frontend/`):** SPA на React 18 + TypeScript, сборка Vite 5, маршрутизация React Router 6; CSS с кастомной дизайн-системой токенов (`theme.css`, ADR-0001), шрифты Unbounded и Golos Text, Chart.js 4.4.1 (графики динамики темпа и гистограммы распределения), Air Datepicker 3.5.3 (выбор дат). Бэкенд отдаёт JSON (`/api/...`) и собранный `frontend/dist` (ADR-0002).
 * **Сбор и парсинг:** `requests`, `httpx`, `beautifulsoup4`, `pdfplumber`, `pillow`, `pytesseract` (Tesseract OCR 5).
 * **ИИ и LLM-стек:** GigaChat API (модели `GigaChat-2-Pro`, `GigaChat-Pro`), SDK `gigachat`, Model Context Protocol (MCP) orchestrator, автономный агент исправления парсеров (`parse_url.py`).
@@ -263,55 +263,47 @@ $$\text{Баллы} = \max\left(0, \left(R_{max} \times \left(1 - \frac{T_{\text
 
 ### 9.2 Быстрый старт веб-сервиса
 
+Этап 0 предназначен для локального запуска. Сохранена авторизация актуальной `dev`: пользователи в PostgreSQL, Argon2, регистрация и модерация заявок. На чистой базе встроенных учёток нет; первый администратор назначается владельцем локальной базы после регистрации. Реализация токенов пока требует дальнейшей доработки; публичный деплой здесь не выполняется. Полная процедура и границы этапа: [docs/implementation-stage0.md](docs/implementation-stage0.md).
+
 ```bash
-# 1. Клонирование репозитория и переход в каталог
-git clone https://github.com/czczczt/sports-agent.git
-cd sports-agent
-
-# 2. Создание и активация виртуального окружения
-python -m venv .venv
-# Для Windows (PowerShell):
-.venv\Scripts\Activate.ps1
-# Для Linux/macOS:
-source .venv/bin/activate
-
-# 3. Установка зависимостей
-pip install -r requirements.txt
-
-# 4. Настройка переменных окружения (опционально)
 cp env.example .env
-# При наличии ключа GigaChat укажите GIGACHAT_CREDENTIALS в .env
-
-# 5. Индексация спортсменов из базы результатов (при первом запуске)
-python init_athletes.py
-
-# 6. Сборка веб-интерфейса (React) → frontend/dist
-npm --prefix frontend install
-npm --prefix frontend run build
-
-# 7. Запуск веб-сервера с наблюдением за директорией app
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir app
+# Задайте POSTGRES_PASSWORD и AUTH_SECRET_KEY случайными значениями.
+# DATABASE_URL — адрес для инструментов на хосте; пароль в URL percent-encoded.
+docker compose up --build -d
+docker compose ps
 ```
 
-Без шага 6 API работает, а страницы отвечают 503 с подсказкой, как собрать интерфейс.
+Compose запускает PostgreSQL 16, отдельный `migrate` (`alembic upgrade head`) и затем `api`. Один образ содержит Python API и собранный React. Веб-сервис доступен на [http://127.0.0.1:8000/](http://127.0.0.1:8000/), готовность — `/health/ready`, процесс — `/health/live`. На чистой базе интерфейс показывает пустые данные. Миграции создают схему, но не загружают старую SQLite автоматически.
 
-При разработке интерфейса удобнее dev-сервер Vite с горячей перезагрузкой — http://localhost:5173 (запросы `/api` он проксирует на uvicorn :8000):
+Для разработки Python на хосте:
 
 ```bash
-npm --prefix frontend run dev
+python -m venv .venv
+# Активируйте .venv подходящей для вашей ОС командой.
+python -m pip install -r requirements-dev.txt
+docker compose up -d db
+python -m alembic upgrade head
+npm --prefix frontend ci
+npm --prefix frontend run build
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload --reload-dir app
 ```
 
-После старта веб-сервис доступен по адресам:
-* 🌐 **Главная страница (поиск и рейтинги):** [http://localhost:8000/](http://localhost:8000/)
-* 🏆 **Таблица лидеров бега:** [http://localhost:8000/rating-view](http://localhost:8000/rating-view)
-* 📐 **Формула расчёта и нормативы:** [http://localhost:8000/rating-formula](http://localhost:8000/rating-formula)
-* 🛠️ **Панель модерации ИИ-ремонтника:** [http://localhost:8000/agent-review](http://localhost:8000/agent-review)
-* 📄 **Документация OpenAPI / Swagger:** [http://localhost:8000/docs](http://localhost:8000/docs)
+`DATABASE_URL` из `.env` должен указывать на опубликованный `DB_PORT` на хосте. Внутри Compose используется отдельный `COMPOSE_DATABASE_URL` (по умолчанию `db:5432`). Для пароля с символами URL задайте `COMPOSE_DATABASE_URL` явно с percent-encoding. Исходный `DATABASE_URL` не переписывается.
+
+Старые данные переносятся только в пустую целевую базу после применения Alembic; SQLite открывается read-only, импорт сохраняет готовые баллы и места без пересчёта:
+
+```bash
+python -m app.pipeline.import_sqlite /absolute/path/to/running.db
+```
+
+Не запускайте `init_athletes.py` или пересчёт перед сравнением перенесённого рейтинга. Подробности проверки импорта приведены в инструкции этапа 0.
+
+Без сборки React API работает, а страницы возвращают 503. Для разработки интерфейса можно запустить `npm --prefix frontend run dev` (Vite на :5173 проксирует API на :8000).
 
 ### 9.3 Запуск парсеров данных
 
 ```bash
-# Сбор беговых стартов (сохранение в running.db и data/raw/)
+# Сбор беговых стартов (PostgreSQL из DATABASE_URL и raw-кэш)
 python parser_running/run.py --source russiarunning --events 40
 python parser_running/run.py --source timerman --events 20
 python parser_running/run.py --source runc --events 20
@@ -327,17 +319,12 @@ python parse_url.py https://probeg.org/race/129181/
 ### 9.4 Запуск набора автоматических тестов
 
 ```bash
-# Комплексный тест функционала MVP (поиск, UI, API, аналитика)
-python test_mvp.py
-
-# Проверка типов и сборка веб-интерфейса
+python -m pip install -r requirements-dev.txt
+# TEST_POSTGRES_ADMIN_URL — отдельный локальный/CI Postgres, роль с CREATEDB.
+# Тесты сами создают уникальные временные базы; не используйте боевую роль.
+python -m pytest tests/stage0 tests/test_auth.py tests/test_athlete_fields.py tests/test_privacy_and_roles.py tests/test_requests_and_reports.py -q
+npm --prefix frontend ci
 npm --prefix frontend run build
-
-# Тестирование MCP-агента и валидатора данных
-python test_mcp_agent.py
-
-# Тестирование формул расчёта очков и нормативов
-python -m unittest tests/test_scoring.py
-python -m unittest tests/test_scoring_db.py
-python -m unittest tests/test_distance_scoring.py
 ```
+
+GitHub Actions выполняет `tests/stage0` и адаптированные тесты auth, полей спортсмена, ПДн/ролей и заявок на PostgreSQL 16 и отдельно собирает React. Исторические SQLite-тесты не являются проверкой нового Postgres-слоя; соответствующие сценарии перенесены в `tests/stage0`.

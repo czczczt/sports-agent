@@ -44,7 +44,6 @@ def _with_connect_timeout(url: str) -> str:
 
 def _con():
     con = parser_db.connect(_with_connect_timeout(parser_db.database_url()))
-    aq.ensure_schema(con)
     return con
 
 

@@ -1,21 +1,20 @@
-from typing import Optional
+from fastapi import APIRouter, Query
 
-from fastapi import APIRouter, Depends, Query
-
-from app.db import AsyncPGConnection, get_db
-from app.models import RatingPageResponse, RatingFormulaResponse
-from app.services.rating_service import get_rating_page, get_rating_me_row, get_rating_norms
+from app.models import RatingFormulaResponse, RatingPageResponse
+from app.modules.rating.dependencies import RatingServiceDep
 
 router = APIRouter(prefix="/rating", tags=["rating"])
 
 
 @router.get("", response_model=RatingPageResponse)
 async def get_rating_endpoint(
-    gender: Optional[str] = Query(None, description="Пол: M или F (иначе — все)"),
-    search: Optional[str] = Query(None, description="Поиск по ФИО"),
-    athlete_id: Optional[int] = Query(None, description="Спортсмен, которого нужно подсветить («это вы»)"),
+    db: RatingServiceDep,
+    gender: str | None = Query(None, description="Пол: M или F (иначе — все)"),
+    search: str | None = Query(None, description="Поиск по ФИО"),
+    athlete_id: int | None = Query(
+        None, description="Спортсмен, которого нужно подсветить («это вы»)"
+    ),
     limit: int = Query(100, ge=1, le=500),
-    db: AsyncPGConnection = Depends(get_db),
 ):
     """
     Сохранённый рейтинг бегунов за последние 365 дней.
@@ -24,12 +23,10 @@ async def get_rating_endpoint(
     """
     clean_gender = gender if gender in ("M", "F") else None
     clean_search = (search or "").strip() or None
-    page = await get_rating_page(db, gender=clean_gender, search=clean_search, limit=limit)
-    page["me_row"] = await get_rating_me_row(db, athlete_id, clean_gender) if athlete_id else None
-    return page
+    return await db.page(clean_gender, clean_search, limit, athlete_id)
 
 
 @router.get("/formula", response_model=RatingFormulaResponse)
-async def get_rating_formula_endpoint(db: AsyncPGConnection = Depends(get_db)):
+async def get_rating_formula_endpoint(db: RatingServiceDep):
     """Нормативы 2026 года по дистанциям и полу — для страницы «Как посчитано»."""
-    return await get_rating_norms(db)
+    return await db.norms()

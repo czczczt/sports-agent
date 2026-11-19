@@ -1,3 +1,5 @@
+from app.api.auth import CaptainOrAdminDep, CurrentUserDep
+
 """Роутер для заявок и обращений пользователей (SPEC v1.3 §3.2, §8.4).
 
 Типы заявок (kind):
@@ -10,27 +12,34 @@
 - merge_profile: «объединить дубликаты профилей»
 - other: «произвольный вопрос»
 """
+
 import json
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
-from app.db import AsyncPGConnection, get_db
-from app.api.auth import get_current_user, require_captain_or_admin
-from app.models import ReportCreateRequest, ReportDecisionRequest, ReportOut, UserOut
+
+from fastapi import APIRouter, HTTPException, status
+
+from app.models import ReportCreateRequest, ReportDecisionRequest, ReportOut
+from app.modules.reports.dependencies import ReportsServiceDep
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
 
 VALID_KINDS = {
-    "not_me", "add_start", "other_club", "hide_me",
-    "link_me", "data_error", "merge_profile", "other"
+    "not_me",
+    "add_start",
+    "other_club",
+    "hide_me",
+    "link_me",
+    "data_error",
+    "merge_profile",
+    "other",
 }
 
 
 @router.post("", response_model=ReportOut, status_code=status.HTTP_201_CREATED)
 async def create_report(
+    current_user: CurrentUserDep,
+    conn: ReportsServiceDep,
     payload: ReportCreateRequest,
-    conn: AsyncPGConnection = Depends(get_db),
-    current_user: UserOut = Depends(get_current_user),
 ):
     """Создаёт обращение / заявку пользователя (SPEC v1.3 §8.4)."""
     if payload.kind not in VALID_KINDS:
@@ -39,12 +48,7 @@ async def create_report(
             detail=f"Недопустимый тип заявки: {payload.kind}. Допустимые: {', '.join(sorted(VALID_KINDS))}",
         )
 
-    row = await conn.fetchrow(
-        """
-        INSERT INTO report (kind, user_id, athlete_id, result_id, event_id, url, message, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'new')
-        RETURNING id, kind, user_id, athlete_id, result_id, event_id, url, message, status, decided_by, decided_at, moderator_comment, created_at, updated_at
-        """,
+    row = await conn.create(
         payload.kind,
         current_user.id,
         payload.athlete_id,
@@ -54,6 +58,7 @@ async def create_report(
         payload.message,
     )
 
+    await conn.commit()
     return ReportOut(
         id=row["id"],
         kind=row["kind"],
@@ -72,36 +77,20 @@ async def create_report(
     )
 
 
-@router.get("", response_model=List[ReportOut])
+@router.get("", response_model=list[ReportOut])
 async def list_reports(
-    status_filter: Optional[str] = None,
-    conn: AsyncPGConnection = Depends(get_db),
-    current_user: UserOut = Depends(require_captain_or_admin),
+    current_user: CaptainOrAdminDep,
+    conn: ReportsServiceDep,
+    status_filter: str | None = None,
 ):
     """
     Список всех заявок (только для капитанов и администраторов, SPEC v1.3 §8.4, §11).
     Поддерживает фильтр по статусу (new, accepted, rejected, etc.).
     """
     if status_filter:
-        rows = await conn.fetch(
-            """
-            SELECT id, kind, user_id, athlete_id, result_id, event_id, url, message, 
-                   status, decided_by, decided_at, moderator_comment, created_at, updated_at 
-            FROM report 
-            WHERE status = ? 
-            ORDER BY id DESC
-            """,
-            status_filter,
-        )
+        rows = await conn.list_by_status(status_filter)
     else:
-        rows = await conn.fetch(
-            """
-            SELECT id, kind, user_id, athlete_id, result_id, event_id, url, message, 
-                   status, decided_by, decided_at, moderator_comment, created_at, updated_at 
-            FROM report 
-            ORDER BY id DESC
-            """
-        )
+        rows = await conn.list_all()
 
     return [
         ReportOut(
@@ -124,22 +113,13 @@ async def list_reports(
     ]
 
 
-@router.get("/my", response_model=List[ReportOut])
+@router.get("/my", response_model=list[ReportOut])
 async def list_my_reports(
-    conn: AsyncPGConnection = Depends(get_db),
-    current_user: UserOut = Depends(get_current_user),
+    current_user: CurrentUserDep,
+    conn: ReportsServiceDep,
 ):
     """Список обращений текущего авторизованного пользователя."""
-    rows = await conn.fetch(
-        """
-        SELECT id, kind, user_id, athlete_id, result_id, event_id, url, message, 
-               status, decided_by, decided_at, moderator_comment, created_at, updated_at 
-        FROM report 
-        WHERE user_id = ? 
-        ORDER BY id DESC
-        """,
-        current_user.id,
-    )
+    rows = await conn.list_by_user(current_user.id)
     return [
         ReportOut(
             id=r["id"],
@@ -163,10 +143,10 @@ async def list_my_reports(
 
 @router.post("/{report_id}/decision", response_model=ReportOut)
 async def decide_report(
+    current_user: CaptainOrAdminDep,
+    conn: ReportsServiceDep,
     report_id: int,
     payload: ReportDecisionRequest,
-    conn: AsyncPGConnection = Depends(get_db),
-    current_user: UserOut = Depends(require_captain_or_admin),
 ):
     """
     Принятие решения по заявке модератором (админ или капитан, SPEC v1.3 §8.4, §11).
@@ -179,54 +159,40 @@ async def decide_report(
             detail=f"Недопустимое решение: {payload.decision}. Допустимые: {', '.join(sorted(valid_decisions))}",
         )
 
-    report_row = await conn.fetchrow("SELECT * FROM report WHERE id = ?", report_id)
+    report_row = await conn.get_report(report_id)
     if not report_row:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Заявка не найдена")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Заявка не найдена"
+        )
 
     # Обновление заявки
-    updated_row = await conn.fetchrow(
-        """
-        UPDATE report
-        SET status = ?,
-            decided_by = ?,
-            decided_at = NOW(),
-            moderator_comment = ?,
-            updated_at = NOW()
-        WHERE id = ?
-        RETURNING id, kind, user_id, athlete_id, result_id, event_id, url, message, 
-                  status, decided_by, decided_at, moderator_comment, created_at, updated_at
-        """,
-        payload.decision,
-        str(current_user.id),
-        payload.moderator_comment,
-        report_id,
+    updated_row = await conn.update_decision(
+        payload.decision, str(current_user.id), payload.moderator_comment, report_id
     )
 
-    # Применение сайд-эффектов заявки
-    if payload.decision in ("accepted", "resolved"):
-        # Если заявка «скрыть меня» — ставим спортсмену флаг is_hidden = TRUE (SPEC v1.3 §8.4)
-        if report_row["kind"] == "hide_me" and report_row["athlete_id"]:
-            await conn.execute(
-                "UPDATE athlete SET is_hidden = TRUE WHERE id = ?",
-                report_row["athlete_id"],
-            )
+    if (
+        payload.decision in ("accepted", "resolved")
+        and report_row["kind"] == "hide_me"
+        and report_row["athlete_id"]
+    ):
+        await conn.hide_athlete(report_row["athlete_id"])
 
     # Логирование в audit_log
-    await conn.execute(
-        """
-        INSERT INTO audit_log (user_id, action, entity, entity_id, diff)
-        VALUES (?, 'report_decision', 'report', ?, ?)
-        """,
+    await conn.audit_decision(
         current_user.id,
         report_id,
-        json.dumps({
-            "decision": payload.decision,
-            "comment": payload.moderator_comment,
-            "kind": report_row["kind"],
-            "athlete_id": report_row["athlete_id"],
-        }, ensure_ascii=False),
+        json.dumps(
+            {
+                "decision": payload.decision,
+                "comment": payload.moderator_comment,
+                "kind": report_row["kind"],
+                "athlete_id": report_row["athlete_id"],
+            },
+            ensure_ascii=False,
+        ),
     )
 
+    await conn.commit()
     return ReportOut(
         id=updated_row["id"],
         kind=updated_row["kind"],
@@ -238,8 +204,14 @@ async def decide_report(
         message=updated_row["message"],
         status=updated_row["status"],
         decided_by=updated_row["decided_by"],
-        decided_at=str(updated_row["decided_at"]) if updated_row["decided_at"] else None,
+        decided_at=str(updated_row["decided_at"])
+        if updated_row["decided_at"]
+        else None,
         moderator_comment=updated_row["moderator_comment"],
-        created_at=str(updated_row["created_at"]) if updated_row["created_at"] else None,
-        updated_at=str(updated_row["updated_at"]) if updated_row["updated_at"] else None,
+        created_at=str(updated_row["created_at"])
+        if updated_row["created_at"]
+        else None,
+        updated_at=str(updated_row["updated_at"])
+        if updated_row["updated_at"]
+        else None,
     )

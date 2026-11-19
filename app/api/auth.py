@@ -8,29 +8,31 @@
 Пользователи хранятся в таблице PostgreSQL `app_user`, пароли захэшированы через Argon2.
 При блокировке или статусе спортсмена `not_employee` вход в сервис запрещён.
 """
+
 from __future__ import annotations
 
+import asyncio
 import base64
+import binascii
 import hashlib
 import hmac
 import json
-import os
 import secrets
 import time
-from typing import Annotated, Optional
+from typing import Annotated
 
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
+from argon2.exceptions import InvalidHashError, VerificationError
 from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Response, status
 
-from app.config import DATABASE_URL
-from app.db import AsyncPGConnection, get_db
-from app.models import AuthResponse, LoginRequest, UserOut, RegisterRequest
+from app.config import AUTH_SECRET_KEY
+from app.models import AuthResponse, LoginRequest, RegisterRequest, UserOut
+from app.modules.auth.dependencies import AuthServiceDep
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 # Секрет для подписи токенов и время жизни
-SECRET_KEY = os.getenv("AUTH_SECRET_KEY", secrets.token_hex(32)).encode("utf-8")
+SECRET_KEY = (AUTH_SECRET_KEY or secrets.token_hex(32)).encode("utf-8")
 TOKEN_TTL_SECONDS = 7 * 24 * 3600  # 7 дней
 
 # Отозванные токены (после logout)
@@ -47,13 +49,17 @@ def _create_token(username: str, role: str, display_name: str) -> str:
         "exp": int(time.time()) + TOKEN_TTL_SECONDS,
         "nonce": secrets.token_hex(8),
     }
-    payload_raw = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode("utf-8")).decode("utf-8")
-    signature = hmac.new(SECRET_KEY, payload_raw.encode("utf-8"), hashlib.sha256).digest()
+    payload_raw = base64.urlsafe_b64encode(
+        json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    ).decode("utf-8")
+    signature = hmac.new(
+        SECRET_KEY, payload_raw.encode("utf-8"), hashlib.sha256
+    ).digest()
     sig_raw = base64.urlsafe_b64encode(signature).decode("utf-8")
     return f"{payload_raw}.{sig_raw}"
 
 
-def _verify_token_payload(token: str) -> Optional[dict]:
+def _verify_token_payload(token: str) -> dict | None:
     """Проверяет криптографическую подпись и срок действия токена."""
     if not token or token in _REVOKED_TOKENS:
         return None
@@ -63,24 +69,28 @@ def _verify_token_payload(token: str) -> Optional[dict]:
         if len(parts) != 2:
             return None
         payload_raw, sig_raw = parts
-        expected_sig = hmac.new(SECRET_KEY, payload_raw.encode("utf-8"), hashlib.sha256).digest()
+        expected_sig = hmac.new(
+            SECRET_KEY, payload_raw.encode("utf-8"), hashlib.sha256
+        ).digest()
         actual_sig = base64.urlsafe_b64decode(sig_raw.encode("utf-8"))
         if not hmac.compare_digest(expected_sig, actual_sig):
             return None
 
-        data = json.loads(base64.urlsafe_b64decode(payload_raw.encode("utf-8")).decode("utf-8"))
+        data = json.loads(
+            base64.urlsafe_b64decode(payload_raw.encode("utf-8")).decode("utf-8")
+        )
         if data.get("exp", 0) < int(time.time()):
             return None
 
         return data
-    except Exception:
+    except (ValueError, TypeError, KeyError, binascii.Error):
         return None
 
 
 def _extract_token_from_header_or_cookie(
-    authorization: Optional[str] = Header(None),
-    auth_token: Optional[str] = Cookie(None),
-) -> Optional[str]:
+    authorization: str | None = Header(None),
+    auth_token: str | None = Cookie(None),
+) -> str | None:
     """Извлекает токен из заголовка Authorization (Bearer) или куки auth_token."""
     if authorization and authorization.lower().startswith("bearer "):
         return authorization[7:].strip()
@@ -90,9 +100,9 @@ def _extract_token_from_header_or_cookie(
 
 
 async def get_optional_current_user(
-    token: Optional[str] = Depends(_extract_token_from_header_or_cookie),
-    conn: AsyncPGConnection = Depends(get_db),
-) -> Optional[UserOut]:
+    conn: AuthServiceDep,
+    token: str | None = Depends(_extract_token_from_header_or_cookie),
+) -> UserOut | None:
     """Возвращает текущего пользователя или None, если запрошена гостевая сессия."""
     if not token:
         return None
@@ -103,8 +113,8 @@ async def get_optional_current_user(
 
 
 async def get_current_user(
-    token: Optional[str] = Depends(_extract_token_from_header_or_cookie),
-    conn: AsyncPGConnection = Depends(get_db),
+    conn: AuthServiceDep,
+    token: str | None = Depends(_extract_token_from_header_or_cookie),
 ) -> UserOut:
     """Требует авторизованного пользователя, проверяя статус в PostgreSQL (иначе 401/403)."""
     if not token:
@@ -123,10 +133,7 @@ async def get_current_user(
         )
 
     username = payload["sub"]
-    user_row = await conn.fetchrow(
-        "SELECT id, username, role, status, display_name, athlete_id FROM app_user WHERE username = ?",
-        username,
-    )
+    user_row = await conn.user_by_username(username)
     if not user_row:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -143,12 +150,10 @@ async def get_current_user(
 
     # Проверка статуса связанного спортсмена (авто-блок при not_employee)
     if user_row["athlete_id"]:
-        emp_status = await conn.fetchval(
-            "SELECT employee_status FROM athlete WHERE id = ?",
-            user_row["athlete_id"],
-        )
+        emp_status = await conn.athlete_employee_status(user_row["athlete_id"])
         if emp_status == "not_employee":
-            await conn.execute("UPDATE app_user SET status = 'blocked' WHERE id = ?", user_row["id"])
+            await conn.block_user(user_row["id"])
+            await conn.commit()
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Доступ закрыт: статус сотрудника снят (not_employee)",
@@ -165,7 +170,7 @@ async def get_current_user(
 
 
 CurrentUserDep = Annotated[UserOut, Depends(get_current_user)]
-OptionalUserDep = Annotated[Optional[UserOut], Depends(get_optional_current_user)]
+OptionalUserDep = Annotated[UserOut | None, Depends(get_optional_current_user)]
 
 
 async def require_admin(user: CurrentUserDep) -> UserOut:
@@ -193,16 +198,12 @@ AdminDep = Annotated[UserOut, Depends(require_admin)]
 
 @router.post("/login", response_model=AuthResponse)
 async def login(
+    conn: AuthServiceDep,
     credentials: LoginRequest,
     response: Response,
-    conn: AsyncPGConnection = Depends(get_db),
 ) -> AuthResponse:
     """Аутентификация по логину и паролю из базы данных PostgreSQL через Argon2."""
-    user_row = await conn.fetchrow(
-        "SELECT id, username, password_hash, role, status, display_name, athlete_id FROM app_user WHERE username = ? OR email = ?",
-        credentials.username,
-        credentials.username,
-    )
+    user_row = await conn.login_user(credentials.username, credentials.username)
     if not user_row:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -211,8 +212,10 @@ async def login(
         )
 
     try:
-        _HASHER.verify(user_row["password_hash"], credentials.password)
-    except Exception:
+        await asyncio.to_thread(
+            _HASHER.verify, user_row["password_hash"], credentials.password
+        )
+    except (VerificationError, InvalidHashError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Неверный логин или пароль",
@@ -233,12 +236,10 @@ async def login(
 
     # Проверка статуса связанного спортсмена (авто-блок при not_employee)
     if user_row["athlete_id"]:
-        emp_status = await conn.fetchval(
-            "SELECT employee_status FROM athlete WHERE id = ?",
-            user_row["athlete_id"],
-        )
+        emp_status = await conn.login_employee_status(user_row["athlete_id"])
         if emp_status == "not_employee":
-            await conn.execute("UPDATE app_user SET status = 'blocked' WHERE id = ?", user_row["id"])
+            await conn.block_login_user(user_row["id"])
+            await conn.commit()
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Доступ закрыт: статус сотрудника снят (not_employee)",
@@ -269,7 +270,7 @@ async def login(
 @router.post("/logout")
 async def logout(
     response: Response,
-    token: Optional[str] = Depends(_extract_token_from_header_or_cookie),
+    token: str | None = Depends(_extract_token_from_header_or_cookie),
 ) -> dict[str, str]:
     """Выход из системы: отзыв токена и очистка cookie."""
     if token:
@@ -286,46 +287,34 @@ async def me(user: CurrentUserDep) -> UserOut:
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(
+    conn: AuthServiceDep,
     data: RegisterRequest,
-    conn: AsyncPGConnection = Depends(get_db),
 ):
     """
     Подача заявки на регистрацию/доступ (SPEC v1.3 §3.1, §8.6).
     Создаёт запись app_user со статусом 'pending' до подтверждения капитаном или администратором.
     """
     # Проверка уникальности логина и email
-    existing = await conn.fetchrow(
-        "SELECT id FROM app_user WHERE username = ? OR email = ?",
-        data.username,
-        data.email,
-    )
+    existing = await conn.registration_exists(data.username, data.email)
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Пользователь с таким логином или email уже существует",
         )
 
-    pwd_hash = _HASHER.hash(data.password)
+    pwd_hash = await asyncio.to_thread(_HASHER.hash, data.password)
     display_name = f"{data.last_name} {data.first_name}".strip()
 
     parsed_birth_date = None
     if data.birth_date:
         from datetime import date
+
         try:
             parsed_birth_date = date.fromisoformat(data.birth_date)
-        except Exception:
+        except ValueError:
             parsed_birth_date = None
 
-    row = await conn.fetchrow(
-        """
-        INSERT INTO app_user (
-            username, email, password_hash, role, status, display_name,
-            first_name, last_name, middle_name, birth_date, city,
-            consent_at, consent_version
-        )
-        VALUES (?, ?, ?, 'user', 'pending', ?, ?, ?, ?, ?, ?, NOW(), ?)
-        RETURNING id, username, email, role, status, display_name, created_at
-        """,
+    row = await conn.create_registration(
         data.username,
         data.email,
         pwd_hash,
@@ -338,8 +327,12 @@ async def register(
         data.consent_version,
     )
 
+    await conn.commit()
     return {
         "status": "pending",
         "message": "Заявка на доступ успешно подана и ожидает подтверждения капитаном или администратором",
         "user_id": row["id"],
     }
+
+
+CaptainOrAdminDep = Annotated[UserOut, Depends(require_captain_or_admin)]

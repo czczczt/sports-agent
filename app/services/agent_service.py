@@ -1,15 +1,22 @@
 import json
+import logging
 import re
 import uuid
-from typing import Dict, Any, Tuple
-import httpx
-from app.config import (
-    GIGACHAT_CREDENTIALS, GIGACHAT_SCOPE, GIGACHAT_MODEL, GIGACHAT_VERIFY_SSL
-)
-from app.db import AsyncPGConnection
-from app.services.analytics_service import compute_athlete_metrics
-from app.models import AssessmentResponse
+from typing import Any
 
+import httpx
+
+from app.config import (
+    GIGACHAT_CREDENTIALS,
+    GIGACHAT_MODEL,
+    GIGACHAT_SCOPE,
+    GIGACHAT_VERIFY_SSL,
+)
+from app.models import AssessmentResponse
+from app.modules.athletes.web_repository import AthletesWebRepository
+from app.services.analytics_service import compute_athlete_metrics
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """Ты профессиональный спортивный аналитик беговой платформы.
 Твоя задача — составить краткую и объективную аналитическую сводку по результатам спортсмена на основе предоставленных числовых метрик.
@@ -32,16 +39,18 @@ def clean_assessment_text(text: str) -> str:
     """Очищает текст от случайных эмодзи и дублирующихся шаблонных дисклеймеров."""
     if not text:
         return ""
+    # Удаляем нежелательный текст дисклеймера
     text = re.sub(
         r"(?i)\*?Оценка носит справочный характер и предназначена для информирования[^\n]*\*?",
         "",
-        text
+        text,
     )
     text = re.sub(
         r"(?i)\n*---\n*\*?Примечание:?\s*(Данная|Эта)?\s*оценка носит (исключительно )?справочный характер[^\n]*\*?",
         "",
-        text
+        text,
     )
+    # Удаляем любые эмодзи
     text = re.sub(r"[\U00010000-\U0010ffff]|[\u2600-\u27BF]", "", text)
     return text.strip()
 
@@ -52,7 +61,7 @@ async def get_gigachat_token(credentials: str, scope: str, verify_ssl: bool) -> 
     headers = {
         "Authorization": f"Basic {credentials.strip()}",
         "RqUID": str(uuid.uuid4()),
-        "Content-Type": "application/x-www-form-urlencoded"
+        "Content-Type": "application/x-www-form-urlencoded",
     }
     data = {"scope": scope}
 
@@ -63,21 +72,20 @@ async def get_gigachat_token(credentials: str, scope: str, verify_ssl: bool) -> 
         return token_data.get("access_token", "")
 
 
-async def call_gigachat_chat(token: str, model: str, user_content: str, verify_ssl: bool) -> str:
+async def call_gigachat_chat(
+    token: str, model: str, user_content: str, verify_ssl: bool
+) -> str:
     """Вызывает метод chat/completions GigaChat."""
     chat_url = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     payload = {
         "model": model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_content}
+            {"role": "user", "content": user_content},
         ],
         "temperature": 0.3,
-        "max_tokens": 1500
+        "max_tokens": 1500,
     }
 
     async with httpx.AsyncClient(verify=verify_ssl, timeout=30.0) as client:
@@ -90,13 +98,16 @@ async def call_gigachat_chat(token: str, model: str, user_content: str, verify_s
         return "Не удалось сформировать текст ответа от GigaChat."
 
 
-def generate_local_expert_assessment(metrics: Dict[str, Any]) -> str:
+def generate_local_expert_assessment(metrics: dict[str, Any]) -> str:
     """
     Генерирует структурированную экспертную оценку на основе вычисленных бэкендом метрик,
     если токен GigaChat не настроен в .env или сервис недоступен.
     Без эмодзи и строго по формулам.
     """
-    if metrics.get("finishes_count") == 0 or metrics.get("message") == "Недостаточно данных.":
+    if (
+        metrics.get("finishes_count") == 0
+        or metrics.get("message") == "Недостаточно данных."
+    ):
         return "Недостаточно данных."
 
     name = metrics.get("athlete_name", "Спортсмен")
@@ -116,21 +127,27 @@ def generate_local_expert_assessment(metrics: Dict[str, Any]) -> str:
     ]
 
     if starts <= 2:
-        lines.append("*Примечание: выборка стартов пока невелика (начальный соревновательный этап), показатели носят предварительный характер.*")
+        lines.append(
+            "*Примечание: выборка стартов пока невелика (начальный соревновательный этап), показатели носят предварительный характер.*"
+        )
 
     if avg_pct is not None:
         lines.append(
             f"Средний процентиль среди участников: **{avg_pct}%** (в среднем финиширует в топ **{round(100 - avg_pct)}%** протоколов)."
         )
         if best_pct is not None:
-            lines.append(f"Лучший результат относительно пелотона: обгон **{best_pct}%** участников забега.")
+            lines.append(
+                f"Лучший результат относительно пелотона: обгон **{best_pct}%** участников забега."
+            )
     else:
         lines.append("Недостаточно завершенных финишей для расчета процентилей.")
 
     lines.append("\n#### Личные рекорды (PB)")
     if pbs:
         for pb in pbs:
-            lines.append(f"- **{pb['distance_name']}**: {pb['time_formatted']} ({pb['pace_formatted']}) на «{pb['event_title']}»")
+            lines.append(
+                f"- **{pb['distance_name']}**: {pb['time_formatted']} ({pb['pace_formatted']}) на «{pb['event_title']}»"
+            )
     else:
         lines.append("Личные рекорды на зачетных дистанциях пока не зафиксированы.")
 
@@ -143,10 +160,14 @@ def generate_local_expert_assessment(metrics: Dict[str, Any]) -> str:
                 f"Динамика: **{prg['trend']}** ({'+' if prg['improvement_pct'] > 0 else ''}{prg['improvement_pct']}%)."
             )
     else:
-        lines.append("Для анализа прогресса требуется минимум 2 старта на одной и той же дистанции.")
+        lines.append(
+            "Для анализа прогресса требуется минимум 2 старта на одной и той же дистанции."
+        )
 
     lines.append("\n#### Стабильность темпа")
-    lines.append(f"Показатель стабильности: **{stability.get('status', 'не определено')}**.")
+    lines.append(
+        f"Показатель стабильности: **{stability.get('status', 'не определено')}**."
+    )
     if stability.get("description"):
         lines.append(f"{stability['description']}.")
 
@@ -162,26 +183,24 @@ def generate_local_expert_assessment(metrics: Dict[str, Any]) -> str:
         for w in weaknesses:
             lines.append(f"- {w}")
     else:
-        lines.append("- Рекомендуется продолжать тренировочный план и закрепить результаты на целевых дистанциях.")
+        lines.append(
+            "- Рекомендуется продолжать тренировочный план и закрепить результаты на целевых дистанциях."
+        )
 
     return clean_assessment_text("\n".join(lines))
 
 
 async def get_or_generate_assessment(
-    conn: AsyncPGConnection,
-    athlete_id: int
+    conn,
+    athlete_id: int,
+    session_factory,
 ) -> AssessmentResponse:
     """
     Возвращает оценку спортсмена:
     1. Проверяет кэш.
     2. Если в кэше нет — рассчитывает метрики, вызывает GigaChat (или fallback), кэширует результат.
     """
-    # 1. Проверяем кэш
-    cached_row = await conn.fetchrow("""
-        SELECT assessment_text, metrics_json, model
-        FROM athlete_assessment_cache
-        WHERE athlete_id = ?
-    """, athlete_id)
+    cached_row = await conn.cached_assessment(athlete_id)
 
     if cached_row:
         metrics = json.loads(cached_row["metrics_json"])
@@ -192,16 +211,20 @@ async def get_or_generate_assessment(
             assessment_text=cached_row["assessment_text"],
             metrics=metrics,
             model=cached_row["model"],
-            cached=True
+            cached=True,
         )
 
     # 2. Расчет метрик на бэкенде
     metrics = await compute_athlete_metrics(conn, athlete_id)
+    await conn.session.close()
     athlete_name = metrics.get("athlete_name", f"Атлет #{athlete_id}")
     used_model = "local-analytics-engine"
     assessment_text = ""
 
-    if metrics.get("finishes_count") == 0 or metrics.get("message") == "Недостаточно данных.":
+    if (
+        metrics.get("finishes_count") == 0
+        or metrics.get("message") == "Недостаточно данных."
+    ):
         assessment_text = "Недостаточно данных."
         return AssessmentResponse(
             athlete_id=athlete_id,
@@ -209,33 +232,42 @@ async def get_or_generate_assessment(
             assessment_text=assessment_text,
             metrics=metrics,
             model="system-fallback",
-            cached=False
+            cached=False,
         )
 
     # Пробуем GigaChat, если задан GIGACHAT_CREDENTIALS в .env
-    if GIGACHAT_CREDENTIALS and GIGACHAT_CREDENTIALS.strip() and GIGACHAT_CREDENTIALS != "change-me":
+    if (
+        GIGACHAT_CREDENTIALS
+        and GIGACHAT_CREDENTIALS.strip()
+        and GIGACHAT_CREDENTIALS != "change-me"
+    ):
         try:
-            token = await get_gigachat_token(GIGACHAT_CREDENTIALS, GIGACHAT_SCOPE, GIGACHAT_VERIFY_SSL)
-            user_msg = f"Вот числовые метрики спортсмена {athlete_name}:\n" + json.dumps(metrics, ensure_ascii=False, indent=2)
-            assessment_text = await call_gigachat_chat(token, GIGACHAT_MODEL, user_msg, GIGACHAT_VERIFY_SSL)
+            token = await get_gigachat_token(
+                GIGACHAT_CREDENTIALS, GIGACHAT_SCOPE, GIGACHAT_VERIFY_SSL
+            )
+            user_msg = (
+                f"Вот числовые метрики спортсмена {athlete_name}:\n"
+                + json.dumps(metrics, ensure_ascii=False, indent=2)
+            )
+            assessment_text = await call_gigachat_chat(
+                token, GIGACHAT_MODEL, user_msg, GIGACHAT_VERIFY_SSL
+            )
             used_model = f"GigaChat ({GIGACHAT_MODEL})"
-        except Exception as exc:
+        except (httpx.HTTPError, ValueError):
+            logger.warning("GigaChat assessment failed; returning local fallback")
             assessment_text = generate_local_expert_assessment(metrics)
             used_model = "local-analytics-fallback"
     else:
+        # Токен не задан: используем локальную аналитическую генерацию
         assessment_text = generate_local_expert_assessment(metrics)
         used_model = "local-analytics-engine"
 
     # 3. Сохраняем в кэш
     metrics_json = json.dumps(metrics, ensure_ascii=False)
-    await conn.execute("""
-        INSERT INTO athlete_assessment_cache (athlete_id, assessment_text, metrics_json, model)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT (athlete_id) DO UPDATE SET
-            assessment_text = EXCLUDED.assessment_text,
-            metrics_json = EXCLUDED.metrics_json,
-            model = EXCLUDED.model
-    """, athlete_id, assessment_text, metrics_json, used_model)
+    async with session_factory() as session, session.begin():
+        await AthletesWebRepository(session).save_assessment(
+            athlete_id, assessment_text, metrics_json, used_model
+        )
 
     return AssessmentResponse(
         athlete_id=athlete_id,
@@ -243,5 +275,5 @@ async def get_or_generate_assessment(
         assessment_text=assessment_text,
         metrics=metrics,
         model=used_model,
-        cached=False
+        cached=False,
     )

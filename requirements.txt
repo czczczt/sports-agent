@@ -8,3 +8,10 @@ httpx>=0.27.0
 
 # Управление переменными окружения (.env)
 python-dotenv>=1.0.0
+
+SQLAlchemy[asyncio]>=2.0,<2.1
+asyncpg>=0.30,<1
+alembic>=1.14,<2
+psycopg[binary]>=3.2,<4
+pydantic-settings>=2.6,<3
+argon2-cffi>=23.1,<26

@@ -1,20 +1,21 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any, Union
+from typing import Any
+
+from pydantic import BaseModel
 
 
 class AthleteCandidate(BaseModel):
     id: int
     display_name: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    middle_name: Optional[str] = None
-    birth_date: Optional[str] = None
-    birth_year: Optional[int] = None
-    gender: Optional[str] = None
-    city: Optional[str] = None
-    region: Optional[str] = None
-    club: Optional[str] = None
-    employee_status: Optional[str] = "presumed"
+    first_name: str | None = None
+    last_name: str | None = None
+    middle_name: str | None = None
+    birth_date: str | None = None
+    birth_year: int | None = None
+    gender: str | None = None
+    city: str | None = None
+    region: str | None = None
+    club: str | None = None
+    employee_status: str | None = "presumed"
     is_hidden: bool = False
     starts_count: int = 0
     results_count: int = 0
@@ -24,25 +25,25 @@ class AthleteResultItem(BaseModel):
     result_id: int
     event_id: int
     event_title: str
-    event_date: Optional[str] = None
+    event_date: str | None = None
     source_name: str
     race_id: int
     distance_name: str
-    norm_distance: Optional[str] = None
-    distance_m: Optional[int] = None
-    place_abs: Optional[Union[int, str]] = None
-    place_gender: Optional[Union[int, str]] = None
-    total_finishers: Optional[int] = None
-    total_participants: Optional[int] = None
-    chip_time_s: Optional[float] = None
-    gun_time_s: Optional[float] = None
+    norm_distance: str | None = None
+    distance_m: int | None = None
+    place_abs: int | str | None = None
+    place_gender: int | str | None = None
+    total_finishers: int | None = None
+    total_participants: int | None = None
+    chip_time_s: float | None = None
+    gun_time_s: float | None = None
     time_formatted: str
     pace_formatted: str
     status: str
-    bib: Optional[int] = None
-    rating_points: Optional[float] = None
-    rating_reason: Optional[str] = None
-    rating_breakdown: Optional[Dict[str, Any]] = None
+    bib: int | str | None = None
+    rating_points: float | None = None
+    rating_reason: str | None = None
+    rating_breakdown: dict[str, Any] | None = None
 
 
 class PersonalBestItem(BaseModel):
@@ -52,35 +53,35 @@ class PersonalBestItem(BaseModel):
     time_formatted: str
     pace_formatted: str
     event_title: str
-    event_date: Optional[str] = None
+    event_date: str | None = None
 
 
 class RatingPlaceholder(BaseModel):
     status: str = "counted"
     message: str = "Рейтинг за последние 365 дней"
-    points: Optional[float] = None
-    rank: Optional[int] = None
+    points: float | None = None
+    rank: int | None = None
     starts_count: int = 0
-    period_start: Optional[str] = None
-    period_end: Optional[str] = None
+    period_start: str | None = None
+    period_end: str | None = None
 
 
 class DynamicsPoint(BaseModel):
     date: str
     event_title: str
-    norm_distance: Optional[str] = None
+    norm_distance: str | None = None
     distance_name: str
     time_s: float
     time_formatted: str
     pace_formatted: str
-    pace_s_per_km: Optional[float] = None
+    pace_s_per_km: float | None = None
 
 
 class AthleteSummaryResponse(BaseModel):
     athlete: AthleteCandidate
     total_starts: int
-    personal_bests: List[PersonalBestItem]
-    dynamics: List[DynamicsPoint]
+    personal_bests: list[PersonalBestItem]
+    dynamics: list[DynamicsPoint]
     rating: RatingPlaceholder
     has_cached_assessment: bool = False
 
@@ -89,7 +90,7 @@ class AssessmentResponse(BaseModel):
     athlete_id: int
     athlete_name: str
     assessment_text: str
-    metrics: Dict[str, Any]
+    metrics: dict[str, Any]
     model: str
     cached: bool
     disclaimer: str = "Оценка носит исключительно справочный характер."
@@ -98,10 +99,10 @@ class AssessmentResponse(BaseModel):
 class RaceItem(BaseModel):
     id: int
     name_raw: str
-    norm_distance: Optional[str] = None
-    distance_m: Optional[int] = None
-    distance_km_raw: Optional[float] = None
-    total_count: Optional[int] = None
+    norm_distance: str | None = None
+    distance_m: int | None = None
+    distance_km_raw: float | None = None
+    total_count: int | None = None
 
 
 class EventItem(BaseModel):
@@ -109,26 +110,26 @@ class EventItem(BaseModel):
     source_id: int
     source_name: str
     title: str
-    date_begin: Optional[str] = None
-    date_end: Optional[str] = None
-    place: Optional[str] = None
-    address: Optional[str] = None
-    races: List[RaceItem] = []
+    date_begin: str | None = None
+    date_end: str | None = None
+    place: str | None = None
+    address: str | None = None
+    races: list[RaceItem] = []
 
 
 class RaceProtocolItem(BaseModel):
     result_id: int
-    athlete_id: Optional[int] = None
-    bib: Optional[int] = None
+    athlete_id: int | None = None
+    bib: int | str | None = None
     full_name_raw: str
-    gender: Optional[str] = None
-    age: Optional[int] = None
-    birth_year: Optional[int] = None
-    club_raw: Optional[str] = None
-    place_abs: Optional[int] = None
-    place_gender: Optional[int] = None
-    chip_time_s: Optional[float] = None
-    gun_time_s: Optional[float] = None
+    gender: str | None = None
+    age: int | None = None
+    birth_year: int | None = None
+    club_raw: str | None = None
+    place_abs: int | None = None
+    place_gender: int | None = None
+    chip_time_s: float | None = None
+    gun_time_s: float | None = None
     time_formatted: str
     pace_formatted: str
     status: str
@@ -144,27 +145,28 @@ class DistributionBin(BaseModel):
 class CompetitionDistribution(BaseModel):
     race_id: int
     race_name: str
-    norm_distance: Optional[str] = None
-    distance_m: Optional[int] = None
+    norm_distance: str | None = None
+    distance_m: int | None = None
     total_finishers: int
     min_time_s: float
     max_time_s: float
     median_time_s: float
     p25_time_s: float
     p75_time_s: float
-    distribution_bins: List[DistributionBin]
-    athlete_result: Optional[Dict[str, Any]] = None
+    distribution_bins: list[DistributionBin]
+    athlete_result: dict[str, Any] | None = None
 
 
 # ---------- Ответы для страниц React-интерфейса (frontend/) ----------
 
+
 class UserOut(BaseModel):
-    id: Optional[int] = None
+    id: int | None = None
     username: str
     role: str  # "user" | "admin" | "captain"
-    status: Optional[str] = "active"
+    status: str | None = "active"
     display_name: str
-    athlete_id: Optional[int] = None
+    athlete_id: int | None = None
 
 
 class LoginRequest(BaseModel):
@@ -182,19 +184,19 @@ class RatingRow(BaseModel):
     rank: int
     athlete_id: int
     display_name: str
-    birth_year: Optional[int] = None
-    gender: Optional[str] = None
+    birth_year: int | None = None
+    gender: str | None = None
     points: float
-    best_points: Optional[float] = None
+    best_points: float | None = None
     starts_count: int = 0
 
 
 class RatingPageResponse(BaseModel):
-    period_start: Optional[str] = None
-    period_end: Optional[str] = None
-    rows: List[RatingRow]
+    period_start: str | None = None
+    period_end: str | None = None
+    rows: list[RatingRow]
     total: int
-    me_row: Optional[RatingRow] = None
+    me_row: RatingRow | None = None
 
 
 class RatingNorm(BaseModel):
@@ -206,17 +208,17 @@ class RatingNorm(BaseModel):
 
 class RatingFormulaResponse(BaseModel):
     year: int
-    norms: List[RatingNorm]
-    period_start: Optional[str] = None
-    period_end: Optional[str] = None
+    norms: list[RatingNorm]
+    period_start: str | None = None
+    period_end: str | None = None
 
 
 class RaceInfo(BaseModel):
     id: int
     event_id: int
     name_raw: str
-    norm_distance: Optional[str] = None
-    distance_m: Optional[int] = None
+    norm_distance: str | None = None
+    distance_m: int | None = None
 
 
 class RaceRatingLeader(BaseModel):
@@ -226,49 +228,49 @@ class RaceRatingLeader(BaseModel):
     rating_rank: int
     rating_points: float
     rating_starts: int
-    place_abs: Optional[int] = None
-    chip_time_s: Optional[float] = None
-    gun_time_s: Optional[float] = None
+    place_abs: int | None = None
+    chip_time_s: float | None = None
+    gun_time_s: float | None = None
 
 
 class RacePageResponse(BaseModel):
     race: RaceInfo
-    event: Optional[EventItem] = None
-    results: List[RaceProtocolItem]
-    pinned_athlete_result: Optional[RaceProtocolItem] = None
-    competition: Optional[CompetitionDistribution] = None
-    rating_leaders: List[RaceRatingLeader] = []
+    event: EventItem | None = None
+    results: list[RaceProtocolItem]
+    pinned_athlete_result: RaceProtocolItem | None = None
+    competition: CompetitionDistribution | None = None
+    rating_leaders: list[RaceRatingLeader] = []
 
 
 class ReportCreateRequest(BaseModel):
     kind: str  # not_me, add_start, other_club, hide_me, link_me, data_error, merge_profile, other
-    athlete_id: Optional[int] = None
-    result_id: Optional[int] = None
-    event_id: Optional[int] = None
-    url: Optional[str] = None
+    athlete_id: int | None = None
+    result_id: int | None = None
+    event_id: int | None = None
+    url: str | None = None
     message: str
 
 
 class ReportDecisionRequest(BaseModel):
     decision: str  # "accepted" | "resolved" | "rejected"
-    moderator_comment: Optional[str] = None
+    moderator_comment: str | None = None
 
 
 class ReportOut(BaseModel):
     id: int
     kind: str
-    user_id: Optional[int] = None
-    athlete_id: Optional[int] = None
-    result_id: Optional[int] = None
-    event_id: Optional[int] = None
-    url: Optional[str] = None
-    message: Optional[str] = None
+    user_id: int | None = None
+    athlete_id: int | None = None
+    result_id: int | None = None
+    event_id: int | None = None
+    url: str | None = None
+    message: str | None = None
     status: str
-    decided_by: Optional[str] = None
-    decided_at: Optional[str] = None
-    moderator_comment: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    decided_by: str | None = None
+    decided_at: str | None = None
+    moderator_comment: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
 
 
 class RegisterRequest(BaseModel):
@@ -277,32 +279,31 @@ class RegisterRequest(BaseModel):
     password: str
     first_name: str
     last_name: str
-    middle_name: Optional[str] = None
-    birth_date: Optional[str] = None  # ГГГГ-ММ-ДД
-    city: Optional[str] = None
+    middle_name: str | None = None
+    birth_date: str | None = None  # ГГГГ-ММ-ДД
+    city: str | None = None
     consent: bool = True
-    consent_version: Optional[str] = "v1.0"
+    consent_version: str | None = "v1.0"
 
 
 class AccessRequestOut(BaseModel):
     id: int
     username: str
-    email: Optional[str] = None
+    email: str | None = None
     role: str
     status: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    middle_name: Optional[str] = None
-    birth_date: Optional[str] = None
-    city: Optional[str] = None
-    athlete_id: Optional[int] = None
-    candidate_athlete_id: Optional[int] = None
-    candidate_athlete_name: Optional[str] = None
-    created_at: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    middle_name: str | None = None
+    birth_date: str | None = None
+    city: str | None = None
+    athlete_id: int | None = None
+    candidate_athlete_id: int | None = None
+    candidate_athlete_name: str | None = None
+    created_at: str | None = None
 
 
 class AccessRequestDecision(BaseModel):
     decision: str  # "approve" | "reject"
-    athlete_id: Optional[int] = None
-    comment: Optional[str] = None
-
+    athlete_id: int | None = None
+    comment: str | None = None

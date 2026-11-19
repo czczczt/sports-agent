@@ -49,9 +49,10 @@ export interface AthleteResultItem {
   time_formatted: string;
   pace_formatted: string;
   status: string;
-  bib?: number | null;
+  bib?: number | string | null;
   rating_points?: number | null;
   rating_reason?: string | null;
+  rating_breakdown?: Record<string, unknown> | null;
 }
 
 export interface PersonalBestItem {
@@ -128,7 +129,7 @@ export interface EventItem {
 export interface RaceProtocolItem {
   result_id: number;
   athlete_id?: number | null;
-  bib?: number | null;
+  bib?: number | string | null;
   full_name_raw: string;
   gender?: string | null;
   age?: number | null;
@@ -140,7 +141,7 @@ export interface RaceProtocolItem {
   gun_time_s?: number | null;
   time_formatted: string;
   pace_formatted: string;
-  status: string;
+  status: string | null;
 }
 
 export interface DistributionBin {

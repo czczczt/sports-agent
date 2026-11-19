@@ -15,7 +15,10 @@ import re
 from pathlib import Path
 
 import psycopg
-from distance_classification import DDL as CLASSIFICATION_DDL
+try:
+    from .distance_classification import DDL as CLASSIFICATION_DDL
+except ImportError:  # direct CLI execution
+    from distance_classification import DDL as CLASSIFICATION_DDL
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(__file__).parent / "data"   # отчёты и кеш ответов площадок (data/raw), в git не попадает
@@ -170,22 +173,26 @@ CREATE TABLE IF NOT EXISTS agent_run (
 DDL += CLASSIFICATION_DDL
 
 
+def _sync_url(url: str) -> str:
+    if url.startswith("postgresql+asyncpg://"):
+        return "postgresql://" + url.removeprefix("postgresql+asyncpg://")
+    return url
+
+
 def database_url() -> str:
     """DATABASE_URL из окружения, иначе из .env в корне репозитория."""
     if url := os.environ.get("DATABASE_URL"):
-        return url
+        return _sync_url(url)
     env = ROOT / ".env"
     if env.exists():
         for line in env.read_text(encoding="utf-8").splitlines():
             if line.startswith("DATABASE_URL="):
-                return line.split("=", 1)[1].strip()
+                return _sync_url(line.split("=", 1)[1].strip())
     raise RuntimeError("Нет DATABASE_URL: скопируйте .env.example в .env и запустите `docker compose up -d db`")
 
 
 def connect(url: str | None = None) -> psycopg.Connection:
-    con = psycopg.connect(url or database_url())
-    con.execute(DDL)
-    con.commit()
+    con = psycopg.connect(_sync_url(url or database_url()))
     return con
 
 
