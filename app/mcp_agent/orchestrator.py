@@ -5,11 +5,10 @@
 3. Если тесты падают -> автоматически логирует issue и запускает fallback-парсинг через MCP.
 """
 import hashlib
-import sqlite3
 import logging
 from typing import Dict, Any, List, Optional
 from app.db import get_db_connection
-from app.mcp_agent.validator import validate_protocol_data, ValidationReport
+from app.mcp_agent.validator import validate_protocol_data
 from app.mcp_agent.mcp_client import MCPAgentClientStub
 
 logger = logging.getLogger("mcp_agent")
@@ -70,7 +69,7 @@ def sync_postgres_issue(source_id: Optional[int], stage: str, kind: str, object_
 
 
 def report_quality_issue(
-    conn: sqlite3.Connection,
+    conn: Any,
     source_id: Optional[int],
     stage: str,
     kind: str,

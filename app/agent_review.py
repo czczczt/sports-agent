@@ -27,6 +27,9 @@ if str(PARSER_DIR) not in sys.path:
 import agent_queue as aq          # noqa: E402  (модули парсера: путь добавлен выше)
 import db as parser_db            # noqa: E402
 
+import psycopg
+from app.config import DATABASE_URL, normalize_postgres_url
+
 router = APIRouter(prefix="/api/agent-review", tags=["agent-review"])
 STATUSES = ["proposed", "approved", "rejected", "resolved", "known", "new", "all"]
 
@@ -43,8 +46,8 @@ def _with_connect_timeout(url: str) -> str:
 
 
 def _con():
-    con = parser_db.connect(_with_connect_timeout(parser_db.database_url()))
-    return con
+    url = _with_connect_timeout(normalize_postgres_url(DATABASE_URL))
+    return psycopg.connect(url)
 
 
 class DecisionIn(BaseModel):

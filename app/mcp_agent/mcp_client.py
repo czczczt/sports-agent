@@ -6,7 +6,6 @@
 - inspect_network_traffic: поиск скрытых JSON API в сетевых запросах страницы.
 """
 import os
-import json
 import logging
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass

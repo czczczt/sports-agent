@@ -1,4 +1,3 @@
-import pytest
 from app.modules.rating.calculator import _calculate_score
 
 
