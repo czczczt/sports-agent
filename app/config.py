@@ -31,6 +31,16 @@ class Settings(BaseSettings):
     gigachat_model: str = "GigaChat"
     gigachat_verify_ssl: bool = True
 
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = Field(default="", repr=False)
+    smtp_from: str = "noreply@sbersport.local"
+    smtp_use_tls: bool = True
+    max_login_attempts: int = 5
+    lockout_minutes: int = 15
+    frontend_base_url: str = "http://127.0.0.1:8000"
+
     @field_validator("database_url")
     @classmethod
     def postgres_only(cls, value: str) -> str:
@@ -46,3 +56,12 @@ GIGACHAT_CREDENTIALS = settings.gigachat_credentials
 GIGACHAT_SCOPE = settings.gigachat_scope
 GIGACHAT_MODEL = settings.gigachat_model
 GIGACHAT_VERIFY_SSL = settings.gigachat_verify_ssl
+SMTP_HOST = settings.smtp_host
+SMTP_PORT = settings.smtp_port
+SMTP_USER = settings.smtp_user
+SMTP_PASSWORD = settings.smtp_password
+SMTP_FROM = settings.smtp_from
+SMTP_USE_TLS = settings.smtp_use_tls
+MAX_LOGIN_ATTEMPTS = settings.max_login_attempts
+LOCKOUT_MINUTES = settings.lockout_minutes
+FRONTEND_BASE_URL = settings.frontend_base_url

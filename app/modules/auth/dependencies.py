@@ -1,8 +1,7 @@
 from typing import Annotated
 
-from fastapi import Depends
-
 from app.core.postgres import SessionDep
+from fastapi import Depends
 
 from .repository import AuthRepository
 from .service import AuthService

@@ -90,3 +90,78 @@ def test_blocked_account_login(client, imported_url):
         ).status_code
         == 403
     )
+
+
+def test_login_failed_attempts_lockout(client):
+    for _ in range(4):
+        resp = client.post(
+            "/api/auth/login", json={"username": "user", "password": "wrong_pwd"}
+        )
+        assert resp.status_code == 401, resp.text
+
+    resp = client.post(
+        "/api/auth/login", json={"username": "user", "password": "wrong_pwd"}
+    )
+    assert resp.status_code == 403
+    assert "заблокирована" in resp.json()["detail"].lower()
+
+    resp_correct = client.post(
+        "/api/auth/login", json={"username": "user", "password": "user"}
+    )
+    assert resp_correct.status_code == 403
+
+
+def test_registration_consent_required(client):
+    payload_no_consent = {
+        "username": "no_consent_user",
+        "email": "noconsent@example.test",
+        "password": "secret_password_123",
+        "first_name": "Иван",
+        "last_name": "Тестов",
+        "consent": False,
+    }
+    resp = client.post("/api/auth/register", json=payload_no_consent)
+    assert resp.status_code == 422
+
+    del payload_no_consent["consent"]
+    resp2 = client.post("/api/auth/register", json=payload_no_consent)
+    assert resp2.status_code == 422
+
+
+def test_password_reset_flow(client):
+    from app.core.email import SENT_EMAILS
+
+    SENT_EMAILS.clear()
+
+    req_resp = client.post(
+        "/api/auth/password-reset-request", json={"email": "user@example.test"}
+    )
+    assert req_resp.status_code == 200
+    assert len(SENT_EMAILS) == 1
+    token = SENT_EMAILS[0]["token"]
+    assert token
+
+    confirm_resp = client.post(
+        "/api/auth/password-reset",
+        json={"token": token, "new_password": "brand_new_password_456"},
+    )
+    assert confirm_resp.status_code == 200
+
+    assert (
+        client.post(
+            "/api/auth/login", json={"username": "user", "password": "user"}
+        ).status_code
+        == 401
+    )
+
+    login_resp = client.post(
+        "/api/auth/login",
+        json={"username": "user", "password": "brand_new_password_456"},
+    )
+    assert login_resp.status_code == 200
+
+    reuse_resp = client.post(
+        "/api/auth/password-reset",
+        json={"token": token, "new_password": "another_new_password_789"},
+    )
+    assert reuse_resp.status_code == 400

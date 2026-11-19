@@ -1,14 +1,18 @@
-// Все обращения интерфейса к бэкенду — в одном месте. Новый экран добавляет сюда свою функцию.
 import { api } from './client';
 import type {
   AgentApplyResult, AgentReviewPage, Assessment, AthleteCandidate, AthleteResultItem, AthleteSummary,
-  AuthResponse, EventItem, LoginRequest, RacePage, RatingFormula, RatingPage, User,
+  AuthResponse, EventItem, LoginRequest, PasswordResetConfirm, PasswordResetRequest, RacePage, RatingFormula, RatingPage, RegisterRequest, RegisterResponse, User,
 } from './types';
 
 export const authApi = {
   login: (body: LoginRequest) => api.post<AuthResponse>('/api/auth/login', body),
   logout: () => api.post<{ status: string }>('/api/auth/logout'),
   me: (signal?: AbortSignal) => api.get<User>('/api/auth/me', undefined, signal),
+  register: (body: RegisterRequest) => api.post<RegisterResponse>('/api/auth/register', body),
+  passwordResetRequest: (body: PasswordResetRequest) =>
+    api.post<{ status: string; message: string }>('/api/auth/password-reset-request', body),
+  passwordReset: (body: PasswordResetConfirm) =>
+    api.post<{ status: string; message: string }>('/api/auth/password-reset', body),
 };
 
 export const athletesApi = {

@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 
 class AthleteCandidate(BaseModel):
@@ -157,9 +157,6 @@ class CompetitionDistribution(BaseModel):
     athlete_result: dict[str, Any] | None = None
 
 
-# ---------- Ответы для страниц React-интерфейса (frontend/) ----------
-
-
 class UserOut(BaseModel):
     id: int | None = None
     username: str
@@ -274,16 +271,36 @@ class ReportOut(BaseModel):
 
 
 class RegisterRequest(BaseModel):
-    username: str
-    email: str
-    password: str
-    first_name: str
-    last_name: str
+    username: str = Field(min_length=3, max_length=100)
+    email: str = Field(min_length=3, max_length=255)
+    password: str = Field(min_length=6)
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
     middle_name: str | None = None
-    birth_date: str | None = None  # ГГГГ-ММ-ДД
+    birth_date: str | None = None
     city: str | None = None
-    consent: bool = True
+    consent: bool = Field(
+        ..., description="Согласие на обработку персональных данных (обязательно True)"
+    )
     consent_version: str | None = "v1.0"
+
+    @field_validator("consent")
+    @classmethod
+    def validate_consent(cls, v: bool) -> bool:
+        if not v:
+            raise ValueError(
+                "Регистрация без согласия на обработку персональных данных отклоняется"
+            )
+        return v
+
+
+class PasswordResetRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=255)
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str = Field(min_length=10)
+    new_password: str = Field(min_length=6)
 
 
 class AccessRequestOut(BaseModel):

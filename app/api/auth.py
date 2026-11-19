@@ -1,14 +1,3 @@
-"""Модуль аутентификации и авторизации на PostgreSQL и Argon2 (SPEC v1.3).
-
-Поддерживает роли:
-- user (сотрудник)
-- captain (капитан вида спорта)
-- admin (администратор)
-
-Пользователи хранятся в таблице PostgreSQL `app_user`, пароли захэшированы через Argon2.
-При блокировке или статусе спортсмена `not_employee` вход в сервис запрещён.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -19,29 +8,40 @@ import hmac
 import json
 import secrets
 import time
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
+from app.config import (
+    AUTH_SECRET_KEY,
+    LOCKOUT_MINUTES,
+    MAX_LOGIN_ATTEMPTS,
+)
+from app.core.email import send_password_reset_email
+from app.models import (
+    AuthResponse,
+    LoginRequest,
+    PasswordResetConfirm,
+    PasswordResetRequest,
+    RegisterRequest,
+    UserOut,
+)
+from app.modules.auth.dependencies import AuthServiceDep
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Response, status
 
-from app.config import AUTH_SECRET_KEY
-from app.models import AuthResponse, LoginRequest, RegisterRequest, UserOut
-from app.modules.auth.dependencies import AuthServiceDep
-
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# Секрет для подписи токенов и время жизни
 SECRET_KEY = (AUTH_SECRET_KEY or secrets.token_hex(32)).encode("utf-8")
-TOKEN_TTL_SECONDS = 7 * 24 * 3600  # 7 дней
-
-# Отозванные токены (после logout)
-_REVOKED_TOKENS: set[str] = set()
+TOKEN_TTL_SECONDS = 7 * 24 * 3600
 _HASHER = PasswordHasher()
 
 
+def _token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
 def _create_token(username: str, role: str, display_name: str) -> str:
-    """Создаёт подписанный токен доступа (HMAC-SHA256)."""
     payload = {
         "sub": username,
         "role": role,
@@ -60,8 +60,7 @@ def _create_token(username: str, role: str, display_name: str) -> str:
 
 
 def _verify_token_payload(token: str) -> dict | None:
-    """Проверяет криптографическую подпись и срок действия токена."""
-    if not token or token in _REVOKED_TOKENS:
+    if not token:
         return None
 
     try:
@@ -91,7 +90,6 @@ def _extract_token_from_header_or_cookie(
     authorization: str | None = Header(None),
     auth_token: str | None = Cookie(None),
 ) -> str | None:
-    """Извлекает токен из заголовка Authorization (Bearer) или куки auth_token."""
     if authorization and authorization.lower().startswith("bearer "):
         return authorization[7:].strip()
     if auth_token:
@@ -103,7 +101,6 @@ async def get_optional_current_user(
     conn: AuthServiceDep,
     token: str | None = Depends(_extract_token_from_header_or_cookie),
 ) -> UserOut | None:
-    """Возвращает текущего пользователя или None, если запрошена гостевая сессия."""
     if not token:
         return None
     try:
@@ -116,7 +113,6 @@ async def get_current_user(
     conn: AuthServiceDep,
     token: str | None = Depends(_extract_token_from_header_or_cookie),
 ) -> UserOut:
-    """Требует авторизованного пользователя, проверяя статус в PostgreSQL (иначе 401/403)."""
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -132,6 +128,13 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    if await conn.is_token_revoked(_token_hash(token)):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Сессия завершена (токен отозван)",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     username = payload["sub"]
     user_row = await conn.user_by_username(username)
     if not user_row:
@@ -141,18 +144,22 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Проверка статуса учетной записи
     if user_row["status"] != "active":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Доступ закрыт: учётная запись заблокирована или ожидает подтверждения",
         )
 
-    # Проверка статуса связанного спортсмена (авто-блок при not_employee)
     if user_row["athlete_id"]:
         emp_status = await conn.athlete_employee_status(user_row["athlete_id"])
         if emp_status == "not_employee":
             await conn.block_user(user_row["id"])
+            await conn.log_audit(
+                user_id=user_row["id"],
+                action="auto_block_not_employee",
+                entity="app_user",
+                entity_id=user_row["id"],
+            )
             await conn.commit()
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -174,7 +181,6 @@ OptionalUserDep = Annotated[UserOut | None, Depends(get_optional_current_user)]
 
 
 async def require_admin(user: CurrentUserDep) -> UserOut:
-    """Требует роль администратора, иначе 403."""
     if user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -184,7 +190,6 @@ async def require_admin(user: CurrentUserDep) -> UserOut:
 
 
 async def require_captain_or_admin(user: CurrentUserDep) -> UserOut:
-    """Требует роль капитана или администратора, иначе 403."""
     if user.role not in ("captain", "admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -194,6 +199,7 @@ async def require_captain_or_admin(user: CurrentUserDep) -> UserOut:
 
 
 AdminDep = Annotated[UserOut, Depends(require_admin)]
+CaptainOrAdminDep = Annotated[UserOut, Depends(require_captain_or_admin)]
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -202,7 +208,6 @@ async def login(
     credentials: LoginRequest,
     response: Response,
 ) -> AuthResponse:
-    """Аутентификация по логину и паролю из базы данных PostgreSQL через Argon2."""
     user_row = await conn.login_user(credentials.username, credentials.username)
     if not user_row:
         raise HTTPException(
@@ -211,18 +216,39 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    now_utc = datetime.now(UTC)
+    if user_row["locked_until"] and user_row["locked_until"] > now_utc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Учётная запись временно заблокирована из-за частых неудачных попыток входа. Попробуйте позже.",
+        )
+
     try:
         await asyncio.to_thread(
             _HASHER.verify, user_row["password_hash"], credentials.password
         )
     except (VerificationError, InvalidHashError):
+        updated = await conn.record_failed_login(
+            user_row["id"],
+            max_attempts=MAX_LOGIN_ATTEMPTS,
+            lockout_minutes=LOCKOUT_MINUTES,
+        )
+        await conn.commit()
+        if updated and updated["locked_until"] and updated["locked_until"] > now_utc:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Превышено число попыток входа ({MAX_LOGIN_ATTEMPTS}). Доступ временно заблокирован на {LOCKOUT_MINUTES} минут.",
+            )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Неверный логин или пароль",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Проверка статуса пользователя
+    if (user_row["failed_logins"] or 0) > 0 or user_row["locked_until"]:
+        await conn.reset_failed_logins(user_row["id"])
+        await conn.commit()
+
     if user_row["status"] == "pending":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -234,11 +260,16 @@ async def login(
             detail="Доступ закрыт: учётная запись заблокирована",
         )
 
-    # Проверка статуса связанного спортсмена (авто-блок при not_employee)
     if user_row["athlete_id"]:
         emp_status = await conn.login_employee_status(user_row["athlete_id"])
         if emp_status == "not_employee":
             await conn.block_login_user(user_row["id"])
+            await conn.log_audit(
+                user_id=user_row["id"],
+                action="auto_block_not_employee",
+                entity="app_user",
+                entity_id=user_row["id"],
+            )
             await conn.commit()
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -255,7 +286,6 @@ async def login(
     )
     token = _create_token(user.username, user.role, user.display_name)
 
-    # Устанавливаем куку
     response.set_cookie(
         key="auth_token",
         value=token,
@@ -269,19 +299,23 @@ async def login(
 
 @router.post("/logout")
 async def logout(
+    conn: AuthServiceDep,
     response: Response,
     token: str | None = Depends(_extract_token_from_header_or_cookie),
 ) -> dict[str, str]:
-    """Выход из системы: отзыв токена и очистка cookie."""
     if token:
-        _REVOKED_TOKENS.add(token)
+        payload = _verify_token_payload(token)
+        exp_ts = payload.get("exp") if payload else int(time.time()) + TOKEN_TTL_SECONDS
+        exp_dt = datetime.fromtimestamp(exp_ts, tz=UTC)
+        await conn.revoke_token(_token_hash(token), exp_dt)
+        await conn.commit()
+
     response.delete_cookie(key="auth_token")
     return {"status": "ok"}
 
 
 @router.get("/me", response_model=UserOut)
 async def me(user: CurrentUserDep) -> UserOut:
-    """Возвращает профиль текущего авторизованного пользователя."""
     return user
 
 
@@ -290,11 +324,6 @@ async def register(
     conn: AuthServiceDep,
     data: RegisterRequest,
 ):
-    """
-    Подача заявки на регистрацию/доступ (SPEC v1.3 §3.1, §8.6).
-    Создаёт запись app_user со статусом 'pending' до подтверждения капитаном или администратором.
-    """
-    # Проверка уникальности логина и email
     existing = await conn.registration_exists(data.username, data.email)
     if existing:
         raise HTTPException(
@@ -327,7 +356,23 @@ async def register(
         data.consent_version,
     )
 
+    await conn.log_audit(
+        user_id=row["id"],
+        action="registration_request",
+        entity="app_user",
+        entity_id=row["id"],
+        diff=json.dumps(
+            {
+                "username": data.username,
+                "email": data.email,
+                "city": data.city,
+                "consent_version": data.consent_version,
+            },
+            ensure_ascii=False,
+        ),
+    )
     await conn.commit()
+
     return {
         "status": "pending",
         "message": "Заявка на доступ успешно подана и ожидает подтверждения капитаном или администратором",
@@ -335,4 +380,57 @@ async def register(
     }
 
 
-CaptainOrAdminDep = Annotated[UserOut, Depends(require_captain_or_admin)]
+@router.post("/password-reset-request")
+async def request_password_reset(
+    conn: AuthServiceDep,
+    body: PasswordResetRequest,
+):
+    user_row = await conn.user_by_email(body.email)
+    if user_row and user_row["status"] == "active":
+        raw_token = secrets.token_urlsafe(32)
+        thash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+        expires_at = datetime.now(UTC) + timedelta(hours=1)
+        await conn.create_password_reset_token(user_row["id"], thash, expires_at)
+        await conn.log_audit(
+            user_id=user_row["id"],
+            action="password_reset_request",
+            entity="app_user",
+            entity_id=user_row["id"],
+        )
+        await conn.commit()
+        await send_password_reset_email(body.email, raw_token)
+
+    return {
+        "status": "ok",
+        "message": "Если указанный адрес зарегистрирован, ссылка для сброса пароля отправлена на почту",
+    }
+
+
+@router.post("/password-reset")
+async def confirm_password_reset(
+    conn: AuthServiceDep,
+    body: PasswordResetConfirm,
+):
+    thash = hashlib.sha256(body.token.encode("utf-8")).hexdigest()
+    reset_row = await conn.get_valid_reset_token(thash)
+    if not reset_row:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Недействительный или истёкший токен сброса пароля",
+        )
+
+    new_hash = await asyncio.to_thread(_HASHER.hash, body.new_password)
+    await conn.update_user_password(reset_row["user_id"], new_hash)
+    await conn.mark_reset_token_used(reset_row["id"])
+    await conn.log_audit(
+        user_id=reset_row["user_id"],
+        action="password_reset_confirm",
+        entity="app_user",
+        entity_id=reset_row["user_id"],
+    )
+    await conn.commit()
+
+    return {
+        "status": "ok",
+        "message": "Пароль успешно изменён. Теперь вы можете войти в систему с новым паролем.",
+    }

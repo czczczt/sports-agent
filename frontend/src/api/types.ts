@@ -1,15 +1,43 @@
-// Типы ответов API. Повторяют pydantic-модели из app/models.py —
-// при изменении модели на бэкенде обновите и этот файл.
-
 export interface User {
+  id?: number;
   username: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'captain' | 'admin';
+  status?: string;
   display_name: string;
+  athlete_id?: number | null;
 }
 
 export interface LoginRequest {
   username: string;
   password: string;
+}
+
+export interface RegisterRequest {
+  username: string;
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  middle_name?: string | null;
+  birth_date?: string | null;
+  city?: string | null;
+  consent: boolean;
+  consent_version?: string;
+}
+
+export interface RegisterResponse {
+  status: string;
+  message: string;
+  user_id: number;
+}
+
+export interface PasswordResetRequest {
+  email: string;
+}
+
+export interface PasswordResetConfirm {
+  token: string;
+  new_password: string;
 }
 
 export interface AuthResponse {
@@ -153,7 +181,6 @@ export interface DistributionBin {
 
 export interface CompetitionAthleteResult {
   time_s?: number | null;
-  /** Место или статус (DNF/DNS/DSQ), если спортсмен не финишировал. */
   place_abs?: number | string | null;
   top_percent?: number | null;
   time_formatted?: string;
@@ -234,8 +261,6 @@ export interface RatingFormula {
   period_start?: string | null;
   period_end?: string | null;
 }
-
-// ---------- Правки агента (app/agent_review.py, parser_running/agent_queue.py) ----------
 
 export interface AgentRun {
   run_id: number;
