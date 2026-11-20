@@ -1,6 +1,7 @@
+from fastapi import APIRouter, HTTPException, Query
+
 from app.models import CompetitionDistribution, RacePageResponse, RaceProtocolItem
 from app.modules.events.dependencies import EventServiceDep
-from fastapi import APIRouter, HTTPException, Query
 
 router = APIRouter(prefix="/races", tags=["races"])
 

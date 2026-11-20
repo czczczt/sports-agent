@@ -1,5 +1,3 @@
-from app.api.auth import CaptainOrAdminDep, CurrentUserDep
-
 """Роутер для заявок и обращений пользователей (SPEC v1.3 §3.2, §8.4).
 
 Типы заявок (kind):
@@ -17,6 +15,7 @@ import json
 
 from fastapi import APIRouter, HTTPException, status
 
+from app.api.auth import CaptainOrAdminDep, CurrentUserDep
 from app.models import ReportCreateRequest, ReportDecisionRequest, ReportOut
 from app.modules.reports.dependencies import ReportsServiceDep
 

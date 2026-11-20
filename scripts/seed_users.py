@@ -1,6 +1,7 @@
 import psycopg
-from app.config import DATABASE_URL
 from argon2 import PasswordHasher
+
+from app.config import DATABASE_URL
 
 hasher = PasswordHasher(time_cost=1, memory_cost=1024, parallelism=1)
 

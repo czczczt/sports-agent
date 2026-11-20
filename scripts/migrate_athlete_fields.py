@@ -8,6 +8,7 @@
 3. Создаёт таблицу report (заявки пользователей: not_me, add_start, hide_me и др.).
 """
 import os
+
 import psycopg
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/sports_agent")
@@ -18,7 +19,7 @@ def run_migration():
         with conn.cursor() as cur:
             print("1. Adding columns to athlete table...")
             cur.execute("""
-                ALTER TABLE athlete 
+                ALTER TABLE athlete
                 ADD COLUMN IF NOT EXISTS first_name TEXT,
                 ADD COLUMN IF NOT EXISTS last_name TEXT,
                 ADD COLUMN IF NOT EXISTS middle_name TEXT,
@@ -30,7 +31,7 @@ def run_migration():
             print("2. Populating first_name, last_name, middle_name from display_name...")
             cur.execute("""
                 UPDATE athlete
-                SET 
+                SET
                     last_name = split_part(regexp_replace(trim(display_name), '\\s+', ' ', 'g'), ' ', 1),
                     first_name = split_part(regexp_replace(trim(display_name), '\\s+', ' ', 'g'), ' ', 2),
                     middle_name = NULLIF(trim(substring(regexp_replace(trim(display_name), '\\s+', ' ', 'g') from '^\\S+\\s+\\S+\\s+(.*)$')), ''),

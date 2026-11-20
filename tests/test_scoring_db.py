@@ -1,6 +1,6 @@
 import json
-import subprocess
 import os
+import subprocess
 import sys
 import unittest
 import uuid
@@ -11,7 +11,7 @@ from psycopg import sql
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'parser_running'))
 import db
-from scoring import initialize, seed_norms, load_norms, recalculate, get_score, score_report
+from scoring import get_score, initialize, load_norms, recalculate, score_report, seed_norms
 from store import save_results
 
 
@@ -97,7 +97,7 @@ class ScoringDatabaseTests(unittest.TestCase):
         self.assertIsNone(get_score(self.con, fin)['breakdown']['norm_year_requested'])
 
     def test_persisted_distance_rules_and_manual_assignments(self):
-        from distance_classification import set_synonym, set_manual_class, clear_manual_class
+        from distance_classification import clear_manual_class, set_manual_class, set_synonym
         from store import save_race
         seed_norms(self.con)
         self.con.execute('UPDATE race SET name=%s,distance_m=NULL,distance_type=NULL WHERE id=%s',

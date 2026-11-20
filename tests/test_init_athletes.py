@@ -1,5 +1,6 @@
 import sqlite3
-from init_athletes import norm_name, is_dummy_club, setup_schema, populate_athletes
+
+from init_athletes import is_dummy_club, norm_name, populate_athletes
 
 
 def test_norm_name_and_dummy_club():

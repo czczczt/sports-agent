@@ -1,5 +1,3 @@
-from app.api.auth import CaptainOrAdminDep
-
 """Роутер для заявок на доступ и модерации регистраций (SPEC v1.3 §3.1, §8.6, §11).
 
 Капитаны и администраторы:
@@ -12,6 +10,7 @@ import json
 
 from fastapi import APIRouter, HTTPException, Query, status
 
+from app.api.auth import CaptainOrAdminDep
 from app.models import AccessRequestDecision, AccessRequestOut
 from app.modules.access_requests.dependencies import AccessRequestsServiceDep
 

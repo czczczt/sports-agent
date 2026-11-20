@@ -1,6 +1,6 @@
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-import os
 
 from scripts.backup import prune_old_backups
 

@@ -6,10 +6,10 @@ import argparse
 import gzip
 import logging
 import os
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
 import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("backup")

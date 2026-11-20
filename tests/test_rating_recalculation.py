@@ -1,10 +1,10 @@
 from datetime import date
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
+
 import pytest
 
 from app.modules.rating.calculator import FORMULA_VERSION
 from app.modules.rating.repository import RatingRepository
-from app.services.rating_service import recalculate_rating
 
 
 @pytest.mark.asyncio

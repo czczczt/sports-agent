@@ -9,7 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "generate:types": "npx openapi-typescript openapi.json -o src/api/schema.d.ts"
+    "generate:types": "npx openapi-typescript openapi.json -o src/api/schema.d.ts",
+    "gen:api": "npx openapi-typescript openapi.json -o src/api/schema.d.ts"
   },
   "dependencies": {
     "air-datepicker": "3.5.3",

@@ -49,7 +49,9 @@ def recalculate_rating_sync(conn: Any = None, *, as_of: Any = None, formula_vers
     """Синхронный запуск пересчёта для CLI/фоновых скриптов через psycopg."""
     import json
     from datetime import date, timedelta
+
     import psycopg
+
     from app.config import DATABASE_URL, normalize_postgres_url
 
     should_close = False

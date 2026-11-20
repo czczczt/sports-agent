@@ -1,8 +1,11 @@
 """Synchronous PostgreSQL access for diagnostic scripts. HTTP uses core.postgres."""
 from typing import Any
+
 import psycopg
 from psycopg.rows import dict_row
+
 from app.config import DATABASE_URL
+
 
 class _PGCompatCursor:
     def __init__(self, cursor: psycopg.Cursor):
