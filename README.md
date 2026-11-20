@@ -330,3 +330,23 @@ npm --prefix frontend run build
 ```
 
 GitHub Actions выполняет `tests/stage0` и адаптированные тесты auth, полей спортсмена, ПДн/ролей и заявок на PostgreSQL 16 и отдельно собирает React. Исторические SQLite-тесты не являются проверкой нового Postgres-слоя; соответствующие сценарии перенесены в `tests/stage0`.
+
+### 9.5 Пилот RussiaRunning: один старт через очередь
+
+При локальном запуске `docker compose up --build -d` сервис `migrate` собирает общий образ, затем API и `worker` используют его. При запуске без Docker нужен отдельный `python -m app.worker`; база API и воркера должна совпадать. Сбор выполняется в очереди `collect`, запрос API только создаёт запуск и задание в одной транзакции.
+
+Войдите администратором через `POST /api/auth/login`, затем передайте полученный токен в `Authorization: Bearer <token>`:
+
+```http
+POST /api/v1/runs
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{"kind":"collect","source":"russiarunning","event_code":"<код старта из URL RussiaRunning>"}
+```
+
+Ответ `202`: `{"run_id":123,"status":"queued"}`. Если у источника уже есть активный запуск, ответ `409` содержит его `run_id`. Поддерживается один код старта, состоящий из латинских букв, цифр, `_` и `-`. Источник создаётся автоматически при первом запуске; отключённый источник запускать нельзя.
+
+`GET /api/v1/runs/123` доступен администратору и возвращает `status`, `phase`, `progress.processed_distances`, `error`, `rating_version_id` и время обновления. Фазы: `queued` → `fetching` → `publishing` → `done`; временная ошибка отображается как `retrying`, окончательная — `failed`. Статусы: `queued`, `running`, `succeeded`, `failed`. До публикации сайт читает прежнюю готовую версию рейтинга. Запись всех дистанций выбранного старта, пересчёт, переключение версии и успех запуска коммитятся вместе; при ошибке этой транзакции прежние протоколы и рейтинг сохраняются. Повтор после окончательной ошибки запускается новым POST.
+
+Проверка пилота на отдельном PostgreSQL: `python -m pytest tests/test_russia_running_pilot.py tests/test_russia_running_pipeline.py -q`.

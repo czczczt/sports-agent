@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
@@ -190,6 +191,8 @@ class RatingRow(BaseModel):
 
 
 class RatingPageResponse(BaseModel):
+    version_id: int | None = None
+    published_at: datetime | None = None
     period_start: str | None = None
     period_end: str | None = None
     rows: list[RatingRow]

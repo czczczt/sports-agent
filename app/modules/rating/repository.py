@@ -28,6 +28,50 @@ class RatingRepository(ReadRepository):
     async def fetchval(self, query, *args):
         return (await self._query(query, args)).scalar()
 
+    async def _published_version(self):
+        if not hasattr(self, "_version"):
+            self._version = await self.fetchrow(
+                """SELECT v.id AS version_id, v.period_start, v.period_end, v.published_at
+                   FROM rating_publication p JOIN rating_version v ON v.id = p.version_id
+                   WHERE p.singleton"""
+            )
+        return self._version
+
+    async def _published_rows(
+        self, version, gender=None, search=None, athlete_id=None, limit=100
+    ):
+        conditions = [
+            "v.version_id = ?",
+            "a.is_hidden = FALSE",
+            "a.employee_status != 'not_employee'",
+        ]
+        args = [version["version_id"]]
+        if gender:
+            conditions.append("v.gender = ?")
+            args.append(gender)
+        ranked = f"""SELECT ROW_NUMBER() OVER (ORDER BY v.points DESC, v.best_points DESC,
+                     v.starts_count DESC, v.athlete_id) AS rank, v.athlete_id, v.display_name,
+                     v.birth_year, v.gender, v.points, v.best_points, v.starts_count, v.name_key
+                     FROM rating_version_row v JOIN athlete a ON a.id = v.athlete_id
+                     WHERE {' AND '.join(conditions)}"""
+        filters = []
+        if search:
+            filters.append("name_key LIKE ?")
+            args.append(f"%{search.lower().replace('\u0451', '\u0435')}%")
+        if athlete_id is not None:
+            filters.append("athlete_id = ?")
+            args.append(athlete_id)
+        where = " WHERE " + " AND ".join(filters) if filters else ""
+        query = f"WITH ranked AS ({ranked}) SELECT * FROM ranked{where}"
+        rows = await self.fetch(query + " ORDER BY rank LIMIT ?", *args, limit)
+        total = await self.fetchval(
+            f"WITH ranked AS ({ranked}) SELECT COUNT(*) FROM ranked{where}", *args
+        )
+        return [
+            {key: value for key, value in row.items() if key != "name_key"}
+            for row in rows
+        ], total
+
     async def get_rating_page(
         self,
         *,
@@ -36,6 +80,10 @@ class RatingRepository(ReadRepository):
         limit: int = 100,
     ) -> dict[str, Any]:
         """Возвращает сохранённый рейтинг для страницы рейтинга."""
+        version = await self._published_version()
+        if version:
+            rows, total = await self._published_rows(version, gender, search, limit=limit)
+            return {**dict(version), "rows": rows, "total": total}
         period = await self.fetchrow(
             """
             SELECT period_start, period_end
@@ -121,6 +169,10 @@ class RatingRepository(ReadRepository):
         Если выбран фильтр по полу, место пересчитывается среди спортсменов этого пола
         (с теми же тай-брейками, что и общий рейтинг). Спортсмен другого пола скрывается.
         """
+        version = await self._published_version()
+        if version:
+            rows, _ = await self._published_rows(version, gender, athlete_id=athlete_id, limit=1)
+            return rows[0] if rows else None
         ar = await self.fetchrow(
             """
             SELECT a.id AS athlete_id, a.display_name, a.birth_year, a.gender,
@@ -204,15 +256,15 @@ class RatingRepository(ReadRepository):
             """,
             year,
         )
-        period = await self.fetchrow(
-            """
-            SELECT period_start, period_end
-            FROM running_athlete_rating
-            WHERE formula_version = ?
-            ORDER BY period_end DESC LIMIT 1
-            """,
-            FORMULA_VERSION,
-        )
+        period = await self._published_version()
+        if not period:
+            period = await self.fetchrow(
+                """
+                SELECT period_start, period_end FROM running_athlete_rating
+                WHERE formula_version = ? ORDER BY period_end DESC LIMIT 1
+                """,
+                FORMULA_VERSION,
+            )
         return {
             "year": year,
             "norms": [dict(row) for row in norms],

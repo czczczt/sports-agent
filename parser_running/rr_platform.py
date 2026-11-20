@@ -12,8 +12,12 @@ from pathlib import Path
 
 import requests
 
-from http_cache import log_fetch
-from normalize import GENDER_RR, STATUS_RR, is_sber_club, to_seconds
+if __package__:
+    from .http_cache import log_fetch
+    from .normalize import GENDER_RR, STATUS_RR, is_sber_club, to_seconds
+else:
+    from http_cache import log_fetch
+    from normalize import GENDER_RR, STATUS_RR, is_sber_club, to_seconds
 
 SOURCES = {
     "russiarunning": "https://results.russiarunning.com/api",
@@ -25,13 +29,15 @@ PAGE = 100  # максимум, который принимает API (Page.Take
 
 
 class RRClient:
-    def __init__(self, name: str):
+    def __init__(self, name: str, *, cache: bool = True):
         self.name, self.base = name, SOURCES[name]
+        self.cache = cache
         self.s = requests.Session()
         self.s.headers["User-Agent"] = "Mozilla/5.0 (diploma research crawler)"
 
     def _call(self, method: str, path: str, body: dict | None = None, params: dict | None = None,
               cache: bool = True):
+        cache = cache and self.cache
         key = hashlib.sha1(json.dumps([method, path, body, params], sort_keys=True).encode()).hexdigest()[:20]
         f = RAW / self.name / f"{key}.json"
         req = json.dumps([method, path, body, params], sort_keys=True, ensure_ascii=False)
@@ -76,11 +82,22 @@ class RRClient:
             j = self._call("POST", "/results/individual/get",
                            {"eventId": event_id, "raceId": race_id, "page": {"skip": skip, "take": PAGE},
                             "filter": flt, "isStagesOn": False, "language": "ru"})
-            total = j["totalCount"]
+            claimed = j["totalCount"]
+            if isinstance(claimed, bool) or not isinstance(claimed, int) or claimed < 0:
+                raise ValueError("Invalid RR totalCount")
+            if total is not None and total != claimed:
+                raise ValueError("RR totalCount changed during pagination")
+            total = claimed
+            if not isinstance(j["results"], list) or len(j["results"]) > PAGE:
+                raise ValueError("Invalid RR protocol page")
             out += j["results"]
+            if len(out) > total or (not j["results"] and len(out) < total):
+                raise ValueError("Incomplete RR protocol")
             if not j["results"]:
                 break
             skip += PAGE
+        if len(out) != total:
+            raise ValueError("Incomplete RR protocol")
         return out, total
 
 
@@ -104,8 +121,8 @@ class RRConnector:
                  "date_end": e.get("endDate"), "place": e.get("place"), "address": e.get("address"), "sport": "run",
                  "url": f"{self.base_url.removesuffix('/api')}/event/{e['code']}/results"} for e in out[:limit]]
 
-    def races(self, comp: dict) -> list[dict]:
-        ev = self.cli.get_event(comp["code"])
+    def races(self, comp: dict, event: dict | None = None) -> list[dict]:
+        ev = self.cli.get_event(comp["code"]) if event is None else event
         comp["_rr_event_id"] = ev["id"]
         return [{"external_id": r["id"], "name_raw": r.get("name"), "distance_km": r.get("distance"),
                  "race_type": "relay" if r.get("isRelay") else "individual",
@@ -127,6 +144,7 @@ class RRConnector:
             out.append({
                 "external_participant_id": r.get("participantId"), "bib": r.get("number"),
                 "full_name_raw": r.get("fullName"), "gender": GENDER_RR.get(r.get("gender")), "age": r.get("age"),
+                "birth_year": r.get("birthYear"),
                 "country": r.get("countryCode"), "region": r.get("region"), "city": r.get("city"),
                 "club_raw": (r.get("raceClub") or "").strip() or None,
                 "club_source": "protocol" if (r.get("raceClub") or "").strip() else None,

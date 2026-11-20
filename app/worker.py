@@ -65,6 +65,15 @@ async def recipe_repair_task(repair_id: int) -> str:
     return await run_repair(repair_id, schedule_collection=enqueue_recipe_collection)
 
 
+@procrastinate_app.task(
+    name="app.worker.pilot_collect_task", queue="collect", pass_context=True,
+    retry=procrastinate.RetryStrategy(max_attempts=3, wait=60),
+)
+async def pilot_collect_task(context: procrastinate.JobContext, run_id: int) -> dict[str, Any]:
+    from app.pipeline.pilot import collect_event
+    return await collect_event(run_id, final_attempt=context.job.attempts >= 3)
+
+
 async def enqueue_recipe_repair(repo: RecipeRepository, repair_id: int) -> None:
     lock = f"recipe-repair:{repair_id}"
     try:
@@ -91,7 +100,7 @@ async def enqueue_recipe_collection(repo: RecipeRepository, source_id: int) -> N
 @procrastinate_app.task(name="app.worker.recover_recipe_jobs", queue="maintenance")
 async def recover_recipe_jobs(timestamp: int) -> None:
     manager = procrastinate_app.job_manager
-    for task in (recipe_repair_task, collect_source_task):
+    for task in (recipe_repair_task, collect_source_task, pilot_collect_task):
         stalled_jobs = await manager.get_stalled_jobs(task_name=task.name, seconds_since_heartbeat=60)
         for job in stalled_jobs:
             try:

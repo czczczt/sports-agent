@@ -45,7 +45,7 @@ async def recalculate_rating(session: Any, *, as_of: Any = None, formula_version
     return await RatingRepository(session).recalculate_rating(as_of=as_of, formula_version=formula_version)
 
 
-def recalculate_rating_sync(conn: Any = None, *, as_of: Any = None, formula_version: str = FORMULA_VERSION) -> dict[str, Any]:
+def recalculate_rating_sync(conn: Any = None, *, as_of: Any = None, formula_version: str = FORMULA_VERSION, commit: bool = True) -> dict[str, Any]:
     """Синхронный запуск пересчёта для CLI/фоновых скриптов через psycopg."""
     import json
     from datetime import date, timedelta
@@ -148,7 +148,8 @@ def recalculate_rating_sync(conn: Any = None, *, as_of: Any = None, formula_vers
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """, rating_rows)
 
-        conn.commit()
+        if commit:
+            conn.commit()
         return {
             "formula_version": formula_version,
             "period_start": start_str,
