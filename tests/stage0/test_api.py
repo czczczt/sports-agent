@@ -87,7 +87,18 @@ def test_login_profiles_events_protocol_and_rating(client, migrated_url, sqlite_
     assert response.json()[0]["result_id"] == 1
     response = client.get("/api/races/1/results", headers=auth)
     assert response.status_code == 200, response.text
-    assert [row["bib"] for row in response.json()] == ["A-7", None, "003"]
+    results = response.json()
+    assert [row["result_id"] for row in results] == [1, 2, 3]
+    assert [row["bib"] for row in results] == ["A-7", None, None]
+    employee = results[0]
+    assert employee["athlete_id"] == 1
+    assert employee["full_name_raw"] == "Фёдоров Иван"
+    outsider = results[2]
+    assert outsider["athlete_id"] is None
+    assert outsider["full_name_raw"] == "Участник"
+    assert outsider["club_raw"] is None
+    assert outsider["place_abs"] == 3
+    assert outsider["chip_time_s"] == 2600
     found = client.get("/api/races/1/results", params={"search": "A-7"}, headers=auth)
     assert len(found.json()) == 1
     rating = client.get("/api/rating?athlete_id=1", headers=auth).json()
