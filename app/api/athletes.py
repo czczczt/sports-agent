@@ -1,3 +1,5 @@
+from fastapi import APIRouter, HTTPException, Query
+
 from app.api.auth import OptionalUserDep
 from app.models import (
     AssessmentResponse,
@@ -6,7 +8,6 @@ from app.models import (
     AthleteSummaryResponse,
 )
 from app.modules.athletes.dependencies import AthleteServiceDep
-from fastapi import APIRouter, HTTPException, Query
 
 router = APIRouter(prefix="/athletes", tags=["athletes"])
 

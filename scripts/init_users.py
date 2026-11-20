@@ -1,5 +1,6 @@
 """Создание таблицы app_user и сидирование учетных записей user и admin с хэшированием argon2."""
 import os
+
 import psycopg
 from argon2 import PasswordHasher
 
@@ -33,10 +34,10 @@ def init_users():
             print("Seeding user and admin accounts...")
             cur.execute("""
                 INSERT INTO app_user (username, email, password_hash, role, status, display_name)
-                VALUES 
+                VALUES
                     ('user', 'user@sberbank.ru', %s, 'user', 'active', 'Пользователь'),
                     ('admin', 'admin@sberbank.ru', %s, 'admin', 'active', 'Администратор')
-                ON CONFLICT (username) DO UPDATE 
+                ON CONFLICT (username) DO UPDATE
                 SET password_hash = EXCLUDED.password_hash,
                     role = EXCLUDED.role,
                     status = EXCLUDED.status,

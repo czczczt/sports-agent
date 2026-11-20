@@ -2,9 +2,9 @@
 
 import re
 
+from app.pipeline.errors import PilotRejected
 from parser_running import store
 from parser_running.normalize import is_sber_club
-from app.pipeline.errors import PilotRejected
 
 
 def norm_name(name):

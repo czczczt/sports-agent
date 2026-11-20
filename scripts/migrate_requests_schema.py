@@ -1,5 +1,6 @@
 """Миграция БД: расширение полей app_user, report и создание audit_log по SPEC v1.3 §5, §8.4, §8.6."""
 import os
+
 import psycopg
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/sports_agent")
@@ -12,7 +13,7 @@ def migrate():
             # 1. Расширение таблицы app_user
             print("1. Upgrading app_user table...")
             cur.execute("""
-                ALTER TABLE app_user 
+                ALTER TABLE app_user
                     ADD COLUMN IF NOT EXISTS first_name VARCHAR(100),
                     ADD COLUMN IF NOT EXISTS last_name VARCHAR(100),
                     ADD COLUMN IF NOT EXISTS middle_name VARCHAR(100),
@@ -33,7 +34,7 @@ def migrate():
             # 2. Доработка таблицы report
             print("2. Upgrading report table...")
             cur.execute("""
-                ALTER TABLE report 
+                ALTER TABLE report
                     ADD COLUMN IF NOT EXISTS moderator_comment TEXT,
                     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
 
@@ -46,7 +47,7 @@ def migrate():
             # Безопасное добавление внешних ключей к report, если ещё не добавлены
             try:
                 cur.execute("""
-                    DO $$ 
+                    DO $$
                     BEGIN
                         IF NOT EXISTS (
                             SELECT 1 FROM pg_constraint WHERE conname = 'fk_report_user'

@@ -3,17 +3,15 @@ import asyncio
 from datetime import date, timedelta
 
 import psycopg
-import pytest
 import requests
-
-from tests.test_russia_running_pilot import pilot_client
 
 
 def test_pipeline_preserves_protocol_and_publication(pilot_client, migrated_url, monkeypatch):
+    import procrastinate
+
     import app.pipeline.pilot as pilot
     import app.pipeline.rating_publication as publication
     import app.worker as worker
-    import procrastinate
     from parser_running import rr_platform
 
     monkeypatch.setattr(pilot, 'DATABASE_URL', migrated_url)

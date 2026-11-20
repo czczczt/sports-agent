@@ -1,6 +1,7 @@
+from fastapi import APIRouter, Query
+
 from app.models import RatingFormulaResponse, RatingPageResponse
 from app.modules.rating.dependencies import RatingServiceDep
-from fastapi import APIRouter, Query
 
 router = APIRouter(prefix="/rating", tags=["rating"])
 

@@ -5,16 +5,16 @@ import logging
 import psycopg
 
 from app.config import DATABASE_URL, normalize_postgres_url
-from app.modules.runs.service import connection
 from app.modules.runs.repository import RunRepository, complete
+from app.modules.runs.service import connection
 from app.pipeline.errors import PilotRejected
 
 logger = logging.getLogger(__name__)
 
 
 def _save_and_publish(run_id: int, event) -> tuple[int, int]:
-    from app.pipeline.russia_running import save_event
     from app.pipeline.rating_publication import publish_rating
+    from app.pipeline.russia_running import save_event
 
     with psycopg.connect(normalize_postgres_url(DATABASE_URL)) as conn:
         count = save_event(conn, event)

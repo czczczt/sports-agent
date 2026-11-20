@@ -4,9 +4,9 @@ import math
 import re
 from datetime import date
 
+from app.pipeline.errors import PilotRejected
 from parser_running import store
 from parser_running.normalize import km_to_m
-from app.pipeline.errors import PilotRejected
 from parser_running.rr_platform import RRConnector
 
 

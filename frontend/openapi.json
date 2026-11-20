@@ -1914,6 +1914,222 @@
         }
       }
     },
+    "/api/status": {
+      "get": {
+        "tags": [
+          "status"
+        ],
+        "summary": "Get system status, queue metrics and adapter health",
+        "operationId": "get_system_status_api_status_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "auth_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get System Status Api Status Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs": {
+      "post": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Create Run",
+        "operationId": "create_run_api_v1_runs_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "auth_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartRun"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueuedRun"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Get Run",
+        "operationId": "get_run_api_v1_runs__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "auth_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/agent-review/page": {
       "get": {
         "tags": [
@@ -2511,6 +2727,566 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent-review/recipes": {
+      "get": {
+        "tags": [
+          "recipe-agent"
+        ],
+        "summary": "List Repairs",
+        "operationId": "list_repairs_api_agent_review_recipes_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "auth_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response List Repairs Api Agent Review Recipes Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "recipe-agent"
+        ],
+        "summary": "Start Repair",
+        "operationId": "start_repair_api_agent_review_recipes_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "auth_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartRepair"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Start Repair Api Agent Review Recipes Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent-review/recipes/{repair_id}": {
+      "get": {
+        "tags": [
+          "recipe-agent"
+        ],
+        "summary": "Get Repair",
+        "operationId": "get_repair_api_agent_review_recipes__repair_id__get",
+        "parameters": [
+          {
+            "name": "repair_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Repair Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "auth_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Repair Api Agent Review Recipes  Repair Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent-review/recipes/sources/{source_id}/golden": {
+      "put": {
+        "tags": [
+          "recipe-agent"
+        ],
+        "summary": "Replace Golden",
+        "operationId": "replace_golden_api_agent_review_recipes_sources__source_id__golden_put",
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Source Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "auth_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/GoldenInput"
+                },
+                "minItems": 3,
+                "maxItems": 5,
+                "title": "Cases"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Replace Golden Api Agent Review Recipes Sources  Source Id  Golden Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent-review/recipes/sources/{source_id}/collect": {
+      "post": {
+        "tags": [
+          "recipe-agent"
+        ],
+        "summary": "Queue Collection",
+        "operationId": "queue_collection_api_agent_review_recipes_sources__source_id__collect_post",
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Source Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "auth_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Token"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Queue Collection Api Agent Review Recipes Sources  Source Id  Collect Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent-review/recipes/{repair_id}/decision": {
+      "post": {
+        "tags": [
+          "recipe-agent"
+        ],
+        "summary": "Decide",
+        "operationId": "decide_api_agent_review_recipes__repair_id__decision_post",
+        "parameters": [
+          {
+            "name": "repair_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Repair Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "auth_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Decide Api Agent Review Recipes  Repair Id  Decision Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent-review/recipes/{repair_id}/retry": {
+      "post": {
+        "tags": [
+          "recipe-agent"
+        ],
+        "summary": "Retry",
+        "operationId": "retry_api_agent_review_recipes__repair_id__retry_post",
+        "parameters": [
+          {
+            "name": "repair_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Repair Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "auth_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Token"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Retry Api Agent Review Recipes  Repair Id  Retry Post"
+                }
               }
             }
           },
@@ -3458,6 +4234,52 @@
         ],
         "title": "EventItem"
       },
+      "GoldenInput": {
+        "properties": {
+          "raw_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Raw Id"
+          },
+          "place_by": {
+            "type": "string",
+            "enum": [
+              "chip",
+              "gun"
+            ],
+            "title": "Place By"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          },
+          "expected": {
+            "items": {
+              "$ref": "#/components/schemas/ResultRow"
+            },
+            "type": "array",
+            "maxItems": 30000,
+            "minItems": 1,
+            "title": "Expected"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "raw_id",
+          "place_by",
+          "expected"
+        ],
+        "title": "GoldenInput"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -3572,6 +4394,61 @@
           "event_title"
         ],
         "title": "PersonalBestItem"
+      },
+      "ProtocolSample": {
+        "properties": {
+          "raw_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Raw Id"
+          },
+          "place_by": {
+            "type": "string",
+            "enum": [
+              "chip",
+              "gun"
+            ],
+            "title": "Place By"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "raw_id",
+          "place_by"
+        ],
+        "title": "ProtocolSample"
+      },
+      "QueuedRun": {
+        "properties": {
+          "run_id": {
+            "type": "integer",
+            "title": "Run Id"
+          },
+          "status": {
+            "type": "string",
+            "const": "queued",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "status"
+        ],
+        "title": "QueuedRun"
       },
       "RaceInfo": {
         "properties": {
@@ -4028,6 +4905,29 @@
       },
       "RatingPageResponse": {
         "properties": {
+          "version_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Id"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
           "period_start": {
             "anyOf": [
               {
@@ -4220,6 +5120,104 @@
           "points"
         ],
         "title": "RatingRow"
+      },
+      "RecipeField": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "full_name_raw",
+              "bib",
+              "gender",
+              "status",
+              "place_abs",
+              "place_gender",
+              "chip_time_s",
+              "gun_time_s",
+              "club_raw",
+              "city",
+              "age_group",
+              "birth_year"
+            ],
+            "title": "Name"
+          },
+          "selector": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Selector"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "attribute",
+              "regex"
+            ],
+            "title": "Type",
+            "description": "Use text for a whole cell. Type attribute requires an attribute key. Type regex requires a pattern key at the same level as name and selector."
+          },
+          "attribute": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(data-[\\w-]+|title|value|aria-label)$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribute"
+          },
+          "pattern": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "selector",
+          "type"
+        ],
+        "title": "RecipeField"
+      },
+      "RecipeProposal": {
+        "properties": {
+          "baseSelector": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Baseselector"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeField"
+            },
+            "type": "array",
+            "maxItems": 12,
+            "minItems": 4,
+            "title": "Fields",
+            "description": "Required names: full_name_raw, gender, place_abs. Include at least one of chip_time_s or gun_time_s. Names must be unique."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "baseSelector",
+          "fields"
+        ],
+        "title": "RecipeProposal"
       },
       "RegisterRequest": {
         "properties": {
@@ -4543,6 +5541,391 @@
           "status"
         ],
         "title": "ReportOut"
+      },
+      "ResultRow": {
+        "properties": {
+          "full_name_raw": {
+            "type": "string",
+            "maxLength": 250,
+            "minLength": 2,
+            "title": "Full Name Raw"
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "M",
+              "F"
+            ],
+            "title": "Gender"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "FIN",
+              "DNF",
+              "DNS",
+              "DSQ",
+              "NC",
+              "LAP"
+            ],
+            "title": "Status",
+            "default": "FIN"
+          },
+          "bib": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bib"
+          },
+          "place_abs": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Abs"
+          },
+          "place_gender": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Gender"
+          },
+          "chip_time_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 604800.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chip Time S"
+          },
+          "gun_time_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 604800.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gun Time S"
+          },
+          "club_raw": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 250
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Club Raw"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 250
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "age_group": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Group"
+          },
+          "birth_year": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2100.0,
+                "minimum": 1900.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Year"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "full_name_raw",
+          "gender"
+        ],
+        "title": "ResultRow"
+      },
+      "ReviewDecision": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "edit",
+              "reject"
+            ],
+            "title": "Action"
+          },
+          "candidate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecipeProposal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Comment",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "ReviewDecision"
+      },
+      "RunDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "run_id": {
+            "type": "integer",
+            "title": "Run Id"
+          },
+          "source_id": {
+            "type": "integer",
+            "title": "Source Id"
+          },
+          "source": {
+            "type": "string",
+            "const": "russiarunning",
+            "title": "Source"
+          },
+          "kind": {
+            "type": "string",
+            "const": "collect",
+            "title": "Kind"
+          },
+          "event_code": {
+            "type": "string",
+            "title": "Event Code"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "fetching",
+              "publishing",
+              "retrying",
+              "done",
+              "failed"
+            ],
+            "title": "Phase"
+          },
+          "processed_distances": {
+            "type": "integer",
+            "title": "Processed Distances"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "rating_version_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Version Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/RunProgress"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "run_id",
+          "source_id",
+          "source",
+          "kind",
+          "event_code",
+          "status",
+          "phase",
+          "processed_distances",
+          "error",
+          "rating_version_id",
+          "created_at",
+          "updated_at",
+          "progress"
+        ],
+        "title": "RunDetail"
+      },
+      "RunProgress": {
+        "properties": {
+          "phase": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "fetching",
+              "publishing",
+              "retrying",
+              "done",
+              "failed"
+            ],
+            "title": "Phase"
+          },
+          "processed_distances": {
+            "type": "integer",
+            "title": "Processed Distances"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phase",
+          "processed_distances"
+        ],
+        "title": "RunProgress"
+      },
+      "StartRepair": {
+        "properties": {
+          "source_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Source Id"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/ProtocolSample"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 1,
+            "title": "Samples"
+          },
+          "issue_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issue Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_id",
+          "samples"
+        ],
+        "title": "StartRepair"
+      },
+      "StartRun": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "collect",
+            "title": "Kind"
+          },
+          "source": {
+            "type": "string",
+            "const": "russiarunning",
+            "title": "Source"
+          },
+          "event_code": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Event Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "source",
+          "event_code"
+        ],
+        "title": "StartRun"
       },
       "UserOut": {
         "properties": {

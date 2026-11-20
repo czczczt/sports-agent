@@ -281,7 +281,8 @@ class RatingRepository(ReadRepository):
         """Пересчитывает баллы результатов и агрегированный 365-дневный рейтинг бега в PostgreSQL."""
         import json
         from datetime import date, timedelta
-        from app.modules.rating.calculator import _calculate_score, RATING_PERIOD_DAYS
+
+        from app.modules.rating.calculator import RATING_PERIOD_DAYS, _calculate_score
 
         end_date = as_of or date.today()
         start_date = end_date - timedelta(days=RATING_PERIOD_DAYS)

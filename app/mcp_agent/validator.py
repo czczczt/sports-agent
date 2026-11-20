@@ -6,8 +6,8 @@
 3. Монотонность времени (время должно расти с местом для финишеров).
 4. Корректность статусов участников (FIN, DNF, DSQ, DNS и др.).
 """
-from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -41,17 +41,17 @@ def validate_protocol_data(
 
     # 1. Проверка на долю NULL в критических полях
     null_names = sum(1 for r in rows if not r.get("full_name_raw") or str(r.get("full_name_raw")).strip() == "")
-    
+
     # Для времени: хотя бы одно время (чистое chip или пистолетное gun) должно быть заполнено для статуса FIN
     fin_rows = [r for r in rows if r.get("status") == "FIN"]
     null_time_fin = sum(
-        1 for r in fin_rows 
-        if (r.get("chip_time_s") is None or r.get("chip_time_s") <= 0) and 
+        1 for r in fin_rows
+        if (r.get("chip_time_s") is None or r.get("chip_time_s") <= 0) and
            (r.get("gun_time_s") is None or r.get("gun_time_s") <= 0)
     )
 
     null_place_fin = sum(
-        1 for r in fin_rows 
+        1 for r in fin_rows
         if r.get("place_abs") is None or r.get("place_abs") <= 0
     )
 
@@ -92,7 +92,7 @@ def validate_protocol_data(
     # 3. Проверка статусов участников
     valid_statuses = {"FIN", "DNF", "DSQ", "DNS", "NC", "LAP"}
     invalid_statuses = {
-        r.get("status") for r in rows 
+        r.get("status") for r in rows
         if r.get("status") and r.get("status") not in valid_statuses
     }
     if invalid_statuses:

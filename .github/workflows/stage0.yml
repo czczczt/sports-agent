@@ -28,8 +28,20 @@ jobs:
           python-version: '3.12'
           cache: pip
       - run: python -m pip install -r requirements-dev.txt
-      - run: python -m alembic heads
-      - run: python -m pytest tests/stage0 tests/test_auth.py tests/test_athlete_fields.py tests/test_privacy_and_roles.py tests/test_requests_and_reports.py tests/test_distance_scoring.py tests/test_scoring.py tests/test_multi_sport_calculator.py tests/test_backup.py tests/test_rating_recalculation.py tests/test_init_athletes.py tests/test_procrastinate_worker.py tests/test_recipe_agent.py tests/test_status_api.py tests/test_russia_running_pilot.py tests/test_russia_running_pipeline.py -q
+
+      - name: Run Ruff Linter
+        run: python -m ruff check app tests scripts
+      - name: Check OpenAPI Contract Drift
+        run: python scripts/generate_types.py --check
+      - name: Verify Alembic Migrations and Roundtrip
+        run: |
+          python -m alembic heads
+          python -m alembic upgrade head
+          python -m alembic downgrade base
+          python -m alembic upgrade head
+      - name: Run Pytest Suite
+        run: python -m pytest tests/stage0 tests/test_auth.py tests/test_athlete_fields.py tests/test_privacy_and_roles.py tests/test_requests_and_reports.py tests/test_distance_scoring.py tests/test_scoring.py tests/test_multi_sport_calculator.py tests/test_golden_scoring.py tests/test_openapi_drift.py tests/test_backup.py tests/test_rating_recalculation.py tests/test_init_athletes.py tests/test_procrastinate_worker.py tests/test_recipe_agent.py tests/test_status_api.py tests/test_russia_running_pilot.py tests/test_russia_running_pipeline.py -q
+
 
   frontend:
     runs-on: ubuntu-latest
@@ -41,6 +53,9 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+        working-directory: frontend
+      - name: Verify API TypeScript types generation
+        run: npm run gen:api
         working-directory: frontend
       - run: npm run build
         working-directory: frontend

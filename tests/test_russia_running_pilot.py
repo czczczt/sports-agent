@@ -1,23 +1,6 @@
 """HTTP authorization and atomic queue handoff for the RussiaRunning pilot."""
 import psycopg
 import pytest
-from fastapi.testclient import TestClient
-
-from tests.conftest import seed_users
-
-
-@pytest.fixture
-def pilot_client(migrated_url, monkeypatch):
-    import app.main as main
-    import app.modules.runs.service as service
-
-    monkeypatch.setattr(main, 'DATABASE_URL', migrated_url)
-    monkeypatch.setattr(service, 'DATABASE_URL', migrated_url)
-    seed_users(migrated_url)
-    with psycopg.connect(migrated_url) as conn:
-        conn.execute("INSERT INTO source(name,base_url,platform) VALUES ('russiarunning','https://russiarunning.com','russiarunning') ON CONFLICT(name) DO NOTHING")
-    with TestClient(main.app) as client:
-        yield client
 
 
 def test_pilot_authorization_and_atomic_enqueue(pilot_client, migrated_url):

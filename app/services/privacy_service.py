@@ -1,9 +1,10 @@
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from app.config import RAW_TTL_DAYS
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import RAW_TTL_DAYS
 
 
 async def anonymize_non_employee_results(session: AsyncSession) -> int:

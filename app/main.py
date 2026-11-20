@@ -14,8 +14,8 @@ from app.api.health import router as health_router
 from app.api.races import router as races_router
 from app.api.rating import router as rating_router
 from app.api.reports import router as reports_router
-from app.api.status import router as status_router
 from app.api.runs import router as runs_router
+from app.api.status import router as status_router
 from app.config import APP_HOST, APP_PORT, DATABASE_URL
 from app.core.database import async_postgres_url
 from app.frontend import mount_frontend

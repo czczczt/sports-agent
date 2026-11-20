@@ -403,6 +403,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get system status, queue metrics and adapter health */
+        get: operations["get_system_status_api_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Run */
+        post: operations["create_run_api_v1_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Run */
+        get: operations["get_run_api_v1_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/agent-review/page": {
         parameters: {
             query?: never;
@@ -537,6 +588,109 @@ export interface paths {
         put?: never;
         /** Api Apply */
         post: operations["api_apply_api_agent_review__issue_id__apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent-review/recipes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Repairs */
+        get: operations["list_repairs_api_agent_review_recipes_get"];
+        put?: never;
+        /** Start Repair */
+        post: operations["start_repair_api_agent_review_recipes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent-review/recipes/{repair_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Repair */
+        get: operations["get_repair_api_agent_review_recipes__repair_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent-review/recipes/sources/{source_id}/golden": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace Golden */
+        put: operations["replace_golden_api_agent_review_recipes_sources__source_id__golden_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent-review/recipes/sources/{source_id}/collect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Queue Collection */
+        post: operations["queue_collection_api_agent_review_recipes_sources__source_id__collect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent-review/recipes/{repair_id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide */
+        post: operations["decide_api_agent_review_recipes__repair_id__decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent-review/recipes/{repair_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry */
+        post: operations["retry_api_agent_review_recipes__repair_id__retry_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -838,6 +992,20 @@ export interface components {
              */
             races: components["schemas"]["RaceItem"][];
         };
+        /** GoldenInput */
+        GoldenInput: {
+            /** Raw Id */
+            raw_id: number;
+            /**
+             * Place By
+             * @enum {string}
+             */
+            place_by: "chip" | "gun";
+            /** Total */
+            total?: number | null;
+            /** Expected */
+            expected: components["schemas"]["ResultRow"][];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -878,6 +1046,28 @@ export interface components {
             event_title: string;
             /** Event Date */
             event_date?: string | null;
+        };
+        /** ProtocolSample */
+        ProtocolSample: {
+            /** Raw Id */
+            raw_id: number;
+            /**
+             * Place By
+             * @enum {string}
+             */
+            place_by: "chip" | "gun";
+            /** Total */
+            total?: number | null;
+        };
+        /** QueuedRun */
+        QueuedRun: {
+            /** Run Id */
+            run_id: number;
+            /**
+             * Status
+             * @constant
+             */
+            status: "queued";
         };
         /** RaceInfo */
         RaceInfo: {
@@ -999,6 +1189,10 @@ export interface components {
         };
         /** RatingPageResponse */
         RatingPageResponse: {
+            /** Version Id */
+            version_id?: number | null;
+            /** Published At */
+            published_at?: string | null;
             /** Period Start */
             period_start?: string | null;
             /** Period End */
@@ -1058,6 +1252,36 @@ export interface components {
             starts_count: number;
             /** Rank Delta */
             rank_delta?: number | null;
+        };
+        /** RecipeField */
+        RecipeField: {
+            /**
+             * Name
+             * @enum {string}
+             */
+            name: "full_name_raw" | "bib" | "gender" | "status" | "place_abs" | "place_gender" | "chip_time_s" | "gun_time_s" | "club_raw" | "city" | "age_group" | "birth_year";
+            /** Selector */
+            selector: string;
+            /**
+             * Type
+             * @description Use text for a whole cell. Type attribute requires an attribute key. Type regex requires a pattern key at the same level as name and selector.
+             * @enum {string}
+             */
+            type: "text" | "attribute" | "regex";
+            /** Attribute */
+            attribute?: string | null;
+            /** Pattern */
+            pattern?: string | null;
+        };
+        /** RecipeProposal */
+        RecipeProposal: {
+            /** Baseselector */
+            baseSelector: string;
+            /**
+             * Fields
+             * @description Required names: full_name_raw, gender, place_abs. Include at least one of chip_time_s or gun_time_s. Names must be unique.
+             */
+            fields: components["schemas"]["RecipeField"][];
         };
         /** RegisterRequest */
         RegisterRequest: {
@@ -1140,6 +1364,136 @@ export interface components {
             created_at?: string | null;
             /** Updated At */
             updated_at?: string | null;
+        };
+        /** ResultRow */
+        ResultRow: {
+            /** Full Name Raw */
+            full_name_raw: string;
+            /**
+             * Gender
+             * @enum {string}
+             */
+            gender: "M" | "F";
+            /**
+             * Status
+             * @default FIN
+             * @enum {string}
+             */
+            status: "FIN" | "DNF" | "DNS" | "DSQ" | "NC" | "LAP";
+            /** Bib */
+            bib?: string | null;
+            /** Place Abs */
+            place_abs?: number | null;
+            /** Place Gender */
+            place_gender?: number | null;
+            /** Chip Time S */
+            chip_time_s?: number | null;
+            /** Gun Time S */
+            gun_time_s?: number | null;
+            /** Club Raw */
+            club_raw?: string | null;
+            /** City */
+            city?: string | null;
+            /** Age Group */
+            age_group?: string | null;
+            /** Birth Year */
+            birth_year?: number | null;
+        };
+        /** ReviewDecision */
+        ReviewDecision: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "approve" | "edit" | "reject";
+            candidate?: components["schemas"]["RecipeProposal"] | null;
+            /**
+             * Comment
+             * @default
+             */
+            comment: string;
+        };
+        /** RunDetail */
+        RunDetail: {
+            /** Id */
+            id: number;
+            /** Run Id */
+            run_id: number;
+            /** Source Id */
+            source_id: number;
+            /**
+             * Source
+             * @constant
+             */
+            source: "russiarunning";
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "collect";
+            /** Event Code */
+            event_code: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "succeeded" | "failed";
+            /**
+             * Phase
+             * @enum {string}
+             */
+            phase: "queued" | "fetching" | "publishing" | "retrying" | "done" | "failed";
+            /** Processed Distances */
+            processed_distances: number;
+            /** Error */
+            error: string | null;
+            /** Rating Version Id */
+            rating_version_id: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            progress: components["schemas"]["RunProgress"];
+        };
+        /** RunProgress */
+        RunProgress: {
+            /**
+             * Phase
+             * @enum {string}
+             */
+            phase: "queued" | "fetching" | "publishing" | "retrying" | "done" | "failed";
+            /** Processed Distances */
+            processed_distances: number;
+        };
+        /** StartRepair */
+        StartRepair: {
+            /** Source Id */
+            source_id: number;
+            /** Samples */
+            samples: components["schemas"]["ProtocolSample"][];
+            /** Issue Id */
+            issue_id?: number | null;
+        };
+        /** StartRun */
+        StartRun: {
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "collect";
+            /**
+             * Source
+             * @constant
+             */
+            source: "russiarunning";
+            /** Event Code */
+            event_code: string;
         };
         /** UserOut */
         UserOut: {
@@ -2019,6 +2373,113 @@ export interface operations {
             };
         };
     };
+    get_system_status_api_status_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_run_api_v1_runs_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartRun"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueuedRun"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_api_v1_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                run_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     api_page_api_agent_review_page_get: {
         parameters: {
             query?: {
@@ -2292,6 +2753,273 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_repairs_api_agent_review_recipes_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_repair_api_agent_review_recipes_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartRepair"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_repair_api_agent_review_recipes__repair_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                repair_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replace_golden_api_agent_review_recipes_sources__source_id__golden_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                source_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoldenInput"][];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    queue_collection_api_agent_review_recipes_sources__source_id__collect_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                source_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_api_agent_review_recipes__repair_id__decision_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                repair_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewDecision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_api_agent_review_recipes__repair_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                repair_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

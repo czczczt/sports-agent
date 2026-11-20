@@ -11,6 +11,10 @@ import time
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerificationError
+from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Response, status
+
 from app.config import (
     AUTH_SECRET_KEY,
     LOCKOUT_MINUTES,
@@ -26,9 +30,6 @@ from app.models import (
     UserOut,
 )
 from app.modules.auth.dependencies import AuthServiceDep
-from argon2 import PasswordHasher
-from argon2.exceptions import InvalidHashError, VerificationError
-from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Response, status
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

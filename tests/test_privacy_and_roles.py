@@ -2,11 +2,12 @@ from datetime import UTC, datetime, timedelta
 
 import psycopg
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from app.services.privacy_service import (
     anonymize_non_employee_results,
     purge_expired_raw_records,
 )
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 
 def test_athlete_summary_privacy_by_role(client, auth_headers):

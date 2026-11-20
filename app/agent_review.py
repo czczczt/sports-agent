@@ -11,24 +11,23 @@
 """
 from __future__ import annotations
 
-import sys
 import json
+import sys
 from pathlib import Path
 
+import psycopg
 from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
+from app.config import DATABASE_URL, normalize_postgres_url
+
 PARSER_DIR = Path(__file__).resolve().parents[1] / "parser_running"
 if str(PARSER_DIR) not in sys.path:
     sys.path.insert(0, str(PARSER_DIR))
 
-import agent_queue as aq          # noqa: E402  (модули парсера: путь добавлен выше)
-import db as parser_db            # noqa: E402
-
-import psycopg
-from app.config import DATABASE_URL, normalize_postgres_url
+import agent_queue as aq  # noqa: E402
 
 router = APIRouter(prefix="/api/agent-review", tags=["agent-review"])
 STATUSES = ["proposed", "approved", "rejected", "resolved", "known", "new", "all"]
@@ -143,9 +142,9 @@ def api_reset_demo():
 def _cleanup_issue_files(con, issue_id: int) -> list[str]:
     """Удаляет с диска сгенерированные скрипты парсера и тесты при удалении задачи."""
     row = con.execute("""
-        SELECT s.name, i.object_ref 
-        FROM issue i 
-        LEFT JOIN source s ON s.id = i.source_id 
+        SELECT s.name, i.object_ref
+        FROM issue i
+        LEFT JOIN source s ON s.id = i.source_id
         WHERE i.id = %s
     """, (issue_id,)).fetchone()
     source_name = row[0] if row and row[0] else None
