@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -30,6 +31,12 @@ class Settings(BaseSettings):
     gigachat_scope: str = "GIGACHAT_API_PERS"
     gigachat_model: str = "GigaChat"
     gigachat_verify_ssl: bool = True
+    recipe_agent_provider: Literal["gigachat", "ollama", "vllm"] = "gigachat"
+    recipe_agent_model: str = ""
+    recipe_agent_base_url: str = ""
+    recipe_agent_api_key: str = Field(default="", repr=False)
+    recipe_raw_root: Path = BASE_DIR / "parser_running" / "data" / "raw"
+    auto_apply_safe_repairs: bool = True
 
     smtp_host: str = ""
     smtp_port: int = 587

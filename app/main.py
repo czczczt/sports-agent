@@ -19,6 +19,7 @@ from app.config import APP_HOST, APP_PORT, DATABASE_URL
 from app.core.database import async_postgres_url
 from app.frontend import mount_frontend
 from app.modules.athletes.exceptions import AthleteNotFound
+from app.recipe_agent.api import router as recipe_review_router
 
 
 @asynccontextmanager
@@ -68,6 +69,7 @@ for legacy_router in (athletes_router, events_router, races_router):
         legacy_router, dependencies=[Depends(get_current_user)], include_in_schema=False
     )
 app.include_router(agent_review_router, dependencies=[Depends(get_current_user)])
+app.include_router(recipe_review_router)
 
 
 @app.exception_handler(AthleteNotFound)
@@ -83,4 +85,10 @@ mount_frontend(app)
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("app.main:app", host=APP_HOST, port=APP_PORT, reload=True)
+    uvicorn.run(
+        "app.main:app",
+        host=APP_HOST,
+        port=APP_PORT,
+        loop="app.core.database:postgres_event_loop_factory",
+        reload=True,
+    )

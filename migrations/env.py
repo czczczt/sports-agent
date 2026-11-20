@@ -1,17 +1,16 @@
-import asyncio
 import os
 
 from alembic import context
 from dotenv import load_dotenv
-from sqlalchemy import pool
+from psycopg import ClientCursor
+from sqlalchemy import create_engine, pool
 from sqlalchemy.engine import Connection, make_url
-from sqlalchemy.ext.asyncio import create_async_engine
 
 load_dotenv()
 url = make_url(os.environ["DATABASE_URL"])
 if url.drivername not in {"postgres", "postgresql", "postgresql+asyncpg"}:
     raise ValueError("DATABASE_URL must be a PostgreSQL URL")
-url = url.set(drivername="postgresql+asyncpg")
+url = url.set(drivername="postgresql+psycopg")
 
 
 def migrate(connection: Connection) -> None:
@@ -20,13 +19,14 @@ def migrate(connection: Connection) -> None:
         context.run_migrations()
 
 
-async def run_online() -> None:
-    engine = create_async_engine(url, poolclass=pool.NullPool)
+def run_online() -> None:
+    # SQL migrations contain multi-statement scripts and PL/pgSQL bodies.
+    engine = create_engine(url, poolclass=pool.NullPool, connect_args={"cursor_factory": ClientCursor})
     try:
-        async with engine.connect() as connection:
-            await connection.run_sync(migrate)
+        with engine.connect() as connection:
+            migrate(connection.execution_options(no_parameters=True))
     finally:
-        await engine.dispose()
+        engine.dispose()
 
 
 if context.is_offline_mode():
@@ -34,4 +34,4 @@ if context.is_offline_mode():
     with context.begin_transaction():
         context.run_migrations()
 else:
-    asyncio.run(run_online())
+    run_online()

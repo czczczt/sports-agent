@@ -10,6 +10,7 @@ import { useApi } from '@/hooks/useApi';
 import { KEEP_SCROLL } from '@/hooks/keepScroll';
 import { SITE_TITLE, useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { dateTimeRu, sourceName } from '@/lib/format';
+import { RecipeReviewPanel } from './RecipeReviewPanel';
 
 export function AgentReviewPage() {
   useDocumentTitle(`Правки агента · ${SITE_TITLE}`);
@@ -50,6 +51,7 @@ export function AgentReviewPage() {
       {error && !data ? <ErrorState error={error} onRetry={reload} />
         : !data || loading ? <Loader />
         : <ReviewList data={data} status={status} onChanged={reload} />}
+      <RecipeReviewPanel />
     </>
   );
 }

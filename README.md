@@ -266,14 +266,14 @@ $$\text{Баллы} = \max\left(0, \left(R_{max} \times \left(1 - \frac{T_{\text
 Этап 0 предназначен для локального запуска. Сохранена авторизация актуальной `dev`: пользователи в PostgreSQL, Argon2, регистрация и модерация заявок. На чистой базе встроенных учёток нет; первый администратор назначается владельцем локальной базы после регистрации. Реализация токенов пока требует дальнейшей доработки; публичный деплой здесь не выполняется. Полная процедура и границы этапа: [docs/implementation-stage0.md](docs/implementation-stage0.md).
 
 ```bash
-cp env.example .env
+[ -f .env ] || cp .env.example .env
 # Задайте POSTGRES_PASSWORD и AUTH_SECRET_KEY случайными значениями.
 # DATABASE_URL — адрес для инструментов на хосте; пароль в URL percent-encoded.
-docker compose up --build -d
-docker compose ps
+docker compose up --build -d db migrate api worker
+docker compose ps -a
 ```
 
-Compose запускает PostgreSQL 16, отдельный `migrate` (`alembic upgrade head`) и затем `api`. Один образ содержит Python API и собранный React. Веб-сервис доступен на [http://127.0.0.1:8000/](http://127.0.0.1:8000/), готовность — `/health/ready`, процесс — `/health/live`. На чистой базе интерфейс показывает пустые данные. Миграции создают схему, но не загружают старую SQLite автоматически.
+Compose запускает PostgreSQL 16, миграции Alembic, FastAPI с собранным React и воркер. Веб-сервис доступен на [http://127.0.0.1:8000/](http://127.0.0.1:8000/), готовность проверяется по `/health/ready`, логи смотрите через `docker compose logs migrate api worker`. Миграции создают схему. Данные и учётные записи на чистой базе добавляются отдельно.
 
 Для разработки Python на хосте:
 
@@ -285,10 +285,12 @@ docker compose up -d db
 python -m alembic upgrade head
 npm --prefix frontend ci
 npm --prefix frontend run build
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload --reload-dir app
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --loop app.core.database:postgres_event_loop_factory
 ```
 
 `DATABASE_URL` из `.env` должен указывать на опубликованный `DB_PORT` на хосте. Внутри Compose используется отдельный `COMPOSE_DATABASE_URL` (по умолчанию `db:5432`). Для пароля с символами URL задайте `COMPOSE_DATABASE_URL` явно с percent-encoding. Исходный `DATABASE_URL` не переписывается.
+
+Для ремонта рецептов при запуске на хосте запустите `python -m app.worker` во втором терминале. Регистрация эталонов и запуск ремонта описаны в [руководстве агента](docs/agent-guide.md).
 
 Старые данные переносятся только в пустую целевую базу после применения Alembic; SQLite открывается read-only, импорт сохраняет готовые баллы и места без пересчёта:
 

@@ -1,7 +1,21 @@
+import asyncio
+
 import pytest
 from psycopg.conninfo import conninfo_to_dict
+from uvicorn import Config
 
 from app.config import Settings, normalize_postgres_url
+
+
+def test_uvicorn_custom_factory_creates_selector_event_loop() -> None:
+    config = Config("app.main:app", loop="app.core.database:postgres_event_loop_factory")
+    factory = config.get_loop_factory()
+    assert factory is not None
+    loop = factory()
+    try:
+        assert isinstance(loop, asyncio.SelectorEventLoop)
+    finally:
+        loop.close()
 
 
 @pytest.mark.parametrize("scheme", ["postgres", "postgresql", "postgresql+asyncpg"])

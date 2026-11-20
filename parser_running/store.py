@@ -14,7 +14,10 @@ import re
 
 import psycopg
 
-from normalize import is_sber_club, km_to_m, norm_distance
+if __package__:
+    from .normalize import is_sber_club, km_to_m, norm_distance
+else:
+    from normalize import is_sber_club, km_to_m, norm_distance
 
 STATUSES = {"FIN", "DNF", "DSQ", "DNS", "NC", "LAP"}
 RESULT_FIELDS = ("external_participant_id", "bib", "full_name_raw", "gender", "age", "birth_year", "country",
@@ -70,18 +73,27 @@ def club_ids(con: psycopg.Connection, names: set[str]) -> dict[str, int]:
     return dict(con.execute("SELECT name_raw, id FROM club WHERE name_raw = ANY(%s)", (list(names),)).fetchall())
 
 
-def save_results(con: psycopg.Connection, race_id: int, rows: list[dict], raw_id: int | None = None) -> None:
+def save_results(
+    con: psycopg.Connection,
+    race_id: int,
+    rows: list[dict],
+    raw_id: int | None = None,
+    *,
+    recipe_id: int | None = None,
+) -> None:
     con.execute("DELETE FROM result WHERE race_id = %s", (race_id,))  # протокол перезаписывается целиком
     for r in rows:  # откуда клуб: из протокола (по умолчанию) или из фильтра площадки (E35)
         r.setdefault("club_source", "protocol" if r.get("club_raw") else None)
     clubs = club_ids(con, {r["club_raw"] for r in rows if r.get("club_raw")})
-    cols = ("race_id", "raw_id", "club_id", *RESULT_COLUMNS)
+    recipe_columns = ("recipe_id",) if recipe_id is not None else ()
+    recipe_values = (recipe_id,) if recipe_id is not None else ()
+    cols = ("race_id", "raw_id", "club_id", *RESULT_COLUMNS, *recipe_columns)
     with con.cursor().copy(f"COPY result ({', '.join(cols)}) FROM STDIN") as cp:
         for r in rows:
             vals = [r.get(k) for k in RESULT_FIELDS]
             vals[1] = None if vals[1] is None else str(vals[1])            # bib — текст
             vals[0] = None if vals[0] is None else str(vals[0])            # external_participant_id
-            cp.write_row((race_id, raw_id, clubs.get(r.get("club_raw")), *vals))
+            cp.write_row((race_id, raw_id, clubs.get(r.get("club_raw")), *vals, *recipe_values))
 
 
 def save_raw(con: psycopg.Connection, src: int, fetches: list[dict], raw_root, object_ref: str | None,

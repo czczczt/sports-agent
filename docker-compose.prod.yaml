@@ -63,6 +63,9 @@ services:
       SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-https://${APP_DOMAIN:-localhost}}
       RAW_TTL_DAYS: ${RAW_TTL_DAYS:-90}
+      RECIPE_RAW_ROOT: /raw
+    volumes:
+      - ${RECIPE_RAW_HOST_DIR:-./parser_running/data/raw}:/raw:ro
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -136,6 +139,17 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-sports_agent}
       AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:?set AUTH_SECRET_KEY in .env}
       RAW_TTL_DAYS: ${RAW_TTL_DAYS:-90}
+      GIGACHAT_CREDENTIALS: ${GIGACHAT_CREDENTIALS:-}
+      GIGACHAT_SCOPE: ${GIGACHAT_SCOPE:-GIGACHAT_API_PERS}
+      GIGACHAT_VERIFY_SSL: ${GIGACHAT_VERIFY_SSL:-true}
+      RECIPE_AGENT_PROVIDER: ${RECIPE_AGENT_PROVIDER:-gigachat}
+      RECIPE_AGENT_MODEL: ${RECIPE_AGENT_MODEL:-}
+      RECIPE_AGENT_BASE_URL: ${RECIPE_AGENT_BASE_URL:-}
+      RECIPE_AGENT_API_KEY: ${RECIPE_AGENT_API_KEY:-}
+      RECIPE_RAW_ROOT: /raw
+      AUTO_APPLY_SAFE_REPAIRS: ${AUTO_APPLY_SAFE_REPAIRS:-true}
+    volumes:
+      - ${RECIPE_RAW_HOST_DIR:-./parser_running/data/raw}:/raw:ro
     depends_on:
       migrate:
         condition: service_completed_successfully
