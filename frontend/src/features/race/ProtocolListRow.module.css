@@ -1,0 +1,11 @@
+.name {
+  min-width: 0;
+}
+
+.identity {
+  gap: var(--space-8px);
+}
+
+.currentAthlete {
+  color: var(--brand-text);
+}

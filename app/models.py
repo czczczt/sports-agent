@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
+from typing_extensions import NotRequired, TypedDict
 
 
 class AthleteCandidate(BaseModel):
@@ -143,6 +144,18 @@ class DistributionBin(BaseModel):
     count: int
 
 
+class CompetitionAthleteResult(TypedDict):
+    result_id: int
+    time_s: float
+    place_abs: int | str | None
+    percentile: NotRequired[float | None]
+    top_percent: NotRequired[float | None]
+    time_formatted: str | None
+    pace_formatted: str | None
+    status: str | None
+    summary_text: NotRequired[str]
+
+
 class CompetitionDistribution(BaseModel):
     race_id: int
     race_name: str
@@ -155,7 +168,7 @@ class CompetitionDistribution(BaseModel):
     p25_time_s: float
     p75_time_s: float
     distribution_bins: list[DistributionBin]
-    athlete_result: dict[str, Any] | None = None
+    athlete_result: CompetitionAthleteResult | None = None
 
 
 class UserOut(BaseModel):

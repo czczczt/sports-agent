@@ -230,14 +230,20 @@ def import_snapshot(snapshot: Path, dsn: str):
                     {column: column for column in columns.split(",")},
                 )
                 ordering[table] = order.split(",")
-        business_tables = [
+        guarded_tables = [
             row[0]
             for row in target.execute(
-                "SELECT tablename FROM pg_tables WHERE schemaname=current_schema() "
-                "AND tablename NOT IN ('alembic_version','migration_owned_table','migration_dev_owned_table') ORDER BY tablename"
+                """SELECT tablename FROM pg_tables
+                   WHERE schemaname = current_schema()
+                     AND tablename NOT IN (
+                         'alembic_version', 'migration_owned_table', 'migration_dev_owned_table',
+                         'procrastinate_workers',
+                         'procrastinate_events', 'procrastinate_periodic_defers'
+                     )
+                   ORDER BY tablename"""
             )
         ]
-        for table in business_tables:
+        for table in guarded_tables:
             target.execute(
                 sql.SQL("LOCK TABLE {} IN EXCLUSIVE MODE").format(sql.Identifier(table))
             )
@@ -254,7 +260,15 @@ def import_snapshot(snapshot: Path, dsn: str):
                         f"Previously imported destination has changed: {table}"
                     )
             return previous[0] | {"already_imported": True}
-        for table in business_tables:
+        for table in guarded_tables:
+            if table == "procrastinate_jobs":
+                # The table lock also prevents a worker from claiming or enqueueing jobs during import.
+                if target.execute(
+                    "SELECT 1 FROM procrastinate_jobs "
+                    "WHERE status NOT IN ('succeeded', 'failed', 'cancelled', 'aborted') LIMIT 1"
+                ).fetchone():
+                    raise ValueError("Destination has unfinished background jobs; retry after they finish.")
+                continue
             if target.execute(
                 sql.SQL("SELECT EXISTS(SELECT 1 FROM {})").format(sql.Identifier(table))
             ).fetchone()[0]:

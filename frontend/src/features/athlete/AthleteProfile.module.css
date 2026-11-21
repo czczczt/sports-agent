@@ -1,0 +1,49 @@
+.identity {
+  flex-wrap: nowrap;
+  gap: var(--space-20px);
+  min-width: 0;
+}
+
+.name {
+  min-width: 0;
+}
+
+.meta {
+  margin-top: var(--space-6px);
+}
+
+.stats {
+  gap: var(--space-16px);
+}
+
+.statTitle {
+  line-height: 1.25;
+}
+
+.period {
+  margin-top: var(--space-12px);
+}
+
+.subtitle {
+  font-size: 16px;
+}
+
+.empty {
+  padding: var(--space-16px) var(--space-20px);
+}
+
+.chartTitle {
+  margin-bottom: var(--space-12px);
+}
+
+.chartTitle[data-populated] {
+  margin-bottom: var(--space-2px);
+}
+
+.chart {
+  height: 165px;
+}
+
+.results {
+  min-width: 680px;
+}

@@ -57,6 +57,9 @@ jobs:
       - name: Verify API TypeScript types generation
         run: npm run gen:api
         working-directory: frontend
+      - run: git diff --exit-code -- frontend/src/shared/api/schema.d.ts
+      - run: npm run lint && npm test
+        working-directory: frontend
       - run: npm run build
         working-directory: frontend
 

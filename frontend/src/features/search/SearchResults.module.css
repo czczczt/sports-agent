@@ -1,0 +1,12 @@
+.heading {
+  font-size: 16px;
+}
+
+.identity {
+  min-width: 0;
+  flex: 1;
+}
+
+.chips {
+  margin-top: auto;
+}

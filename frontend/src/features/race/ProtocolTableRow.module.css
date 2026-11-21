@@ -1,0 +1,4 @@
+.currentAthlete {
+  color: var(--brand-text);
+  margin-left: var(--space-6px);
+}

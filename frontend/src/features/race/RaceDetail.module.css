@@ -1,0 +1,43 @@
+.header {
+  padding: var(--space-20px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12px);
+}
+
+.event {
+  text-decoration: none;
+}
+
+.metrics {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.personalResult {
+  border-color: transparent;
+}
+
+.performance {
+  align-items: baseline;
+  gap: var(--space-8px);
+}
+
+.tile {
+  background: var(--surface);
+}
+
+.leader {
+  min-width: 0;
+}
+
+.chartCaption {
+  margin-top: var(--space-4px);
+}
+
+.protocol {
+  gap: 0;
+}
+
+.table {
+  min-width: 760px;
+}

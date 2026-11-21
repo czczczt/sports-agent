@@ -13,13 +13,14 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import psycopg
 from fastapi import APIRouter, FastAPI, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.config import DATABASE_URL, normalize_postgres_url
 
@@ -60,7 +61,81 @@ class ApplyIn(BaseModel):
     push: bool = False
 
 
-@router.get("/page")
+class AgentRun(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    run_id: int
+    model: str | None
+    tokens_in: int | None
+    tokens_out: int | None
+    seconds: float | str | None
+
+
+class AgentReviewDecision(BaseModel):
+    decision: str
+    author: str
+    comment: str | None
+    decided_at: datetime
+    applied_result: str | None
+    pr_url: str | None
+
+
+class AgentReviewItem(BaseModel):
+    issue_id: int
+    source: str | None
+    stage: str | None
+    kind: str | None
+    object_ref: str | None
+    details: str | None
+    status: str
+    assignee: str | None
+    run: AgentRun | None
+    reason: str | None
+    diff: str
+    report_text: str
+    reviews: list[AgentReviewDecision]
+
+
+class AgentReviewPage(BaseModel):
+    items: list[AgentReviewItem]
+    sources: list[str]
+    statuses: list[str]
+    status: str
+    source: str
+    default_author: str
+    db_error: str | None
+
+
+class IssueStatus(BaseModel):
+    issue_id: int
+    status: str
+
+
+class DecisionResult(IssueStatus):
+    decision: str
+    author: str
+
+
+class ApplyResult(IssueStatus):
+    model_config = ConfigDict(extra="allow")
+    result: str
+    pr_url: str | None
+
+
+class DemoResetResult(BaseModel):
+    status: str
+    reset_issues: list[int]
+
+
+class ClearResult(BaseModel):
+    status: str
+    deleted_files: list[str]
+
+
+class DeleteResult(IssueStatus):
+    deleted_files: list[str]
+
+
+@router.get("/page", response_model=AgentReviewPage)
 def api_page(status: str = Query("proposed"), source: str | None = Query(None)):
     """Всё для экрана проверки: задачи, фильтры и автор по умолчанию.
     Если база парсера недоступна — 200 с db_error, чтобы экран показал понятное сообщение."""
@@ -78,7 +153,7 @@ def api_page(status: str = Query("proposed"), source: str | None = Query(None)):
                              "default_author": aq.default_author(), "db_error": None})
 
 
-@router.get("/items")
+@router.get("/items", response_model=list[AgentReviewItem])
 def api_items(status: str = "proposed", source: str | None = None):
     try:
         con = _con()
@@ -94,7 +169,7 @@ def api_items(status: str = "proposed", source: str | None = None):
     return items
 
 
-@router.post("/{issue_id}/decide")
+@router.post("/{issue_id}/decide", response_model=DecisionResult)
 def api_decide(issue_id: int, body: DecisionIn):
     try:
         con = _con()
@@ -108,7 +183,7 @@ def api_decide(issue_id: int, body: DecisionIn):
         con.close()
 
 
-@router.post("/{issue_id}/reset")
+@router.post("/{issue_id}/reset", response_model=IssueStatus)
 def api_reset(issue_id: int):
     try:
         con = _con()
@@ -123,7 +198,7 @@ def api_reset(issue_id: int):
         con.close()
 
 
-@router.post("/reset-demo")
+@router.post("/reset-demo", response_model=DemoResetResult)
 def api_reset_demo():
     try:
         con = _con()
@@ -183,7 +258,7 @@ def _cleanup_issue_files(con, issue_id: int) -> list[str]:
     return deleted
 
 
-@router.delete("/clear-all")
+@router.delete("/clear-all", response_model=ClearResult)
 def api_clear_all():
     try:
         con = _con()
@@ -203,7 +278,7 @@ def api_clear_all():
         con.close()
 
 
-@router.delete("/{issue_id}")
+@router.delete("/{issue_id}", response_model=DeleteResult)
 def api_delete_issue(issue_id: int):
     try:
         con = _con()
@@ -220,7 +295,7 @@ def api_delete_issue(issue_id: int):
         con.close()
 
 
-@router.post("/{issue_id}/apply")
+@router.post("/{issue_id}/apply", response_model=ApplyResult)
 def api_apply(issue_id: int, body: ApplyIn):
     try:
         con = _con()

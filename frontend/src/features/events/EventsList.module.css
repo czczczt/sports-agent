@@ -1,0 +1,15 @@
+.table {
+  min-width: 760px;
+}
+
+.dateColumn {
+  width: 110px;
+}
+
+.chips {
+  margin-top: var(--space-6px);
+}
+
+.description {
+  min-width: 0;
+}

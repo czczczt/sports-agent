@@ -1,6 +1,7 @@
 import importlib
 import re
 
+import psycopg
 import pytest
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
@@ -107,6 +108,22 @@ def test_login_profiles_events_protocol_and_rating(client, migrated_url, sqlite_
         1: 123.456,
         2: 87.125,
     }
+
+
+def test_competition_with_unknown_athlete_status(client, migrated_url, auth_headers):
+    with psycopg.connect(migrated_url) as connection:
+        connection.execute(
+            "UPDATE result SET status=NULL, chip_time_s=NULL, gun_time_s=NULL, position=NULL WHERE id=1"
+        )
+    response = client.get(
+        "/api/races/1/competition", params={"athlete_id": 1}, headers=auth_headers("admin")
+    )
+    assert response.status_code == 200
+    result = response.json()["athlete_result"]
+    assert result["result_id"] == 1
+    assert result["status"] is None
+    assert result["time_formatted"] is None
+    assert result["pace_formatted"] is None
 
 
 def test_assessment_uses_cache_without_real_llm(

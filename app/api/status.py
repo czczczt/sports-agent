@@ -5,6 +5,7 @@ import time
 from typing import Any
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy import text
 
 from app.api.auth import get_optional_current_user
@@ -14,7 +15,43 @@ from app.models import UserOut
 router = APIRouter(prefix="/status", tags=["status"])
 
 
-@router.get("", summary="Get system status, queue metrics and adapter health")
+class DatabaseStatus(BaseModel):
+    connected: bool
+    latency_ms: float
+    engine: str
+
+
+class QueueStatus(BaseModel):
+    status: str
+    jobs_pending: int
+    jobs_doing: int | None = None
+    jobs_failed: int
+    jobs_done: int
+
+
+class AdapterStatus(BaseModel):
+    id: int
+    name: str
+    base_url: str | None
+    platform: str | None
+    sport_types: str | None
+    enabled: bool
+    competitions_count: int
+    results_count: int
+    open_issues_count: int
+    status: str
+
+
+class SystemStatus(BaseModel):
+    status: str
+    timestamp: int
+    database: DatabaseStatus
+    queue: QueueStatus
+    adapters: list[AdapterStatus]
+    overview: dict[str, int]
+
+
+@router.get("", response_model=SystemStatus, response_model_exclude_unset=True, summary="Get system status, queue metrics and adapter health")
 async def get_system_status(
     session: SessionDep,
     current_user: UserOut | None = Depends(get_optional_current_user),

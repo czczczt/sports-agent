@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
+import { defineConfig } from 'vite';
 
 // Бэкенд FastAPI. В dev Vite проксирует к нему все запросы /api/...
 const BACKEND_URL = process.env.BACKEND_URL ?? 'http://127.0.0.1:8000';

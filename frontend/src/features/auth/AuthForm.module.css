@@ -1,0 +1,71 @@
+@layer base {
+  .modalOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-16px);
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    animation: modal-fade-in 0.15s ease-out;
+  }
+  .modalCard {
+    position: relative;
+    width: 100%;
+    max-width: 380px;
+    padding: var(--space-28px) var(--space-24px) var(--space-24px);
+    border-radius: var(--radius-12px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+    animation: modal-scale-in 0.15s ease-out;
+  }
+  .modalClose {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: var(--radius-6px);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition:
+      color 0.15s,
+      background-color 0.15s;
+  }
+  .modalClose:hover {
+    color: var(--text-primary);
+    background: var(--surface-2);
+  }
+  .modalTitle {
+    margin: 0 0 var(--space-18px);
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .authCheckbox {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-8px);
+    font-size: 13px;
+    line-height: 1.4;
+    cursor: pointer;
+  }
+  .authCheckbox input[type='checkbox'] {
+    margin-top: var(--space-2px);
+    cursor: pointer;
+  }
+
+  .modalCard[data-mode='register'] {
+    max-width: 520px;
+  }
+}

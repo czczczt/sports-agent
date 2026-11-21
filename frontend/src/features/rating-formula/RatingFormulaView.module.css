@@ -1,0 +1,345 @@
+@layer base {
+  .formulaPage {
+    --formula-bg: #0b100e;
+    --formula-surface: #121a17;
+    --formula-line: #24302b;
+    --formula-muted: #899690;
+    color: var(--palette-f1f5f2);
+    background: var(--formula-bg);
+    border-radius: var(--radius-14px);
+    padding: var(--space-28px);
+  }
+  .formulaPage {
+    --formula-bg: #0b100e;
+    --formula-surface: #121a17;
+    --formula-surface-2: #18231e;
+    --formula-line: #29352f;
+    --formula-muted: #91a099;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: var(--space-42px) var(--space-44px) var(--space-34px);
+    color: var(--palette-f1f5f2);
+    background: var(--formula-bg);
+    border-radius: var(--radius-16px);
+  }
+  .formulaPageSimple {
+    max-width: 900px;
+    padding: var(--space-46px) var(--space-52px) var(--space-56px);
+  }
+  .formulaSimpleHeader {
+    border-bottom: 1px solid var(--formula-line);
+    padding-bottom: var(--space-28px);
+  }
+  .formulaSimpleBack {
+    color: var(--formula-muted);
+    font-size: 12px;
+    text-decoration: none;
+  }
+  .formulaSimpleBack:hover {
+    color: var(--palette-f1f5f2);
+  }
+  .formulaSimpleHeader h1 {
+    font: 700 42px/1.1 var(--font-display);
+    letter-spacing: -0.04em;
+    margin: var(--space-30px) 0 var(--space-12px);
+  }
+  .formulaSimpleHeader p {
+    display: flex;
+    gap: var(--space-12px);
+    margin: 0;
+    color: var(--formula-muted);
+    font-size: 14px;
+  }
+  .formulaSimpleHeader p strong {
+    color: var(--palette-f0a04b);
+    font-weight: 600;
+  }
+  .formulaSimpleHeader p span {
+    padding-left: var(--space-12px);
+    border-left: 1px solid var(--formula-line);
+  }
+  .formulaSimpleCard {
+    margin-top: var(--space-24px);
+    padding: var(--space-28px);
+    border: 1px solid var(--formula-line);
+    border-radius: var(--radius-12px);
+    background: var(--formula-surface);
+  }
+  .formulaSimpleCardHeading > span {
+    color: var(--palette-f0a04b);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .formulaSimpleCardHeading h2 {
+    font: 700 23px var(--font-display);
+    letter-spacing: -0.03em;
+    margin: var(--space-9px) 0 0;
+  }
+  .formulaSimpleCardHeading p {
+    color: var(--formula-muted);
+    font-size: 12px;
+    margin: var(--space-8px) 0 0;
+  }
+  .formulaSimpleCalculation {
+    border-color: var(--palette-ef8d28);
+    background: linear-gradient(135deg, var(--palette-211b13), var(--palette-121a17) 68%);
+  }
+  .formulaSimpleEquation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-17px);
+    margin: var(--space-28px) 0;
+    padding: var(--space-24px) var(--space-16px);
+    border: 1px solid var(--palette-ef8d28);
+    border-radius: var(--radius-10px);
+    background: var(--palette-0c1510);
+    color: var(--palette-f0a04b);
+    box-shadow: 0 0 22px var(--palette-ef8d281c);
+  }
+  .formulaSimpleEquation > span:first-child {
+    font: 700 20px var(--font-display);
+  }
+  .formulaSimpleEquation > b {
+    font-size: 25px;
+  }
+  .formulaSimpleEquation > strong {
+    font: 700 24px var(--font-display);
+  }
+  .formulaSimpleFraction {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-5px);
+    min-width: 130px;
+  }
+  .formulaSimpleFraction strong {
+    color: var(--palette-f1f5f2);
+    border-bottom: 2px solid var(--palette-f0a04b);
+    padding: 0 var(--space-14px) var(--space-6px);
+    font: 700 18px var(--font-display);
+  }
+  .formulaSimpleFraction i {
+    color: var(--palette-aab8b0);
+    font-size: 14px;
+    font-style: normal;
+  }
+  .formulaSimpleNote {
+    color: var(--formula-muted);
+    font-size: 12px;
+    line-height: 1.6;
+    margin-top: var(--space-22px);
+    padding-top: var(--space-16px);
+    border-top: 1px solid var(--formula-line);
+  }
+  .formulaSimpleNote strong {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+  .formulaSimpleNorms {
+    margin-top: var(--space-16px);
+  }
+  .formulaSimpleTableWrap {
+    overflow-x: auto;
+    margin-top: var(--space-20px);
+  }
+  .formulaSimpleTable {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 500px;
+  }
+  .formulaSimpleTable th,
+  .formulaSimpleTable td {
+    padding: var(--space-12px) var(--space-10px);
+    border-bottom: 1px solid var(--formula-line);
+    font-size: 13px;
+    text-align: right;
+  }
+  .formulaSimpleTable th:first-child,
+  .formulaSimpleTable td:first-child {
+    text-align: left;
+  }
+  .formulaSimpleTable thead th {
+    color: var(--formula-muted);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .formulaSimpleTable tbody th {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+  .formulaSimpleTable tbody td {
+    color: var(--palette-f0a04b);
+    font-weight: 600;
+  }
+  .formulaSimpleTable tbody td:last-child {
+    color: var(--formula-muted);
+    font-weight: 400;
+  }
+  .formulaSimpleTableNote {
+    color: var(--formula-muted);
+    font-size: 11px;
+    line-height: 1.5;
+    margin: var(--space-16px) 0 0;
+  }
+  .formulaPageSimple {
+    --formula-bg: var(--bg-base);
+    --formula-surface: var(--surface);
+    --formula-line: var(--border);
+    --formula-muted: var(--text-muted);
+    --formula-accent: var(--brand);
+    color: var(--text-primary);
+    max-width: none;
+    margin: -4px 0 0;
+    padding: var(--space-28px);
+    background: var(--formula-bg);
+    border-radius: var(--radius-14px);
+  }
+  .formulaSimpleHeader {
+    padding-bottom: var(--space-24px);
+  }
+  .formulaSimpleBack {
+    color: var(--formula-muted);
+  }
+  .formulaSimpleHeader h1 {
+    font: 700 42px/1.1 var(--font-display);
+    letter-spacing: -0.03em;
+    margin: var(--space-24px) 0 var(--space-8px);
+  }
+  .formulaSimpleHeader p strong {
+    color: var(--formula-accent);
+  }
+  .formulaSimpleCard {
+    border-color: var(--formula-line);
+    background: var(--formula-surface);
+    border-radius: var(--radius-11px);
+  }
+  .formulaSimpleCalculation {
+    border: 1px solid var(--formula-line);
+    background: var(--formula-surface);
+  }
+  .formulaSimpleCardHeading > span {
+    color: var(--formula-accent);
+  }
+  .formulaSimpleCardHeading h2 {
+    font-size: 18px;
+  }
+  .formulaSimpleEquation {
+    border-color: var(--formula-accent);
+    background: var(--surface-2);
+    color: var(--formula-accent);
+    box-shadow: none;
+  }
+  .formulaSimpleEquation > span:first-child,
+  .formulaSimpleEquation > b,
+  .formulaSimpleEquation > strong,
+  .formulaSimpleFraction strong,
+  .formulaSimpleFraction i {
+    color: var(--text-primary);
+    font: 500 16px/1.2 var(--font-body);
+  }
+  .formulaSimpleEquation > b {
+    font-weight: 500;
+  }
+  .formulaSimpleFraction strong {
+    border-color: var(--formula-accent);
+  }
+  .formulaSimpleFraction i {
+    font-style: normal;
+  }
+  .formulaSimpleNote {
+    border-top-color: var(--formula-line);
+  }
+  .formulaSimpleTable tbody td {
+    color: var(--text-primary);
+  }
+  .formulaSimpleTable tbody td:last-child {
+    color: var(--formula-muted);
+  }
+
+  @media (max-width: 760px) {
+    .formulaSimpleEquation > span:first-child,
+    .formulaSimpleEquation > b,
+    .formulaSimpleEquation > strong,
+    .formulaSimpleFraction strong,
+    .formulaSimpleFraction i {
+      font: 500 13px/1.2 var(--font-body);
+    }
+  }
+  @media (max-width: 760px) {
+    .formulaPageSimple {
+      padding: var(--space-24px) var(--space-14px) var(--space-32px);
+      margin: -4px -8px 0;
+      border-radius: 0;
+    }
+  }
+  @media (max-width: 760px) {
+    .formulaSimpleHeader h1 {
+      font-size: 30px;
+      margin-top: var(--space-24px);
+    }
+  }
+  @media (max-width: 760px) {
+    .formulaSimpleCard {
+      padding: var(--space-20px) var(--space-16px);
+    }
+  }
+  @media (max-width: 760px) {
+    .formulaSimpleCardHeading h2 {
+      font-size: 19px;
+    }
+  }
+  @media (max-width: 760px) {
+    .formulaSimpleEquation {
+      gap: var(--space-8px);
+      padding: var(--space-18px) var(--space-6px);
+      margin: var(--space-22px) 0;
+    }
+  }
+  @media (max-width: 760px) {
+    .formulaSimpleEquation > span:first-child {
+      font-size: 13px;
+    }
+  }
+  @media (max-width: 760px) {
+    .formulaSimpleEquation > b {
+      font-size: 17px;
+    }
+  }
+  @media (max-width: 760px) {
+    .formulaSimpleEquation > strong {
+      font-size: 15px;
+    }
+  }
+  @media (max-width: 760px) {
+    .formulaSimpleFraction {
+      min-width: 82px;
+      gap: var(--space-3px);
+    }
+  }
+  @media (max-width: 760px) {
+    .formulaSimpleFraction strong {
+      font-size: 11px;
+      padding: 0 var(--space-5px) var(--space-3px);
+    }
+  }
+  @media (max-width: 760px) {
+    .formulaSimpleFraction i {
+      font-size: 9px;
+    }
+  }
+  @media (max-width: 760px) {
+    .formulaSimpleHeader p {
+      flex-wrap: wrap;
+    }
+  }
+  @media (max-width: 760px) {
+    .formulaSimpleTable {
+      min-width: 500px;
+    }
+  }
+}

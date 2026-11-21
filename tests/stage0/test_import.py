@@ -12,12 +12,20 @@ def test_import_preserves_fields_links_ranks_and_is_idempotent(
     migrated_url, sqlite_source
 ):
     before = sqlite_source.read_bytes()
+    with psycopg.connect(migrated_url) as connection:
+        job_id = connection.execute(
+            "INSERT INTO procrastinate_jobs(queue_name, task_name) VALUES ('default', 'test') RETURNING id"
+        ).fetchone()[0]
+        connection.execute("UPDATE procrastinate_jobs SET status='cancelled' WHERE id=%s", (job_id,))
     report = migrate(sqlite_source, migrated_url)
     assert sqlite_source.read_bytes() == before
     assert report["athlete_links"] == 2
     assert report["tables"]["result"]["rows"] == 3
     assert migrate(sqlite_source, migrated_url)["already_imported"] is True
     with psycopg.connect(migrated_url) as connection:
+        assert connection.execute(
+            "SELECT count(*) FROM procrastinate_events WHERE job_id = %s", (job_id,)
+        ).fetchone()[0] > 0
         assert connection.execute(
             "SELECT bib,athlete_id FROM web_result ORDER BY id"
         ).fetchall() == [("A-7", 1), (None, 2), ("003", None)]
@@ -34,6 +42,24 @@ def test_import_preserves_fields_links_ranks_and_is_idempotent(
         connection.execute("UPDATE athlete SET city='changed' WHERE id=1")
     with pytest.raises(ValueError, match="has changed"):
         migrate(sqlite_source, migrated_url)
+
+
+@pytest.mark.parametrize("job_status", ["todo", "doing"])
+def test_unfinished_rebuild_blocks_import(migrated_url, sqlite_source, job_status):
+    with psycopg.connect(migrated_url) as connection:
+        job_id = connection.execute(
+            "INSERT INTO procrastinate_jobs(queue_name, task_name, status) "
+            "VALUES ('rebuild','app.worker.rebuild_rating_task',%s) RETURNING id",
+            (job_status,),
+        ).fetchone()[0]
+    with pytest.raises(ValueError, match="unfinished"):
+        migrate(sqlite_source, migrated_url)
+    with psycopg.connect(migrated_url) as connection:
+        assert connection.execute("SELECT count(*) FROM athlete").fetchone() == (0,)
+        assert connection.execute("SELECT count(*) FROM migration_import").fetchone() == (0,)
+        assert connection.execute(
+            "SELECT status FROM procrastinate_jobs WHERE id=%s", (job_id,)
+        ).fetchone() == (job_status,)
 
 
 def test_populated_target_rejected_without_changes(migrated_url, sqlite_source):

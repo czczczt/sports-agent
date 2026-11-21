@@ -1,0 +1,66 @@
+.header {
+  align-items: flex-start;
+  padding-bottom: var(--space-4px);
+}
+
+.heading {
+  gap: var(--space-4px);
+  flex: 1;
+}
+
+.titleRow {
+  align-items: center;
+  gap: var(--space-8px);
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+}
+
+.source {
+  text-decoration: underline;
+}
+
+.problem {
+  font-size: 15px;
+  line-height: 1.5;
+  margin-top: var(--space-2px);
+}
+
+.detail {
+  color: var(--text-base);
+  margin-left: var(--space-4px);
+}
+
+.body {
+  padding-top: var(--space-4px);
+}
+
+.explanation {
+  gap: var(--space-4px);
+}
+
+.reason {
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.metrics {
+  margin-top: var(--space-4px);
+}
+
+.block {
+  gap: var(--space-6px);
+  margin-top: var(--space-14px);
+}
+
+.decisions {
+  gap: var(--space-6px);
+}
+
+.actions {
+  justify-content: space-between;
+  width: 100%;
+}

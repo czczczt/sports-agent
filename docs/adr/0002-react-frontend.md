@@ -45,7 +45,7 @@
 
 ## Последствия
 
-- Для запуска сайта нужен Node.js 18+ и сборка: `npm --prefix frontend install && npm --prefix frontend run build`. Без неё API работает, а страницы отвечают 503 с подсказкой.
-- Новая страница: компонент в `frontend/src/pages/`, маршрут в `src/routes.tsx`, запрос в `src/api/endpoints.ts`, типы ответа в `src/api/types.ts` (повторяют pydantic-модели из `app/models.py`), пункт меню — в `src/config/navigation.ts`. Подробно — `frontend/README.md`.
-- Правила ADR-0001 действуют: только классы `theme.css` и токены цветов, иначе сломается тёмная тема.
-- При изменении pydantic-модели нужно обновить `frontend/src/api/types.ts` — `npm run build` (там же `tsc`) покажет, где типы разошлись.
+- Для запуска сайта нужны Node.js 22 и сборка `npm --prefix frontend ci && npm --prefix frontend run build`. Без неё API работает, а страницы отвечают 503 с подсказкой.
+- Текущая структура страниц, маршрутов и запросов описана в [руководстве по фронтенду](../../frontend/README.md).
+- Обе темы используют общие токены. Стили компонентов хранятся рядом с компонентами в CSS Modules.
+- При изменении моделей или маршрутов FastAPI команда `python scripts/generate_types.py` обновляет схему и типы клиента.

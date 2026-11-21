@@ -1,0 +1,8 @@
+node_modules
+dist
+openapi.json
+package-lock.json
+src/shared/api/schema.d.ts
+test-results
+playwright-report
+*.timestamp-*.mjs

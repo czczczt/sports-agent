@@ -94,11 +94,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "title": "Response Logout Api Auth Logout Post"
+                  "$ref": "#/components/schemas/StatusResponse"
                 }
               }
             }
@@ -203,7 +199,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationResponse"
+                }
               }
             }
           },
@@ -242,7 +240,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
               }
             }
           },
@@ -281,7 +281,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
               }
             }
           },
@@ -1961,9 +1963,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Get System Status Api Status Get"
+                  "$ref": "#/components/schemas/SystemStatus"
                 }
               }
             }
@@ -2203,7 +2203,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/AgentReviewPage"
+                }
               }
             }
           },
@@ -2292,7 +2294,13 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgentReviewItem"
+                  },
+                  "title": "Response Api Items Api Agent Review Items Get"
+                }
               }
             }
           },
@@ -2374,7 +2382,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionResult"
+                }
               }
             }
           },
@@ -2446,7 +2456,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/IssueStatus"
+                }
               }
             }
           },
@@ -2509,7 +2521,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/DemoResetResult"
+                }
               }
             }
           },
@@ -2572,7 +2586,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ClearResult"
+                }
               }
             }
           },
@@ -2644,7 +2660,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResult"
+                }
               }
             }
           },
@@ -2726,7 +2744,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ApplyResult"
+                }
               }
             }
           },
@@ -2792,8 +2812,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "additionalProperties": true
+                    "$ref": "#/components/schemas/RepairReview"
                   },
                   "title": "Response List Repairs Api Agent Review Recipes Get"
                 }
@@ -2868,9 +2887,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Start Repair Api Agent Review Recipes Post"
+                  "$ref": "#/components/schemas/RepairReview"
                 }
               }
             }
@@ -2945,9 +2962,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Get Repair Api Agent Review Recipes  Repair Id  Get"
+                  "$ref": "#/components/schemas/RepairReview"
                 }
               }
             }
@@ -3206,9 +3221,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Decide Api Agent Review Recipes  Repair Id  Decision Post"
+                  "$ref": "#/components/schemas/RepairReview"
                 }
               }
             }
@@ -3283,9 +3296,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true,
-                  "title": "Response Retry Api Agent Review Recipes  Repair Id  Retry Post"
+                  "$ref": "#/components/schemas/RepairReview"
                 }
               }
             }
@@ -3479,6 +3490,400 @@
         ],
         "title": "AccessRequestOut"
       },
+      "AdapterStatus": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url"
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform"
+          },
+          "sport_types": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sport Types"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "competitions_count": {
+            "type": "integer",
+            "title": "Competitions Count"
+          },
+          "results_count": {
+            "type": "integer",
+            "title": "Results Count"
+          },
+          "open_issues_count": {
+            "type": "integer",
+            "title": "Open Issues Count"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "base_url",
+          "platform",
+          "sport_types",
+          "enabled",
+          "competitions_count",
+          "results_count",
+          "open_issues_count",
+          "status"
+        ],
+        "title": "AdapterStatus"
+      },
+      "AgentReviewDecision": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "title": "Decision"
+          },
+          "author": {
+            "type": "string",
+            "title": "Author"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "decided_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Decided At"
+          },
+          "applied_result": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied Result"
+          },
+          "pr_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision",
+          "author",
+          "comment",
+          "decided_at",
+          "applied_result",
+          "pr_url"
+        ],
+        "title": "AgentReviewDecision"
+      },
+      "AgentReviewItem": {
+        "properties": {
+          "issue_id": {
+            "type": "integer",
+            "title": "Issue Id"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "object_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Ref"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee"
+          },
+          "run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentRun"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "diff": {
+            "type": "string",
+            "title": "Diff"
+          },
+          "report_text": {
+            "type": "string",
+            "title": "Report Text"
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/AgentReviewDecision"
+            },
+            "type": "array",
+            "title": "Reviews"
+          }
+        },
+        "type": "object",
+        "required": [
+          "issue_id",
+          "source",
+          "stage",
+          "kind",
+          "object_ref",
+          "details",
+          "status",
+          "assignee",
+          "run",
+          "reason",
+          "diff",
+          "report_text",
+          "reviews"
+        ],
+        "title": "AgentReviewItem"
+      },
+      "AgentReviewPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgentReviewItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "statuses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Statuses"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "default_author": {
+            "type": "string",
+            "title": "Default Author"
+          },
+          "db_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Db Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "sources",
+          "statuses",
+          "status",
+          "source",
+          "default_author",
+          "db_error"
+        ],
+        "title": "AgentReviewPage"
+      },
+      "AgentRun": {
+        "properties": {
+          "run_id": {
+            "type": "integer",
+            "title": "Run Id"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "tokens_in": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens In"
+          },
+          "tokens_out": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens Out"
+          },
+          "seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seconds"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "run_id",
+          "model",
+          "tokens_in",
+          "tokens_out",
+          "seconds"
+        ],
+        "title": "AgentRun"
+      },
       "ApplyIn": {
         "properties": {
           "push": {
@@ -3489,6 +3894,42 @@
         },
         "type": "object",
         "title": "ApplyIn"
+      },
+      "ApplyResult": {
+        "properties": {
+          "issue_id": {
+            "type": "integer",
+            "title": "Issue Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "result": {
+            "type": "string",
+            "title": "Result"
+          },
+          "pr_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Url"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "issue_id",
+          "status",
+          "result",
+          "pr_url"
+        ],
+        "title": "ApplyResult"
       },
       "AssessmentResponse": {
         "properties": {
@@ -3948,6 +4389,122 @@
         ],
         "title": "AuthResponse"
       },
+      "ClearResult": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "deleted_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Deleted Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "deleted_files"
+        ],
+        "title": "ClearResult"
+      },
+      "CompetitionAthleteResult": {
+        "properties": {
+          "result_id": {
+            "type": "integer",
+            "title": "Result Id"
+          },
+          "time_s": {
+            "type": "number",
+            "title": "Time S"
+          },
+          "place_abs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Abs"
+          },
+          "percentile": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentile"
+          },
+          "top_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top Percent"
+          },
+          "time_formatted": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time Formatted"
+          },
+          "pace_formatted": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pace Formatted"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "summary_text": {
+            "type": "string",
+            "title": "Summary Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "result_id",
+          "time_s",
+          "place_abs",
+          "time_formatted",
+          "pace_formatted",
+          "status"
+        ],
+        "title": "CompetitionAthleteResult"
+      },
       "CompetitionDistribution": {
         "properties": {
           "race_id": {
@@ -4014,14 +4571,12 @@
           "athlete_result": {
             "anyOf": [
               {
-                "additionalProperties": true,
-                "type": "object"
+                "$ref": "#/components/schemas/CompetitionAthleteResult"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Athlete Result"
+            ]
           }
         },
         "type": "object",
@@ -4037,6 +4592,29 @@
           "distribution_bins"
         ],
         "title": "CompetitionDistribution"
+      },
+      "DatabaseStatus": {
+        "properties": {
+          "connected": {
+            "type": "boolean",
+            "title": "Connected"
+          },
+          "latency_ms": {
+            "type": "number",
+            "title": "Latency Ms"
+          },
+          "engine": {
+            "type": "string",
+            "title": "Engine"
+          }
+        },
+        "type": "object",
+        "required": [
+          "connected",
+          "latency_ms",
+          "engine"
+        ],
+        "title": "DatabaseStatus"
       },
       "DecisionIn": {
         "properties": {
@@ -4065,6 +4643,81 @@
           "author"
         ],
         "title": "DecisionIn"
+      },
+      "DecisionResult": {
+        "properties": {
+          "issue_id": {
+            "type": "integer",
+            "title": "Issue Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "decision": {
+            "type": "string",
+            "title": "Decision"
+          },
+          "author": {
+            "type": "string",
+            "title": "Author"
+          }
+        },
+        "type": "object",
+        "required": [
+          "issue_id",
+          "status",
+          "decision",
+          "author"
+        ],
+        "title": "DecisionResult"
+      },
+      "DeleteResult": {
+        "properties": {
+          "issue_id": {
+            "type": "integer",
+            "title": "Issue Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "deleted_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Deleted Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "issue_id",
+          "status",
+          "deleted_files"
+        ],
+        "title": "DeleteResult"
+      },
+      "DemoResetResult": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "reset_issues": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Reset Issues"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "reset_issues"
+        ],
+        "title": "DemoResetResult"
       },
       "DistributionBin": {
         "properties": {
@@ -4293,6 +4946,24 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "IssueStatus": {
+        "properties": {
+          "issue_id": {
+            "type": "integer",
+            "title": "Issue Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "issue_id",
+          "status"
+        ],
+        "title": "IssueStatus"
+      },
       "LoginRequest": {
         "properties": {
           "username": {
@@ -4310,6 +4981,24 @@
           "password"
         ],
         "title": "LoginRequest"
+      },
+      "MessageResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "message"
+        ],
+        "title": "MessageResponse"
       },
       "PasswordResetConfirm": {
         "properties": {
@@ -4430,6 +5119,45 @@
           "place_by"
         ],
         "title": "ProtocolSample"
+      },
+      "QueueStatus": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "jobs_pending": {
+            "type": "integer",
+            "title": "Jobs Pending"
+          },
+          "jobs_doing": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jobs Doing"
+          },
+          "jobs_failed": {
+            "type": "integer",
+            "title": "Jobs Failed"
+          },
+          "jobs_done": {
+            "type": "integer",
+            "title": "Jobs Done"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "jobs_pending",
+          "jobs_failed",
+          "jobs_done"
+        ],
+        "title": "QueueStatus"
       },
       "QueuedRun": {
         "properties": {
@@ -5312,6 +6040,102 @@
         ],
         "title": "RegisterRequest"
       },
+      "RegistrationResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "message",
+          "user_id"
+        ],
+        "title": "RegistrationResponse"
+      },
+      "RepairReview": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "issue_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issue Id"
+          },
+          "source_id": {
+            "type": "integer",
+            "title": "Source Id"
+          },
+          "source_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "candidate": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate"
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errors"
+          },
+          "can_approve": {
+            "type": "boolean",
+            "title": "Can Approve"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "issue_id",
+          "source_id",
+          "source_name",
+          "status",
+          "candidate",
+          "errors",
+          "can_approve"
+        ],
+        "title": "RepairReview"
+      },
       "ReportCreateRequest": {
         "properties": {
           "kind": {
@@ -5926,6 +6750,61 @@
           "event_code"
         ],
         "title": "StartRun"
+      },
+      "StatusResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "StatusResponse"
+      },
+      "SystemStatus": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "timestamp": {
+            "type": "integer",
+            "title": "Timestamp"
+          },
+          "database": {
+            "$ref": "#/components/schemas/DatabaseStatus"
+          },
+          "queue": {
+            "$ref": "#/components/schemas/QueueStatus"
+          },
+          "adapters": {
+            "items": {
+              "$ref": "#/components/schemas/AdapterStatus"
+            },
+            "type": "array",
+            "title": "Adapters"
+          },
+          "overview": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Overview"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "database",
+          "queue",
+          "adapters",
+          "overview"
+        ],
+        "title": "SystemStatus"
       },
       "UserOut": {
         "properties": {

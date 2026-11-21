@@ -39,7 +39,7 @@
 
 * **Бэкенд:** Python 3.12 / 3.14, FastAPI, Starlette, Uvicorn, Pydantic v2.
 * **База данных:** PostgreSQL 16 для веб-приложения и парсеров; SQLAlchemy/asyncpg для веб-запросов, Alembic для схемы. SQLite используется только как источник одноразового импорта старых данных.
-* **Фронтенд (`frontend/`):** SPA на React 18 + TypeScript, сборка Vite 5, маршрутизация React Router 6; CSS с кастомной дизайн-системой токенов (`theme.css`, ADR-0001), шрифты Unbounded и Golos Text, Chart.js 4.4.1 (графики динамики темпа и гистограммы распределения), Air Datepicker 3.5.3 (выбор дат). Бэкенд отдаёт JSON (`/api/...`) и собранный `frontend/dist` (ADR-0002).
+* **Фронтенд (`frontend/`):** SPA на React 18 + TypeScript, сборка Vite 5, React Router 7, TanStack Query и типизированный клиент OpenAPI. CSS Modules используют токены дизайн-системы (ADR-0001), шрифты Unbounded и Golos Text, Chart.js 4.4.1 (графики динамики темпа и гистограммы распределения), Air Datepicker 3.5.3 (выбор дат). Бэкенд отдаёт JSON (`/api/...`) и собранный `frontend/dist` (ADR-0002).
 * **Сбор и парсинг:** `requests`, `httpx`, `beautifulsoup4`, `pdfplumber`, `pillow`, `pytesseract` (Tesseract OCR 5).
 * **ИИ и LLM-стек:** GigaChat API (модели `GigaChat-2-Pro`, `GigaChat-Pro`), SDK `gigachat`, Model Context Protocol (MCP) orchestrator, автономный агент исправления парсеров (`parse_url.py`).
 

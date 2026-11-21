@@ -1,0 +1,138 @@
+.filters {
+  margin-bottom: var(--space-16px);
+  display: flex;
+  gap: var(--space-10px);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16px);
+}
+
+.card {
+  background: var(--surface);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-12px);
+}
+
+.name {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.meta {
+  margin-top: var(--space-2px);
+}
+
+.details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-10px);
+  padding: var(--space-10px) var(--space-14px);
+  background: var(--surface-2);
+  border-radius: var(--radius-8px);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8px);
+  margin-top: var(--space-4px);
+}
+
+.candidates {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8px);
+  flex-wrap: wrap;
+}
+
+.candidateLink {
+  color: var(--brand-text);
+  margin-left: var(--space-4px);
+  text-decoration: underline;
+}
+
+.athleteLink {
+  color: inherit;
+  margin-left: var(--space-4px);
+  text-decoration: underline;
+}
+
+.fieldRow {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: var(--space-10px);
+  align-items: center;
+}
+
+.field {
+  margin: 0;
+}
+
+.notice {
+  padding: var(--space-8px) var(--space-12px);
+  border-radius: var(--radius-6px);
+  font-size: 13px;
+  background: var(--brand-soft);
+  color: var(--status-counted);
+}
+
+.notice[data-error] {
+  background: var(--status-error-soft);
+  color: var(--status-error);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-10px);
+  justify-content: flex-end;
+  margin-top: var(--space-6px);
+}
+
+.reject {
+  color: var(--palette-ef4444);
+}
+
+.message {
+  font-size: 15px;
+  margin-top: var(--space-8px);
+  white-space: pre-wrap;
+}
+
+.references {
+  display: flex;
+  gap: var(--space-12px);
+  flex-wrap: wrap;
+  padding: var(--space-8px) var(--space-12px);
+  background: var(--surface-2);
+  border-radius: var(--radius-8px);
+  font-size: 13px;
+}
+
+.referenceLink {
+  color: var(--brand-text);
+  text-decoration: underline;
+}
+
+.commentFields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6px);
+}
+
+.reportActions {
+  display: flex;
+  gap: var(--space-10px);
+  justify-content: flex-end;
+  margin-top: var(--space-4px);
+}

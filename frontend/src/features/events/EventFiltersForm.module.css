@@ -1,0 +1,7 @@
+.actions {
+  flex-wrap: nowrap;
+}
+
+.button {
+  min-height: 40px;
+}

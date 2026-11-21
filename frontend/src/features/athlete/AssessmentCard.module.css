@@ -1,0 +1,21 @@
+.header {
+  align-items: center;
+}
+
+.heading {
+  min-width: 0;
+  flex: 1 1 260px;
+}
+
+.progress {
+  padding: var(--space-12px) 0;
+}
+
+.footnote {
+  margin-top: var(--space-10px);
+  justify-content: flex-end;
+}
+
+.disclaimer {
+  color: var(--status-pending);
+}

@@ -5,7 +5,7 @@ from uuid import uuid4
 import psycopg
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.routing import APIRoute
-from pydantic import Field
+from pydantic import BaseModel, Field
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -53,6 +53,17 @@ async def get_repository() -> AsyncIterator[RecipeRepository]:
 RepositoryDep = Annotated[RecipeRepository, Depends(get_repository)]
 
 
+class RepairReview(BaseModel):
+    id: int
+    issue_id: int | None
+    source_id: int
+    source_name: str | None
+    status: str
+    candidate: dict[str, Any] | None
+    errors: list[str]
+    can_approve: bool
+
+
 def review_item(repair: dict[str, Any]) -> dict[str, Any]:
     state = repair["state"]
     return {
@@ -67,12 +78,12 @@ def review_item(repair: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-@router.get("")
+@router.get("", response_model=list[RepairReview])
 async def list_repairs(_: AdminDep, repo: RepositoryDep) -> list[dict[str, Any]]:
     return [review_item(row) for row in await repo.review_queue()]
 
 
-@router.get("/{repair_id}")
+@router.get("/{repair_id}", response_model=RepairReview)
 async def get_repair(
     repair_id: PositiveId, _: AdminDep, repo: RepositoryDep
 ) -> dict[str, Any]:
@@ -102,7 +113,7 @@ async def queue_collection(
     return {"source_id": source_id}
 
 
-@router.post("", status_code=202)
+@router.post("", status_code=202, response_model=RepairReview)
 async def start_repair(
     task: StartRepair, admin: AdminDep, repo: RepositoryDep
 ) -> dict[str, Any]:
@@ -114,7 +125,7 @@ async def start_repair(
     return review_item(repair)
 
 
-@router.post("/{repair_id}/decision", status_code=202)
+@router.post("/{repair_id}/decision", status_code=202, response_model=RepairReview)
 async def decide(
     repair_id: PositiveId,
     decision: ReviewDecision,
@@ -142,7 +153,7 @@ async def decide(
     return review_item(updated)
 
 
-@router.post("/{repair_id}/retry", status_code=202)
+@router.post("/{repair_id}/retry", status_code=202, response_model=RepairReview)
 async def retry(
     repair_id: PositiveId, _: AdminDep, repo: RepositoryDep
 ) -> dict[str, Any]:

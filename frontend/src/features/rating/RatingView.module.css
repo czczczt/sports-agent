@@ -1,0 +1,240 @@
+@layer base {
+  .ratingPage {
+    --rating-bg: var(--bg-base);
+    --rating-surface: var(--surface);
+    --rating-line: var(--border);
+    --rating-muted: var(--text-muted);
+    --rating-green: var(--brand);
+    color: var(--text-primary);
+    background: var(--rating-bg);
+    border-radius: var(--radius-14px);
+    padding: var(--space-28px);
+    margin: -4px 0 0;
+  }
+  .ratingPageHead {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: var(--space-24px);
+  }
+  .ratingPageTitle {
+    font: 700 42px/1.1 var(--font-display);
+    letter-spacing: -0.03em;
+  }
+  .ratingPageSubtitle {
+    color: var(--rating-muted);
+    font-size: 13px;
+    margin-top: var(--space-6px);
+  }
+  .ratingSports {
+    display: flex;
+    gap: var(--space-24px);
+    align-items: center;
+  }
+  .ratingSport {
+    color: var(--rating-muted);
+    display: flex;
+    gap: var(--space-7px);
+    align-items: center;
+    padding: var(--space-10px) 0;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+  }
+  .ratingSportActive {
+    color: var(--text-primary);
+    border-bottom-color: var(--sport-run);
+  }
+  .ratingSportDisabled {
+    opacity: 0.7;
+  }
+  .ratingFilters {
+    display: flex;
+    gap: var(--space-12px);
+    align-items: end;
+    margin: var(--space-28px) 0 var(--space-16px);
+  }
+  .ratingFilter {
+    display: flex;
+    gap: var(--space-8px);
+    align-items: center;
+    color: var(--rating-muted);
+    font-size: 13px;
+  }
+  .ratingFilter select {
+    background: var(--rating-surface);
+    border: 1px solid var(--rating-line);
+    border-radius: var(--radius-7px);
+    color: var(--text-primary);
+    min-height: 36px;
+    padding: 0 var(--space-12px);
+  }
+  .ratingLayout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 216px;
+    gap: var(--space-16px);
+    align-items: start;
+  }
+  .ratingBoard,
+  .ratingSideCard {
+    background: var(--rating-surface);
+    border: 1px solid var(--rating-line);
+    border-radius: var(--radius-11px);
+    overflow: hidden;
+  }
+  .ratingTable {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .ratingTable th {
+    color: var(--rating-muted);
+    font-size: 12px;
+    font-weight: 500;
+    text-align: left;
+    padding: var(--space-10px) var(--space-16px);
+    border-bottom: 1px solid var(--rating-line);
+  }
+  .ratingTable td {
+    padding: var(--space-10px) var(--space-16px);
+    border-bottom: 1px solid var(--palette-1d2723);
+  }
+  .ratingTable tr:hover {
+    background: var(--surface-2);
+  }
+  .ratingTable :global(.right) {
+    text-align: right;
+  }
+  .ratingAthlete {
+    color: var(--text-primary);
+    text-decoration: none;
+    display: block;
+    font-weight: 600;
+  }
+  .ratingBirth {
+    color: var(--rating-muted);
+    font-size: 12px;
+    display: block;
+  }
+  .ratingBoardFooter {
+    padding: var(--space-14px) var(--space-16px);
+    color: var(--rating-muted);
+    font-size: 12px;
+  }
+  .ratingSidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-14px);
+  }
+  .ratingSideCard {
+    padding: var(--space-16px);
+  }
+  .ratingSideCardRank {
+    display: block;
+    font: 700 42px var(--font-display);
+    margin: var(--space-6px) 0;
+  }
+  .ratingSideCardMuted,
+  .ratingSideCard p {
+    color: var(--rating-muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .ratingSideCard h2 {
+    font-size: 14px;
+    margin-bottom: var(--space-10px);
+  }
+  .ratingSideCardLink {
+    color: var(--rating-green);
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .ratingSideCardTitleLink {
+    color: var(--text-primary) !important;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+    text-decoration: none;
+    display: block;
+    transition: color 0.15s ease;
+  }
+  .ratingSideCardTitleLink:hover {
+    color: var(--rating-green) !important;
+  }
+  @media (max-width: 760px) {
+    .ratingPage {
+      padding: var(--space-18px) var(--space-14px) var(--space-28px);
+      margin: -4px -8px 0;
+      border-radius: 0;
+    }
+  }
+  @media (max-width: 760px) {
+    .ratingPageHead {
+      display: block;
+    }
+  }
+  @media (max-width: 760px) {
+    .ratingPageTitle {
+      font-size: 30px;
+    }
+  }
+  @media (max-width: 760px) {
+    .ratingSports {
+      overflow-x: auto;
+      gap: var(--space-18px);
+      margin-top: var(--space-18px);
+    }
+  }
+  @media (max-width: 760px) {
+    .ratingSport {
+      white-space: nowrap;
+      font-size: 13px;
+    }
+  }
+  @media (max-width: 760px) {
+    .ratingFilters {
+      align-items: stretch;
+      flex-wrap: wrap;
+      margin-top: var(--space-20px);
+    }
+  }
+  @media (max-width: 760px) {
+    .ratingFilter {
+      flex-wrap: wrap;
+    }
+  }
+  @media (max-width: 760px) {
+    .ratingLayout {
+      display: block;
+    }
+  }
+  @media (max-width: 760px) {
+    .ratingSidebar {
+      margin-top: var(--space-14px);
+    }
+  }
+  @media (max-width: 760px) {
+    .ratingTable th,
+    .ratingTable td {
+      padding: var(--space-9px) var(--space-7px);
+    }
+  }
+  @media (max-width: 760px) {
+    .ratingTable th:nth-child(4),
+    .ratingTable td:nth-child(4) {
+      display: none;
+    }
+  }
+  .ratingTable {
+    line-height: normal;
+    font-size: medium;
+  }
+  .ratingSideCardLink {
+    display: block;
+    width: fit-content;
+  }
+  .ratingTable tbody tr:global(.me-row),
+  .ratingTable tbody tr:global(.me-row):hover {
+    background: var(--me-row-bg) !important;
+    box-shadow: inset 4px 0 0 var(--me-row-edge);
+  }
+}

@@ -1,0 +1,27 @@
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12px);
+  padding: var(--space-20px);
+}
+
+.location {
+  max-width: 420px;
+}
+
+.distance {
+  padding: var(--space-14px) var(--space-20px);
+}
+
+.name {
+  min-width: 0;
+}
+
+.count {
+  flex-wrap: nowrap;
+  color: var(--text-muted);
+}
+
+.participants {
+  color: var(--text-primary);
+}

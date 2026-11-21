@@ -1,19 +1,11 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { RouterProvider } from 'react-router-dom';
-import { ThemeProvider } from '@/theme/ThemeProvider';
-import { AuthProvider } from '@/context/AuthContext';
-import { router } from '@/routes';
-import 'air-datepicker/air-datepicker.css';
-import '@/styles/theme.css';
-import '@/styles/app.css';
+import { Providers } from './app/providers';
 
-createRoot(document.getElementById('root')!).render(
+const root = document.getElementById('root');
+if (!root) throw new Error('Отсутствует элемент root');
+createRoot(root).render(
   <StrictMode>
-    <ThemeProvider>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
-    </ThemeProvider>
+    <Providers />
   </StrictMode>,
 );

@@ -9,23 +9,48 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "generate:types": "npx openapi-typescript openapi.json -o src/api/schema.d.ts",
-    "gen:api": "npx openapi-typescript openapi.json -o src/api/schema.d.ts"
+    "generate:types": "npm run gen:api",
+    "gen:api": "openapi-typescript openapi.json -o src/shared/api/schema.d.ts",
+    "lint": "eslint . --cache --cache-location node_modules/.cache/eslint/",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "format": "prettier --write ."
   },
   "dependencies": {
+    "@fontsource/golos-text": "^5.3.0",
+    "@fontsource/unbounded": "^5.3.0",
+    "@hookform/resolvers": "^3.10.0",
+    "@tanstack/react-query": "^5.108.1",
     "air-datepicker": "3.5.3",
     "chart.js": "4.4.1",
+    "openapi-fetch": "^0.14.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "react-router-dom": "6.28.0"
+    "react-hook-form": "^7.92.0",
+    "react-router-dom": "^7.18.6",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@playwright/test": "1.58.2",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.13",
     "@types/node": "20.17.6",
     "@types/react": "18.3.12",
     "@types/react-dom": "18.3.1",
     "@vitejs/plugin-react": "4.3.4",
+    "eslint": "^9.39.5",
+    "eslint-import-resolver-typescript": "^3.10.1",
+    "eslint-plugin-boundaries": "^5.4.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "jsdom": "^26.1.0",
+    "msw": "^2.15.0",
     "openapi-typescript": "^7.13.0",
+    "prettier": "^3.10.1",
     "typescript": "5.6.3",
-    "vite": "5.4.11"
+    "typescript-eslint": "^8.73.0",
+    "vite": "5.4.11",
+    "vitest": "^2.1.9"
   }
 }

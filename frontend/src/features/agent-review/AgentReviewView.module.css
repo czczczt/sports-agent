@@ -1,0 +1,16 @@
+@layer base {
+  .reviewFilters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-12px);
+    align-items: flex-end;
+  }
+  .reviewFilters :global(.field) {
+    width: 200px;
+  }
+  @media (max-width: 760px) {
+    .reviewFilters :global(.field) {
+      width: 100%;
+    }
+  }
+}

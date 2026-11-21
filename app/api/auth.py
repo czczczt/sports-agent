@@ -14,6 +14,7 @@ from typing import Annotated
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Response, status
+from pydantic import BaseModel
 
 from app.config import (
     AUTH_SECRET_KEY,
@@ -203,6 +204,18 @@ AdminDep = Annotated[UserOut, Depends(require_admin)]
 CaptainOrAdminDep = Annotated[UserOut, Depends(require_captain_or_admin)]
 
 
+class StatusResponse(BaseModel):
+    status: str
+
+
+class MessageResponse(StatusResponse):
+    message: str
+
+
+class RegistrationResponse(MessageResponse):
+    user_id: int
+
+
 @router.post("/login", response_model=AuthResponse)
 async def login(
     conn: AuthServiceDep,
@@ -298,7 +311,7 @@ async def login(
     return AuthResponse(access_token=token, token_type="bearer", user=user)
 
 
-@router.post("/logout")
+@router.post("/logout", response_model=StatusResponse)
 async def logout(
     conn: AuthServiceDep,
     response: Response,
@@ -320,7 +333,7 @@ async def me(user: CurrentUserDep) -> UserOut:
     return user
 
 
-@router.post("/register", status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=RegistrationResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     conn: AuthServiceDep,
     data: RegisterRequest,
@@ -381,7 +394,7 @@ async def register(
     }
 
 
-@router.post("/password-reset-request")
+@router.post("/password-reset-request", response_model=MessageResponse)
 async def request_password_reset(
     conn: AuthServiceDep,
     body: PasswordResetRequest,
@@ -407,7 +420,7 @@ async def request_password_reset(
     }
 
 
-@router.post("/password-reset")
+@router.post("/password-reset", response_model=MessageResponse)
 async def confirm_password_reset(
     conn: AuthServiceDep,
     body: PasswordResetConfirm,

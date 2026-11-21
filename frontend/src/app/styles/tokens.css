@@ -1,0 +1,226 @@
+/*
+ * Тема сайта по дизайну «Рейтинг спортсменов» v2 (Claude Design, страница v2 «Пабл»).
+ * Токены цветов перенесены из дизайна один в один; светлая тема по умолчанию,
+ * тёмная — по системной настройке или явному выбору (html[data-theme]).
+ * Решение и правила описаны в docs/adr/0001-frontend-design-system.md.
+ */
+
+/* ---------- Токены: светлая тема ---------- */
+:root {
+  color-scheme: light;
+  --bg-base: #eef2f0;
+  --surface: #ffffff;
+  --surface-2: #f6f8f7;
+  --border: #d7dedc;
+  --border-soft: #d7dedc99;
+  --border-strong: #a9b3b0e6;
+  --text-primary: #0b0f0e;
+  --text-muted: #5b6663;
+  --shadow-card: 0 1px 2px #0f17160d, 0 4px 10px #0f171612;
+  --brand: #21a049;
+  --brand-fill: #167f39;
+  --brand-fill-hover: #126b30;
+  --brand-on-fill: #ffffff;
+  --brand-text: #0f7a37;
+  --brand-soft: #21a0491f;
+  --focus-ring: #21a049;
+  --me-row-bg: #21a04924;
+  --me-row-edge: #21a049;
+  --status-counted: #0f7a37;
+  --status-not-counted: #5b6663;
+  --status-pending: #a34a08;
+  --status-pending-soft: #b453091f;
+  --status-error: #c81e1e;
+  --status-error-soft: #dc26261f;
+  --sport-run: #c2410c;
+  --sport-run-soft: #c2410c1a;
+  --sport-ski: #0369a1;
+  --sport-ski-soft: #0369a11a;
+  --sport-tri: #6d28d9;
+  --sport-tri-soft: #6d28d91a;
+  --sport-trail: #8a5a1f;
+  --sport-trail-soft: #8a5a1f1a;
+  --medal-gold: #e0b22e;
+  --medal-gold-edge: #a87b12;
+  --medal-silver: #b4bec4;
+  --medal-silver-edge: #7d878d;
+  --medal-bronze: #d08a4c;
+  --medal-bronze-edge: #9a5a26;
+  --medal-on-fill: #0b0f0e;
+  --track-lane: #d08a4c;
+
+  --font-display: 'Unbounded', system-ui, sans-serif;
+  --font-body: 'Golos Text', system-ui, sans-serif;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --bottom-nav-h: 64px;
+}
+
+/* ---------- Токены: тёмная тема (система или явный выбор) ---------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg-base: #0b0f0e;
+    --surface: #141a18;
+    --surface-2: #1a2220;
+    --border: #232b29;
+    --border-soft: #232b2966;
+    --border-strong: #3b4744e6;
+    --text-primary: #f2f5f4;
+    --text-muted: #a0aba8;
+    --shadow-card: none;
+    --brand-fill-hover: #1c8a3d;
+    --brand-text: #2fbf5f;
+    --brand-soft: #21a04929;
+    --focus-ring: #2fbf5f;
+    --me-row-bg: #21a0492e;
+    --me-row-edge: #2fbf5f;
+    --status-counted: #2fbf5f;
+    --status-not-counted: #a0aba8;
+    --status-pending: #f59e0b;
+    --status-pending-soft: #f59e0b29;
+    --status-error: #f87171;
+    --status-error-soft: #ef444429;
+    --sport-run: #fb923c;
+    --sport-run-soft: #fb923c24;
+    --sport-ski: #38bdf8;
+    --sport-ski-soft: #38bdf824;
+    --sport-tri: #a78bfa;
+    --sport-tri-soft: #a78bfa24;
+    --sport-trail: #d4a373;
+    --sport-trail-soft: #d4a37324;
+    --medal-gold-edge: #e0b22e;
+    --medal-silver-edge: #b4bec4;
+    --medal-bronze-edge: #d08a4c;
+    --track-lane: #9a5a26;
+  }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg-base: #0b0f0e;
+  --surface: #141a18;
+  --surface-2: #1a2220;
+  --border: #232b29;
+  --border-soft: #232b2966;
+  --border-strong: #3b4744e6;
+  --text-primary: #f2f5f4;
+  --text-muted: #a0aba8;
+  --shadow-card: none;
+  --brand-fill-hover: #1c8a3d;
+  --brand-text: #2fbf5f;
+  --brand-soft: #21a04929;
+  --focus-ring: #2fbf5f;
+  --me-row-bg: #21a0492e;
+  --me-row-edge: #2fbf5f;
+  --status-counted: #2fbf5f;
+  --status-not-counted: #a0aba8;
+  --status-pending: #f59e0b;
+  --status-pending-soft: #f59e0b29;
+  --status-error: #f87171;
+  --status-error-soft: #ef444429;
+  --sport-run: #fb923c;
+  --sport-run-soft: #fb923c24;
+  --sport-ski: #38bdf8;
+  --sport-ski-soft: #38bdf824;
+  --sport-tri: #a78bfa;
+  --sport-tri-soft: #a78bfa24;
+  --sport-trail: #d4a373;
+  --sport-trail-soft: #d4a37324;
+  --medal-gold-edge: #e0b22e;
+  --medal-silver-edge: #b4bec4;
+  --medal-bronze-edge: #d08a4c;
+  --track-lane: #9a5a26;
+}
+
+:root {
+  --palette-000: #000;
+  --palette-00000000: #00000000;
+  --palette-0c1510: #0c1510;
+  --palette-101512: #101512;
+  --palette-111915: #111915;
+  --palette-112319: #112319;
+  --palette-121a17: #121a17;
+  --palette-151d19: #151d19;
+  --palette-19241f: #19241f;
+  --palette-1b4930: #1b4930;
+  --palette-1c1913: #1c1913;
+  --palette-1d2723: #1d2723;
+  --palette-211b13: #211b13;
+  --palette-22c55e: #22c55e;
+  --palette-32b9ee: #32b9ee;
+  --palette-346d4b: #346d4b;
+  --palette-4a2822: #4a2822;
+  --palette-57412a: #57412a;
+  --palette-617069: #617069;
+  --palette-65cf83: #65cf83;
+  --palette-7e5428: #7e5428;
+  --palette-91a099: #91a099;
+  --palette-9bab9f: #9bab9f;
+  --palette-a78bfa: #a78bfa;
+  --palette-aab8b0: #aab8b0;
+  --palette-b7a58d: #b7a58d;
+  --palette-c5cec8: #c5cec8;
+  --palette-d4a373: #d4a373;
+  --palette-e5e7eb: #e5e7eb;
+  --palette-ef4444: #ef4444;
+  --palette-ef8d28: #ef8d28;
+  --palette-ef8d2814: #ef8d2814;
+  --palette-ef8d281c: #ef8d281c;
+  --palette-ef8d2826: #ef8d2826;
+  --palette-ef8d75: #ef8d75;
+  --palette-f0a04b: #f0a04b;
+  --palette-f1f5f2: #f1f5f2;
+  --palette-f3f4f6: #f3f4f6;
+  --palette-f59e0b: #f59e0b;
+  --palette-ffffff: #ffffff;
+  --radius-10px: 10px;
+  --radius-11px: 11px;
+  --radius-12px: 12px;
+  --radius-14px: 14px;
+  --radius-16px: 16px;
+  --radius-50pct: 50%;
+  --radius-5px: 5px;
+  --radius-6px: 6px;
+  --radius-7px: 7px;
+  --radius-8px: 8px;
+  --radius-9999px: 9999px;
+  --radius-9px: 9px;
+  --space-0_25rem: 0.25rem;
+  --space-0_5rem: 0.5rem;
+  --space-0_75rem: 0.75rem;
+  --space-0px: 0px;
+  --space-10px: 10px;
+  --space-11px: 11px;
+  --space-12px: 12px;
+  --space-14px: 14px;
+  --space-15px: 15px;
+  --space-16px: 16px;
+  --space-17px: 17px;
+  --space-18px: 18px;
+  --space-1_25rem: 1.25rem;
+  --space-1_5rem: 1.5rem;
+  --space-1rem: 1rem;
+  --space-20px: 20px;
+  --space-22px: 22px;
+  --space-24px: 24px;
+  --space-25px: 25px;
+  --space-28px: 28px;
+  --space-2px: 2px;
+  --space-30px: 30px;
+  --space-32px: 32px;
+  --space-34px: 34px;
+  --space-3px: 3px;
+  --space-40px: 40px;
+  --space-42px: 42px;
+  --space-44px: 44px;
+  --space-46px: 46px;
+  --space-48px: 48px;
+  --space-4px: 4px;
+  --space-52px: 52px;
+  --space-56px: 56px;
+  --space-5px: 5px;
+  --space-6px: 6px;
+  --space-7px: 7px;
+  --space-8px: 8px;
+  --space-9px: 9px;
+}

@@ -1,0 +1,22 @@
+.successTitle {
+  margin: 0 0 var(--space-10px);
+  font-weight: 600;
+}
+
+.message {
+  margin: 0;
+}
+
+.successActions {
+  margin-top: var(--space-14px);
+}
+
+.fieldPair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-10px);
+}
+
+.links {
+  justify-content: center;
+}
