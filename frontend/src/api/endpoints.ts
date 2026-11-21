@@ -3,6 +3,7 @@ import type {
   AccessRequestDecisionPayload, AccessRequestItem,
   AgentApplyResult, AgentReviewPage, Assessment, AthleteCandidate, AthleteResultItem, AthleteSummary,
   AuthResponse, EventItem, LoginRequest, PasswordResetConfirm, PasswordResetRequest, RacePage, RatingFormula, RatingPage, RegisterRequest, RegisterResponse, ReportDecisionPayload, ReportItem, User,
+  VerifyQueueDecisionResponse, VerifyQueueItem,
 } from './types';
 
 export const authApi = {
@@ -68,4 +69,8 @@ export const adminApi = {
     api.get<ReportItem[]>('/api/reports', { status_filter: statusFilter || undefined }, signal),
   decideReport: (reportId: number, body: ReportDecisionPayload) =>
     api.post<ReportItem>(`/api/reports/${reportId}/decision`, body),
+  verifyQueue: (topN: number = 10, sport?: string, signal?: AbortSignal) =>
+    api.get<VerifyQueueItem[]>('/api/admin/verify-queue', { top_n: topN, sport: sport || undefined }, signal),
+  decideVerifyQueueItem: (athleteId: number, body: { status: 'confirmed' | 'not_employee'; comment?: string }) =>
+    api.post<VerifyQueueDecisionResponse>(`/api/admin/verify-queue/${athleteId}/decision`, body),
 };

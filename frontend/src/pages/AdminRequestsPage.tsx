@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { adminApi } from '@/api/endpoints';
-import type { AccessRequestItem, ReportItem } from '@/api/types';
+import type { AccessRequestItem, ReportItem, VerifyQueueItem } from '@/api/types';
 import { EmptyState, ErrorState, Icon, Loader } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { SITE_TITLE, useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -24,12 +24,15 @@ export function AdminRequestsPage() {
   const isModerator = isAdmin || user?.role === 'captain';
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const currentTab = (searchParams.get('tab') as 'access' | 'reports') || 'access';
+  const currentTab = (searchParams.get('tab') as 'access' | 'reports' | 'unverified') || 'access';
   const accessFilter = searchParams.get('access_status') ?? 'pending';
   const reportsFilter = searchParams.get('report_status') ?? 'new';
+  const topNFilter = parseInt(searchParams.get('top_n') || '10', 10);
+  const sportFilter = searchParams.get('sport') || 'run';
 
   const [accessItems, setAccessItems] = useState<AccessRequestItem[]>([]);
   const [reportItems, setReportItems] = useState<ReportItem[]>([]);
+  const [unverifiedItems, setUnverifiedItems] = useState<VerifyQueueItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -47,13 +50,16 @@ export function AdminRequestsPage() {
         const filter = accessFilter === 'all' ? '' : accessFilter;
         const res = await adminApi.accessRequests(filter);
         setAccessItems(res);
-      } else {
+      } else if (currentTab === 'reports') {
         const filter = reportsFilter === 'all' ? '' : reportsFilter;
         const res = await adminApi.reports(filter);
         setReportItems(res);
+      } else if (currentTab === 'unverified') {
+        const res = await adminApi.verifyQueue(topNFilter, sportFilter === 'all' ? undefined : sportFilter);
+        setUnverifiedItems(res);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err : new Error('Не удалось загрузить заявки'));
+      setError(err instanceof Error ? err : new Error('Не удалось загрузить данные'));
     } finally {
       setLoading(false);
     }
@@ -61,7 +67,7 @@ export function AdminRequestsPage() {
 
   useEffect(() => {
     loadData();
-  }, [currentTab, accessFilter, reportsFilter, isModerator]);
+  }, [currentTab, accessFilter, reportsFilter, topNFilter, sportFilter, isModerator]);
 
   if (!isModerator) {
     return (
@@ -76,7 +82,7 @@ export function AdminRequestsPage() {
     );
   }
 
-  const setTab = (tab: 'access' | 'reports') => {
+  const setTab = (tab: 'access' | 'reports' | 'unverified') => {
     const next = new URLSearchParams(searchParams);
     next.set('tab', tab);
     setSearchParams(next);
@@ -155,12 +161,38 @@ export function AdminRequestsPage() {
     }
   };
 
+  const handleVerifyDecision = async (ath: VerifyQueueItem, decision: 'confirmed' | 'not_employee') => {
+    const key = `verify-${ath.athlete_id}`;
+    setProcessingId(key);
+    setNotice(null);
+    try {
+      const commentVal = commentInputs[ath.athlete_id] || undefined;
+      const res = await adminApi.decideVerifyQueueItem(ath.athlete_id, {
+        status: decision,
+        comment: commentVal,
+      });
+      setUnverifiedItems((prev) => prev.filter((item) => item.athlete_id !== ath.athlete_id));
+      setNotice({
+        id: key,
+        text: res.message + (res.auto_blocked_user ? ' (связанный пользователь заблокирован)' : ''),
+      });
+    } catch (err: unknown) {
+      setNotice({
+        id: key,
+        text: err instanceof Error ? err.message : 'Ошибка при принятии решения',
+        isError: true,
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   return (
     <>
       <div className="page-head">
         <div className="page-head__text">
           <h1 className="h1 h1-sm">Модерация заявок</h1>
-          <p className="lead">Рассмотрение заявок на регистрацию и обращений спортсменов.</p>
+          <p className="lead">Рассмотрение заявок на регистрацию, обращений и проверка сотрудников в топ-N рейтинга.</p>
         </div>
 
         <div className="rating-segment">
@@ -177,6 +209,13 @@ export function AdminRequestsPage() {
             onClick={() => setTab('reports')}
           >
             Обращения
+          </button>
+          <button
+            type="button"
+            className={currentTab === 'unverified' ? 'is-active' : undefined}
+            onClick={() => setTab('unverified')}
+          >
+            Очередь «не проверен»
           </button>
         </div>
       </div>
@@ -224,6 +263,56 @@ export function AdminRequestsPage() {
                 {f.label}
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {currentTab === 'unverified' && (
+        <div className="filters-bar" style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span className="small muted">Топ-N (на вид × пол):</span>
+            <div className="rating-segment">
+              {[10, 20, 50].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={topNFilter === n ? 'is-active' : undefined}
+                  onClick={() => {
+                    const next = new URLSearchParams(searchParams);
+                    next.set('top_n', String(n));
+                    setSearchParams(next);
+                  }}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span className="small muted">Вид спорта:</span>
+            <div className="rating-segment">
+              {[
+                { val: 'all', label: 'Все' },
+                { val: 'run', label: 'Бег' },
+                { val: 'ski', label: 'Лыжи' },
+                { val: 'triathlon', label: 'Триатлон' },
+                { val: 'trail', label: 'Трейл' },
+              ].map((s) => (
+                <button
+                  key={s.val}
+                  type="button"
+                  className={sportFilter === s.val ? 'is-active' : undefined}
+                  onClick={() => {
+                    const next = new URLSearchParams(searchParams);
+                    next.set('sport', s.val);
+                    setSearchParams(next);
+                  }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -366,7 +455,7 @@ export function AdminRequestsPage() {
             })}
           </div>
         )
-      ) : (
+      ) : currentTab === 'reports' ? (
         reportItems.length === 0 ? (
           <EmptyState
             title="Обращений не найдено"
@@ -471,6 +560,103 @@ export function AdminRequestsPage() {
                       disabled={isBusy}
                     >
                       Отклонить
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
+      ) : (
+        /* currentTab === 'unverified' (SPEC §3.5, §10.4) */
+        unverifiedItems.length === 0 ? (
+          <EmptyState
+            title="Очередь проверки пуста"
+            text="В топ-N рейтинга все спортсмены подтверждены или нет участников на проверку."
+          />
+        ) : (
+          <div className="grid-cards" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {unverifiedItems.map((ath) => {
+              const key = `verify-${ath.athlete_id}`;
+              const isBusy = processingId === key;
+              const curNotice = notice?.id === key ? notice : null;
+
+              return (
+                <div key={ath.athlete_id} className="card card--pad" style={{ background: 'var(--surface)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span className="chip chip--sm chip--brand">#{ath.rank}</span>
+                        <div style={{ fontSize: 18, fontWeight: 700 }}>
+                          <Link to={`/athletes-view/${ath.athlete_id}`} target="_blank" style={{ color: 'inherit', textDecoration: 'underline' }}>
+                            {ath.display_name}
+                          </Link>
+                        </div>
+                      </div>
+                      <div className="small muted" style={{ marginTop: 4 }}>
+                        Вид спорта: <strong>{ath.sport}</strong> · Пол: <strong>{ath.gender === 'F' ? 'Женщина' : 'Мужчина'}</strong> · Баллы: <strong>{ath.points ? ath.points.toFixed(1) : '0'}</strong> · Стартов: <strong>{ath.starts_count}</strong>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="chip chip--sm chip--pending">Не проверен (presumed)</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, padding: '10px 14px', background: 'var(--surface-2)', borderRadius: 8 }}>
+                    <div>
+                      <span className="small muted">Дата рождения (ПДн):</span>{' '}
+                      <span className="small strong">{dateRu(ath.birth_date) || (ath.birth_year ? `${ath.birth_year} г.р.` : '—')}</span>
+                    </div>
+                    <div>
+                      <span className="small muted">Связанный аккаунт:</span>{' '}
+                      <span className="small strong">
+                        {ath.linked_username ? `@${ath.linked_username} (${ath.linked_user_email || '—'})` : 'Нет связки с учёткой'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <label className="field" style={{ margin: 0 }}>
+                      <span className="small muted">Примечание проверки в «Пульсе»:</span>
+                      <input
+                        type="text"
+                        className="input input--sm"
+                        placeholder="Например: проверен по кадровой системе, сотрудник ПАО Сбербанк"
+                        onChange={(e) => setCommentInputs({ ...commentInputs, [ath.athlete_id]: e.target.value })}
+                        disabled={isBusy}
+                      />
+                    </label>
+                  </div>
+
+                  {curNotice && (
+                    <div style={{
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      fontSize: 13,
+                      background: curNotice.isError ? 'var(--status-error-soft)' : 'var(--brand-soft)',
+                      color: curNotice.isError ? 'var(--status-error)' : 'var(--status-counted)',
+                    }}>
+                      {curNotice.text}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                    <button
+                      type="button"
+                      className="btn btn--sm btn--primary"
+                      onClick={() => handleVerifyDecision(ath, 'confirmed')}
+                      disabled={isBusy}
+                    >
+                      Подтвердить сотрудника
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--sm btn--ghost"
+                      style={{ color: '#ef4444' }}
+                      onClick={() => handleVerifyDecision(ath, 'not_employee')}
+                      disabled={isBusy}
+                    >
+                      Не сотрудник
                     </button>
                   </div>
                 </div>

@@ -403,6 +403,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/verify-queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Verify Queue
+         * @description Возвращает список неподтверждённых спортсменов (presumed) из топ-N каждого рейтинга (SPEC §3.5, §10.4).
+         */
+        get: operations["get_verify_queue_api_admin_verify_queue_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/verify-queue/{athlete_id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide Verify Queue Item
+         * @description Принимает решение по спортсмену в очереди проверки: 'confirmed' или 'not_employee' (SPEC §3.5, §5, §10.4).
+         */
+        post: operations["decide_verify_queue_item_api_admin_verify_queue__athlete_id__decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/status": {
         parameters: {
             query?: never;
@@ -1526,6 +1566,73 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** VerifyQueueDecision */
+        VerifyQueueDecision: {
+            /** Status */
+            status: string;
+            /** Comment */
+            comment?: string | null;
+        };
+        /** VerifyQueueDecisionResponse */
+        VerifyQueueDecisionResponse: {
+            /** Success */
+            success: boolean;
+            /** Athlete Id */
+            athlete_id: number;
+            /** New Status */
+            new_status: string;
+            /**
+             * Auto Blocked User
+             * @default false
+             */
+            auto_blocked_user: boolean;
+            /** Message */
+            message: string;
+        };
+        /** VerifyQueueItem */
+        VerifyQueueItem: {
+            /** Athlete Id */
+            athlete_id: number;
+            /** Display Name */
+            display_name: string;
+            /** First Name */
+            first_name?: string | null;
+            /** Last Name */
+            last_name?: string | null;
+            /** Middle Name */
+            middle_name?: string | null;
+            /** Gender */
+            gender?: string | null;
+            /** Birth Date */
+            birth_date?: string | null;
+            /** Birth Year */
+            birth_year?: number | null;
+            /**
+             * Sport
+             * @default run
+             */
+            sport: string;
+            /** Rank */
+            rank: number;
+            /** Points */
+            points: number;
+            /**
+             * Starts Count
+             * @default 0
+             */
+            starts_count: number;
+            /**
+             * Employee Status
+             * @default presumed
+             */
+            employee_status: string | null;
+            /** Linked User Id */
+            linked_user_id?: number | null;
+            /** Linked Username */
+            linked_username?: string | null;
+            /** Linked User Email */
+            linked_user_email?: string | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -2360,6 +2467,83 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccessRequestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_verify_queue_api_admin_verify_queue_get: {
+        parameters: {
+            query?: {
+                /** @description Глубина топа по каждому полу (SPEC §3.5) */
+                top_n?: number;
+                /** @description Фильтр по виду спорта */
+                sport?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifyQueueItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_verify_queue_item_api_admin_verify_queue__athlete_id__decision_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                athlete_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyQueueDecision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifyQueueDecisionResponse"];
                 };
             };
             /** @description Validation Error */

@@ -357,3 +357,31 @@ export interface ReportDecisionPayload {
   decision: 'accepted' | 'resolved' | 'rejected';
   moderator_comment?: string | null;
 }
+
+export interface VerifyQueueItem {
+  athlete_id: number;
+  display_name: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  middle_name?: string | null;
+  gender?: string | null;
+  birth_date?: string | null;
+  birth_year?: number | null;
+  sport: string;
+  rank: number;
+  points: number;
+  starts_count: number;
+  employee_status?: string | null;
+  linked_user_id?: number | null;
+  linked_username?: string | null;
+  linked_user_email?: string | null;
+}
+
+export interface VerifyQueueDecisionResponse {
+  success: boolean;
+  athlete_id: number;
+  new_status: string;
+  auto_blocked_user: boolean;
+  message: string;
+}
+
