@@ -15,6 +15,12 @@ class SourceCode(StrEnum):
     grom = "grom"
     russialoppet = "russialoppet"
     myrunstats = "myrunstats"
+    resultszone = "resultszone"
+    myfinish = "myfinish"
+    toplist = "toplist"
+    tristats = "tristats"
+    orgeo = "orgeo"
+    racetime = "racetime"
 
 
 SOURCE_CONFIG = {
@@ -26,6 +32,12 @@ SOURCE_CONFIG = {
     SourceCode.grom: ("https://grom.place", "grom", "html", "run,triathlon"),
     SourceCode.russialoppet: ("https://russialoppet.ru", "russialoppet", "html", "ski"),
     SourceCode.myrunstats: ("https://myrunstats.ru", "myrunstats", "api", "run"),
+    SourceCode.resultszone: ("https://results.zone", "resultszone", "html", "run,ski,trail,triathlon"),
+    SourceCode.myfinish: ("https://new.myfinish.info", "myfinish", "api", "run,ski,trail,triathlon"),
+    SourceCode.toplist: ("https://toplist.run", "toplist", "api", "trail"),
+    SourceCode.tristats: ("https://tristats.ru", "tristats", "api", "triathlon"),
+    SourceCode.orgeo: ("https://orgeo.ru", "orgeo", "api", "run,ski,trail,triathlon"),
+    SourceCode.racetime: ("https://results.racetime.online", "racetime", "api", "run,ski,trail,triathlon"),
 }
 
 

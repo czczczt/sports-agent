@@ -131,6 +131,7 @@ class RaceProtocolItem(BaseModel):
     place_gender: int | None = None
     chip_time_s: float | None = None
     gun_time_s: float | None = None
+    official_time_s: float | None = None
     time_formatted: str
     pace_formatted: str
     status: str

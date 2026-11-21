@@ -4,6 +4,7 @@ import re
 
 from app.pipeline.duplicates import reconcile_duplicates
 from app.pipeline.errors import PilotRejected
+from app.pipeline.operator_issues import check_elevation, record_issue
 from parser_running import store
 from parser_running.normalize import is_sber_club
 
@@ -17,7 +18,7 @@ def _link_athlete(con, result_id, row, event_year):
     if con.execute("SELECT 1 FROM result_athlete WHERE result_id=%s", (result_id,)).fetchone():
         return
     name = row.get("full_name_raw")
-    if not name:
+    if not name or row.get("gender") not in {"M", "F"}:
         return
     year = row.get("birth_year")
     if year is None and row.get("age") is not None:
@@ -64,10 +65,11 @@ def save_event(connection, source_id: int, event: dict) -> int:
         race_id = store.save_race(con, competition_id, race)
         con.execute(
             """UPDATE race SET sport_type=%s, source_url=%s, elevation_gain_m=%s, season=%s, series=%s,
-                      source_discipline=%s, is_final_protocol=%s WHERE id=%s""",
+                      source_discipline=%s, is_final_protocol=%s, source_distance_class=%s WHERE id=%s""",
             (race["sport"], race.get("url"), race.get("elevation_gain_m"), race.get("season"),
-             race.get("series"), race.get("source_discipline"), race.get("is_final"), race_id),
+             race.get("series"), race.get("source_discipline"), race.get("is_final"), race.get("distance_class"), race_id),
         )
+        check_elevation(con, source_id, competition_id, race)
         clubs = store.club_ids(con, {r["club_raw"] for r in rows if r.get("club_raw")})
         existing = con.execute("SELECT id,external_participant_id,bib,full_name_raw,gender,is_anonymized FROM result WHERE race_id=%s FOR UPDATE", (race_id,)).fetchall()
         by_pid, legacy = {}, {}
@@ -90,9 +92,10 @@ def save_event(connection, source_id: int, event: dict) -> int:
             values = [row.get(k) for k in store.RESULT_FIELDS]
             values[0] = pid
             values[1] = str(values[1]) if values[1] is not None else None
-            columns = ("club_id", *store.RESULT_COLUMNS, "source_profile_id", "position_age_group", "official_time_s")
+            columns = ("club_id", *store.RESULT_COLUMNS, "source_profile_id", "position_age_group",
+                       "official_time_s", "toplist_points")
             params = [clubs.get(row.get("club_raw")), *values, row.get("source_profile_id"),
-                      row.get("place_age_group"), row.get("official_time_s")]
+                      row.get("place_age_group"), row.get("official_time_s"), row.get("toplist_points")]
             if matches:
                 prior = matches[0]
                 if prior[5]:
@@ -109,5 +112,7 @@ def save_event(connection, source_id: int, event: dict) -> int:
                 _link_athlete(con, result_id, row, int(comp["date_begin"][:4]))
         if {row[0] for row in existing} - matched_existing:
             raise PilotRejected("Source protocol cannot reconcile previously stored legacy participants")
+    for issue in event.get("review_items", []):
+        record_issue(con, source_id, competition_id, issue["kind"], issue["external_ref"])
     reconcile_duplicates(con, competition_id)
     return len(event["races"])

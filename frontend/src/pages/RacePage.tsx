@@ -158,7 +158,7 @@ function RaceDetail({ data, athleteId, search, onSearch }: {
                 <span className="muted">место из {competition.total_finishers}</span>
               </div>
               <div className="grid-2">
-                <div className="tile" style={{ background: 'var(--surface)' }}><div className="tile__value num">{me.time_formatted}</div><div className="tile__label">чистое время</div></div>
+                <div className="tile" style={{ background: 'var(--surface)' }}><div className="tile__value num">{me.time_formatted}</div><div className="tile__label">время в протоколе</div></div>
                 <div className="tile" style={{ background: 'var(--surface)' }}><div className="tile__value num">{me.pace_formatted}</div><div className="tile__label">темп</div></div>
               </div>
             </section>

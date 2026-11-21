@@ -167,6 +167,7 @@ export interface RaceProtocolItem {
   place_gender?: number | null;
   chip_time_s?: number | null;
   gun_time_s?: number | null;
+  official_time_s?: number | null;
   time_formatted: string;
   pace_formatted: string;
   status: string | null;

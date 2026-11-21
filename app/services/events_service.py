@@ -98,7 +98,10 @@ async def get_event_by_id(conn: EventsWebRepository, event_id: int) -> EventItem
 
 
 def _row_to_protocol_item(r: dict, dist_m: int | None) -> RaceProtocolItem:
+    official_time_s = r.get("official_time_s")
     time_s = r["chip_time_s"] if r["chip_time_s"] is not None else r["gun_time_s"]
+    if official_time_s is not None and (r.get("place_by") == "official" or time_s is None):
+        time_s = official_time_s
     raw_age = r["age"]
     if raw_age == 0 or (raw_age is None and r["birth_year"] == 2026):
         display_age = 1
@@ -118,6 +121,7 @@ def _row_to_protocol_item(r: dict, dist_m: int | None) -> RaceProtocolItem:
         place_gender=r["place_gender"],
         chip_time_s=r["chip_time_s"],
         gun_time_s=r["gun_time_s"],
+        official_time_s=official_time_s,
         time_formatted=format_time(time_s),
         pace_formatted=format_pace(time_s, dist_m),
         status=r["status"],

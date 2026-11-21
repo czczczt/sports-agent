@@ -1137,6 +1137,8 @@ export interface components {
             chip_time_s?: number | null;
             /** Gun Time S */
             gun_time_s?: number | null;
+            /** Official Time S */
+            official_time_s?: number | null;
             /** Time Formatted */
             time_formatted: string;
             /** Pace Formatted */
@@ -1471,7 +1473,7 @@ export interface components {
          * SourceCode
          * @enum {string}
          */
-        SourceCode: "russiarunning" | "timerman" | "legkovrace" | "pionercup" | "probeg" | "ironstar" | "grom" | "russialoppet" | "myrunstats";
+        SourceCode: "russiarunning" | "timerman" | "legkovrace" | "pionercup" | "probeg" | "ironstar" | "grom" | "russialoppet" | "myrunstats" | "resultszone" | "myfinish" | "toplist" | "tristats" | "orgeo" | "racetime";
         /** StartRepair */
         StartRepair: {
             /** Source Id */

@@ -40,7 +40,7 @@ jobs:
           python -m alembic downgrade base
           python -m alembic upgrade head
       - name: Run Pytest Suite
-        run: python -m pytest tests/stage0 tests/test_auth.py tests/test_athlete_fields.py tests/test_privacy_and_roles.py tests/test_requests_and_reports.py tests/test_distance_scoring.py tests/test_scoring.py tests/test_multi_sport_calculator.py tests/test_golden_scoring.py tests/test_openapi_drift.py tests/test_backup.py tests/test_rating_recalculation.py tests/test_init_athletes.py tests/test_procrastinate_worker.py tests/test_recipe_agent.py tests/test_status_api.py tests/test_russia_running_pilot.py tests/test_russia_running_pipeline.py tests/test_collection_sources.py tests/test_probeg_adapter.py tests/test_grom_myrunstats_pipeline.py tests/test_ironstar_russialoppet.py -q
+        run: python -m pytest tests/stage0 tests/test_auth.py tests/test_athlete_fields.py tests/test_privacy_and_roles.py tests/test_requests_and_reports.py tests/test_distance_scoring.py tests/test_scoring.py tests/test_multi_sport_calculator.py tests/test_golden_scoring.py tests/test_openapi_drift.py tests/test_backup.py tests/test_rating_recalculation.py tests/test_init_athletes.py tests/test_procrastinate_worker.py tests/test_recipe_agent.py tests/test_status_api.py tests/test_russia_running_pilot.py tests/test_russia_running_pipeline.py tests/test_collection_sources.py tests/test_probeg_adapter.py tests/test_grom_myrunstats_pipeline.py tests/test_ironstar_russialoppet.py tests/test_wave2_collection.py tests/test_wave2_html.py tests/test_wave2_myfinish_orgeo.py tests/test_wave2_trail_tri.py -q
 
 
   frontend:

@@ -4738,6 +4738,17 @@
             ],
             "title": "Gun Time S"
           },
+          "official_time_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Official Time S"
+          },
           "time_formatted": {
             "type": "string",
             "title": "Time Formatted"
@@ -5870,7 +5881,13 @@
           "ironstar",
           "grom",
           "russialoppet",
-          "myrunstats"
+          "myrunstats",
+          "resultszone",
+          "myfinish",
+          "toplist",
+          "tristats",
+          "orgeo",
+          "racetime"
         ],
         "title": "SourceCode"
       },
