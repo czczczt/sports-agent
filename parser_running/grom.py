@@ -16,8 +16,12 @@ from urllib.parse import unquote
 import requests
 from bs4 import BeautifulSoup
 
-import http_cache
-from normalize import infer_place_by, km_from_name, ru_date, to_seconds
+if __package__:
+    from . import http_cache
+    from .normalize import infer_place_by, km_from_name, ru_date, to_seconds
+else:
+    import http_cache
+    from normalize import infer_place_by, km_from_name, ru_date, to_seconds
 
 BASE = "https://grom.place"
 NOT_RUN = re.compile(r"swim|bike|плав|велос|\bT1\b|\bT2\b", re.I)  # признаки триатлона/дуатлона в колонках
@@ -26,11 +30,14 @@ NOT_RUN = re.compile(r"swim|bike|плав|велос|\bT1\b|\bT2\b", re.I)  # п
 class GromConnector:
     name, base_url, platform, parse_method = "grom", BASE, "grom", "html"
 
+    def __init__(self, *, get=None):
+        self._get = get or http_cache.get
+
     def competitions(self, limit: int, skip: int = 0) -> list[dict]:
         slugs, page = [], 1
         while len(slugs) < skip + limit:
             try:
-                h = http_cache.get(self.name, f"{BASE}/?sort=past&page={page}")
+                h = self._get(self.name, f"{BASE}/?sort=past&page={page}")
             except requests.RequestException:  # E29: страница списка не ответила — работаем с тем, что собрали
                 break
             found = [s for s in dict.fromkeys(re.findall(r'href="https://grom\.place/results/([^"/?#]+)"', h))
@@ -42,7 +49,7 @@ class GromConnector:
         return [{"external_id": s, "code": s, "url": f"{BASE}/results/{s}"} for s in slugs[skip: skip + limit]]
 
     def races(self, comp: dict) -> list[dict]:
-        h = http_cache.get(self.name, comp["url"])
+        h = self._get(self.name, comp["url"])
         s = BeautifulSoup(h, "lxml")
         title = s.title.get_text(strip=True) if s.title else ""
         m = re.search(r"соревнованию\s*(.+?)\s*\|", title)
@@ -56,7 +63,7 @@ class GromConnector:
         return out
 
     def results(self, comp: dict, race: dict) -> tuple[list[dict], int | None]:
-        h = http_cache.get(self.name, f"{comp['url']}/discipline/{race['_path']}")
+        h = self._get(self.name, f"{comp['url']}/discipline/{race['_path']}")
         m = re.search(r':initial-rows="([^"]*)"', h)
         data = json.loads(html.unescape(m.group(1))) if m else []
         col_names = {v for r in data[:50] for k, v in r.items() if k.startswith("ColumnName") and isinstance(v, str)}
@@ -95,6 +102,7 @@ class GromConnector:
             "status": status,
             "place_abs": place if status == "FIN" else None,
             "place_gender": _rank(by_name.get("Место по полу/всего")) if status == "FIN" else None,
+            "place_age_group": _rank(by_name.get("Место по возрасту/всего")) if status == "FIN" else None,
             "chip_time_s": chip if finished else None, "gun_time_s": gun if finished else None,
         }
 

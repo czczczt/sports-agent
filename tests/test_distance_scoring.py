@@ -1,11 +1,11 @@
-import sys
 import csv
+import sys
 import unittest
 from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'parser_running'))
-from scoring import calculate, NORMS_2026
+from scoring import NORMS_2026, calculate
 
 
 class DistanceScoringTests(unittest.TestCase):

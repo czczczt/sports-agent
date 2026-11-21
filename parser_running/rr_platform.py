@@ -9,29 +9,52 @@ import hashlib
 import json
 import time
 from pathlib import Path
+from threading import Lock
+from urllib.parse import urlsplit
 
 import requests
 
-from http_cache import log_fetch
-from normalize import GENDER_RR, STATUS_RR, is_sber_club, to_seconds
+if __package__:
+    from .http_cache import log_fetch
+    from .normalize import GENDER_RR, STATUS_RR, is_sber_club, to_seconds
+else:
+    from http_cache import log_fetch
+    from normalize import GENDER_RR, STATUS_RR, is_sber_club, to_seconds
 
 SOURCES = {
     "russiarunning": "https://results.russiarunning.com/api",
     "timerman": "https://timerman.org/results/api",
+    "legkovrace": "https://results.legkovrace.ru/api",
+    "pionercup": "https://results.pionercup.ru/api",
 }
 RAW = Path(__file__).parent / "data" / "raw"
 DELAY_S = 0.5
+_REQUEST_LOCK = Lock()
+_NEXT_REQUEST: dict[str, float] = {}
 PAGE = 100  # максимум, который принимает API (Page.Take 1..100)
 
 
+def _pace(url: str) -> None:
+    if not DELAY_S:
+        return
+    host = urlsplit(url).hostname or url
+    with _REQUEST_LOCK:
+        now = time.monotonic()
+        scheduled = max(now, _NEXT_REQUEST.get(host, now))
+        _NEXT_REQUEST[host] = scheduled + DELAY_S
+    time.sleep(max(0, scheduled - time.monotonic()))
+
+
 class RRClient:
-    def __init__(self, name: str):
+    def __init__(self, name: str, *, cache: bool = True):
         self.name, self.base = name, SOURCES[name]
+        self.cache = cache
         self.s = requests.Session()
         self.s.headers["User-Agent"] = "Mozilla/5.0 (diploma research crawler)"
 
     def _call(self, method: str, path: str, body: dict | None = None, params: dict | None = None,
               cache: bool = True):
+        cache = cache and self.cache
         key = hashlib.sha1(json.dumps([method, path, body, params], sort_keys=True).encode()).hexdigest()[:20]
         f = RAW / self.name / f"{key}.json"
         req = json.dumps([method, path, body, params], sort_keys=True, ensure_ascii=False)
@@ -40,7 +63,7 @@ class RRClient:
             return json.loads(f.read_text(encoding="utf-8"))
         for attempt in range(3):  # E2: разовые таймауты
             try:
-                time.sleep(DELAY_S)
+                _pace(self.base)
                 r = self.s.request(method, self.base + path, json=body, params=params, timeout=60)
                 r.raise_for_status()
                 break
@@ -76,11 +99,22 @@ class RRClient:
             j = self._call("POST", "/results/individual/get",
                            {"eventId": event_id, "raceId": race_id, "page": {"skip": skip, "take": PAGE},
                             "filter": flt, "isStagesOn": False, "language": "ru"})
-            total = j["totalCount"]
+            claimed = j["totalCount"]
+            if isinstance(claimed, bool) or not isinstance(claimed, int) or claimed < 0:
+                raise ValueError("Invalid RR totalCount")
+            if total is not None and total != claimed:
+                raise ValueError("RR totalCount changed during pagination")
+            total = claimed
+            if not isinstance(j["results"], list) or len(j["results"]) > PAGE:
+                raise ValueError("Invalid RR protocol page")
             out += j["results"]
+            if len(out) > total or (not j["results"] and len(out) < total):
+                raise ValueError("Incomplete RR protocol")
             if not j["results"]:
                 break
             skip += PAGE
+        if len(out) != total:
+            raise ValueError("Incomplete RR protocol")
         return out, total
 
 
@@ -104,8 +138,8 @@ class RRConnector:
                  "date_end": e.get("endDate"), "place": e.get("place"), "address": e.get("address"), "sport": "run",
                  "url": f"{self.base_url.removesuffix('/api')}/event/{e['code']}/results"} for e in out[:limit]]
 
-    def races(self, comp: dict) -> list[dict]:
-        ev = self.cli.get_event(comp["code"])
+    def races(self, comp: dict, event: dict | None = None) -> list[dict]:
+        ev = self.cli.get_event(comp["code"]) if event is None else event
         comp["_rr_event_id"] = ev["id"]
         return [{"external_id": r["id"], "name_raw": r.get("name"), "distance_km": r.get("distance"),
                  "race_type": "relay" if r.get("isRelay") else "individual",
@@ -117,9 +151,11 @@ class RRConnector:
                                  if is_sber_club(c.get("title"), c.get("code"))]}
                 for r in ev["races"]]
 
-    def results(self, comp: dict, race: dict) -> tuple[list[dict], int]:
+    def results(self, comp: dict, race: dict, *, options: dict | None = None) -> tuple[list[dict], int]:
         """HTTPError 404 = протокола на платформе нет (E13) — пробрасываем, решает run.py."""
-        race["is_final"] = bool(self.cli.race_options(race["external_id"]).get("isFinalProtocol"))
+        if options is None:
+            options = self.cli.race_options(race["external_id"])
+        race["is_final"] = options.get("isFinalProtocol") is True
         rows, total = self.cli.individual_results(comp["_rr_event_id"], race["external_id"])
         out = []
         for r in rows:
@@ -127,6 +163,7 @@ class RRConnector:
             out.append({
                 "external_participant_id": r.get("participantId"), "bib": r.get("number"),
                 "full_name_raw": r.get("fullName"), "gender": GENDER_RR.get(r.get("gender")), "age": r.get("age"),
+                "birth_year": r.get("birthYear"),
                 "country": r.get("countryCode"), "region": r.get("region"), "city": r.get("city"),
                 "club_raw": (r.get("raceClub") or "").strip() or None,
                 "club_source": "protocol" if (r.get("raceClub") or "").strip() else None,
@@ -136,7 +173,11 @@ class RRConnector:
                 "place_gender": next((r[k] for k in ("individualGenderPosition", "absoluteGenderPosition")
                                       if fin and (r.get(k) or 0) > 0), None),
                 "age_group": r.get("genderAgeNominationName"),
+                "place_age_group": next((r[k] for k in ("individualGenderAgePosition", "absoluteGenderAgePosition")
+                                         if fin and (r.get(k) or 0) > 0), None),
                 "chip_time_s": to_seconds(r.get("individualResult")), "gun_time_s": to_seconds(r.get("absoluteResult")),
+                "official_time_s": (to_seconds(r.get("timeResult"))
+                                    if race.get("sport") == "ski-biathlon" and fin else None),
             })
         self._mark_sber_by_filter(comp, race, out)
         return out, total

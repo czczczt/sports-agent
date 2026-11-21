@@ -1,71 +1,76 @@
-import sqlite3
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
-from app.db import get_db
+from fastapi import APIRouter, HTTPException, Query
+
+from app.api.auth import OptionalUserDep
 from app.models import (
-    AthleteCandidate, AthleteResultItem, AthleteSummaryResponse, AssessmentResponse
+    AssessmentResponse,
+    AthleteCandidate,
+    AthleteResultItem,
+    AthleteSummaryResponse,
 )
-from app.services.athlete_service import (
-    search_athletes, get_athlete_results, get_athlete_summary
-)
-from app.services.agent_service import get_or_generate_assessment
+from app.modules.athletes.dependencies import AthleteServiceDep
 
 router = APIRouter(prefix="/athletes", tags=["athletes"])
 
 
-@router.get("/search", response_model=List[AthleteCandidate])
-def search_athletes_endpoint(
-    last_name: str = Query(..., description="Фамилия спортсмена (регистронезависимо, е/ё)"),
-    birth_year: Optional[int] = Query(None, description="Год рождения (поиск с допуском +- 1 год)"),
+def sanitize_athlete_privacy(
+    candidate: AthleteCandidate, is_privileged: bool
+) -> AthleteCandidate:
+    candidate_dict = candidate.model_dump()
+    candidate_dict["city"] = None
+    candidate_dict["region"] = None
+    candidate_dict["club"] = None
+    if not is_privileged:
+        candidate_dict["birth_date"] = None
+        candidate_dict["middle_name"] = None
+    return AthleteCandidate(**candidate_dict)
+
+
+@router.get("/search", response_model=list[AthleteCandidate])
+async def search_athletes_endpoint(
+    current_user: OptionalUserDep,
+    db: AthleteServiceDep,
+    last_name: str = Query(
+        ..., description="Фамилия спортсмена (регистронезависимо, е/ё)"
+    ),
+    birth_year: int | None = Query(
+        None, description="Год рождения (поиск с допуском +- 1 год)"
+    ),
     limit: int = Query(50, ge=1, le=200),
-    db: sqlite3.Connection = Depends(get_db)
 ):
-    """
-    Поиск спортсмена по фамилии и году рождения.
-    Поиск без учета регистра и с заменой е/ё.
-    Для строк без точной даты/года рождения используется расчётный год с допуском +-1 год.
-    """
-    candidates = search_athletes(db, last_name=last_name, birth_year=birth_year, limit=limit)
-    return candidates
+    candidates = await db.search_candidates(
+        last_name=last_name, birth_year=birth_year, limit=limit
+    )
+    is_privileged = bool(current_user and current_user.role in ("admin", "captain"))
+    return [sanitize_athlete_privacy(c, is_privileged) for c in candidates]
 
 
-@router.get("/{athlete_id}/results", response_model=List[AthleteResultItem])
-def get_athlete_results_endpoint(
+@router.get("/{athlete_id}/results", response_model=list[AthleteResultItem])
+async def get_athlete_results_endpoint(
+    db: AthleteServiceDep,
     athlete_id: int,
-    db: sqlite3.Connection = Depends(get_db)
 ):
-    """
-    Таблица всех завершенных результатов спортсмена:
-    старт, дата, дистанция, место (общее и по полу), чистое и пистолетное время, темп.
-    """
-    results = get_athlete_results(db, athlete_id=athlete_id)
+    results = await db.results(athlete_id=athlete_id)
     return results
 
 
 @router.get("/{athlete_id}/summary", response_model=AthleteSummaryResponse)
-def get_athlete_summary_endpoint(
+async def get_athlete_summary_endpoint(
+    current_user: OptionalUserDep,
+    db: AthleteServiceDep,
     athlete_id: int,
-    db: sqlite3.Connection = Depends(get_db)
 ):
-    """
-    Сводный профиль спортсмена:
-    анкета, личные рекорды (PB), динамика по времени, рейтинг (заглушка формулы).
-    """
-    summary = get_athlete_summary(db, athlete_id=athlete_id)
+    summary = await db.summary(athlete_id=athlete_id)
     if not summary:
         raise HTTPException(status_code=404, detail="Спортсмен не найден")
+    is_privileged = bool(current_user and current_user.role in ("admin", "captain"))
+    summary.athlete = sanitize_athlete_privacy(summary.athlete, is_privileged)
     return summary
 
 
 @router.post("/{athlete_id}/assessment", response_model=AssessmentResponse)
 async def generate_athlete_assessment_endpoint(
+    db: AthleteServiceDep,
     athlete_id: int,
-    db: sqlite3.Connection = Depends(get_db)
 ):
-    """
-    ИИ-агент для спортсмена:
-    вызывается по кнопке, генерирует оценку по всем метрикам.
-    Ответ кэшируется в БД, чтобы не тратить токены повторно.
-    """
-    assessment = await get_or_generate_assessment(db, athlete_id=athlete_id)
+    assessment = await db.assessment(athlete_id=athlete_id)
     return assessment

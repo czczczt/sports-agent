@@ -1,249 +1,134 @@
-"""Расчёт рейтинга по формулам из !info/docs/SPEC.md."""
+"""Compatibility and recalculation entry points for the run-v1 calculator on PostgreSQL.
 
+Schema setup belongs to Alembic. Recalculation operates atomically over PostgreSQL.
+"""
 from __future__ import annotations
 
-import json
-import math
-import sqlite3
-from datetime import date, timedelta
-from typing import Any, Optional
+from typing import Any
 
-
-FORMULA_VERSION = "run-v1"
-RATING_PERIOD_DAYS = 365
-
-_NORMS = (
-    ("60m", 6.84, 7.5),
-    ("100m", 10.62, 11.75),
-    ("200m", 21.65, 24.4),
-    ("400m", 47.9, 54.8),
-    ("800m", 111, 127),
-    ("1000m", 142, 165),
-    ("1500m", 228, 259),
-    ("1mile", 243, 279),
-    ("3000m", 486, 555),
-    ("5000m", 846, 965),
-    ("10000m", 1760, 2028),
-    ("half_marathon", 3900, 4540),
-    ("marathon", 8400, 9600),
-    ("100km", 24960, 28800),
-    ("24h", 245, 216),
+from app.modules.rating.calculator import (
+    _NORMS,
+    FORMULA_VERSION,
+    RATING_PERIOD_DAYS,
+    _calculate_score,
+    _parse_date,
 )
+from app.modules.rating.repository import RatingRepository
 
-DDL = """
-CREATE TABLE IF NOT EXISTS rating_norm (
-    year INTEGER NOT NULL,
-    distance_class TEXT NOT NULL,
-    gender TEXT NOT NULL CHECK (gender IN ('M', 'F')),
-    value REAL NOT NULL CHECK (value > 0),
-    unit TEXT NOT NULL CHECK (unit IN ('s', 'km')),
-    PRIMARY KEY (year, distance_class, gender)
-);
-CREATE TABLE IF NOT EXISTS rating_score (
-    result_id INTEGER NOT NULL REFERENCES result(id) ON DELETE CASCADE,
-    formula_version TEXT NOT NULL,
-    points REAL,
-    reason TEXT,
-    breakdown_json TEXT NOT NULL,
-    PRIMARY KEY (result_id, formula_version),
-    CHECK ((points IS NOT NULL AND reason IS NULL) OR
-           (points IS NULL AND reason IS NOT NULL))
-);
-CREATE TABLE IF NOT EXISTS running_athlete_rating (
-    athlete_id INTEGER NOT NULL REFERENCES athlete(id) ON DELETE CASCADE,
-    formula_version TEXT NOT NULL,
-    period_start TEXT NOT NULL,
-    period_end TEXT NOT NULL,
-    points REAL NOT NULL,
-    best_points REAL NOT NULL,
-    starts_count INTEGER NOT NULL,
-    rank INTEGER NOT NULL,
-    PRIMARY KEY (athlete_id, formula_version, period_start, period_end)
-);
-CREATE INDEX IF NOT EXISTS ix_rating_score_points ON rating_score(points);
-CREATE INDEX IF NOT EXISTS ix_running_athlete_rating_rank
-    ON running_athlete_rating(formula_version, period_start, period_end, rank);
-"""
+__all__ = [
+    "FORMULA_VERSION",
+    "RATING_PERIOD_DAYS",
+    "_NORMS",
+    "_calculate_score",
+    "_parse_date",
+    "get_rating_me_row",
+    "get_rating_norms",
+    "get_rating_page",
+    "recalculate_rating",
+    "recalculate_rating_sync",
+]
 
 
-def initialize(conn: sqlite3.Connection) -> None:
-    conn.executescript(DDL)
-    conn.executemany(
-        """
-        INSERT OR IGNORE INTO rating_norm(year, distance_class, gender, value, unit)
-        VALUES (?, ?, ?, ?, ?)
-        """,
-        [
-            (2026, distance_class, gender, value, "km" if distance_class == "24h" else "s")
-            for distance_class, male, female in _NORMS
-            for gender, value in (("M", male), ("F", female))
-        ],
-    )
-    conn.commit()
+async def get_rating_page(session: Any, **kwargs: Any) -> dict[str, Any]:
+    return await RatingRepository(session).get_rating_page(**kwargs)
 
 
-def _parse_date(value: Optional[str]) -> Optional[date]:
-    if not value:
-        return None
+async def get_rating_me_row(session: Any, athlete_id: int, gender: str | None = None) -> dict[str, Any] | None:
+    return await RatingRepository(session).get_rating_me_row(athlete_id, gender)
+
+
+async def get_rating_norms(session: Any, year: int = 2026) -> dict[str, Any]:
+    return await RatingRepository(session).get_rating_norms(year)
+
+
+async def recalculate_rating(session: Any, *, as_of: Any = None, formula_version: str = FORMULA_VERSION) -> dict[str, Any]:
+    return await RatingRepository(session).recalculate_rating(as_of=as_of, formula_version=formula_version)
+
+
+def recalculate_rating_sync(conn: Any = None, *, as_of: Any = None, formula_version: str = FORMULA_VERSION, commit: bool = True) -> dict[str, Any]:
+    """Синхронный запуск пересчёта для CLI/фоновых скриптов через psycopg."""
+    import json
+    from datetime import date, timedelta
+
+    import psycopg
+
+    from app.config import DATABASE_URL, normalize_postgres_url
+
+    should_close = False
+    if conn is None:
+        conn = psycopg.connect(normalize_postgres_url(DATABASE_URL))
+        should_close = True
+
     try:
-        return date.fromisoformat(value[:10])
-    except ValueError:
-        return None
+        cur = conn.cursor()
+        end_date = as_of or date.today()
+        start_date = end_date - timedelta(days=RATING_PERIOD_DAYS)
+        start_str = start_date.isoformat()
+        end_str = end_date.isoformat()
 
+        cur.execute("SELECT pg_advisory_xact_lock(hashtextextended('collection:publication', 0))")
+        cur.execute("""
+            DELETE FROM rating_score s USING result r, race ra, competition c
+            WHERE s.result_id=r.id AND r.race_id=ra.id AND ra.competition_id=c.id
+              AND s.formula_version = %s
+              AND (r.collection_review OR COALESCE(ra.sport_type, c.sport_type, 'run') <> 'run'
+                   OR ra.race_type = 'relay')
+        """, (formula_version,))
 
-def _calculate_score(
-    *,
-    status: Optional[str],
-    duplicate_of: Optional[int],
-    gender: Optional[str],
-    distance_class: Optional[str],
-    event_date: Optional[str],
-    chip_time_s: Optional[float],
-    gun_time_s: Optional[float],
-    distance_km: Optional[float],
-    norm_value: Optional[float],
-    norm_unit: Optional[str],
-    norm_year: Optional[int],
-) -> tuple[Optional[float], Optional[str], dict[str, Any]]:
-    breakdown: dict[str, Any] = {
-        "sport": "run",
-        "class": distance_class,
-        "gender": gender,
-        "norm_value": norm_value,
-        "norm_unit": norm_unit,
-        "norm_year": norm_year,
-        "time_kind": None,
-        "time_s": None,
-        "formula": None,
-        "points": None,
-        "formula_version": FORMULA_VERSION,
-    }
+        cur.execute("SELECT distance_class, gender, value, unit, year FROM rating_norm")
+        norms = {
+            (row[0], row[1]): {"value": row[2], "unit": row[3], "year": row[4]}
+            for row in cur.fetchall()
+        }
 
-    def excluded(reason: str) -> tuple[None, str, dict[str, Any]]:
-        breakdown["reason"] = reason
-        return None, reason, breakdown
-
-    if duplicate_of is not None:
-        return excluded("duplicate")
-    if status != "FIN":
-        return excluded("not_finisher")
-    if gender not in ("M", "F"):
-        return excluded("unknown_gender")
-    if not event_date:
-        return excluded("missing_date")
-    if not distance_class:
-        return excluded("unclassified_distance")
-    if norm_value is None:
-        return excluded("missing_norm")
-
-    if distance_class == "24h":
-        if distance_km is None:
-            return excluded("missing_distance")
-        if not isinstance(distance_km, (int, float)) or not math.isfinite(distance_km) or distance_km <= 0:
-            return excluded("invalid_distance")
-        points = distance_km / norm_value * 1000
-        breakdown["distance_km"] = distance_km
-        breakdown["formula"] = f"{distance_km:g} / {norm_value:g} × 1000"
-    else:
-        time_kind = "chip" if chip_time_s is not None else "gun"
-        seconds = chip_time_s if time_kind == "chip" else gun_time_s
-        breakdown["time_kind"] = time_kind
-        breakdown["time_s"] = seconds
-        if seconds is None:
-            return excluded("missing_time")
-        if not isinstance(seconds, (int, float)) or not math.isfinite(seconds) or seconds <= 0:
-            return excluded("invalid_time")
-        points = norm_value / seconds * 1000
-        breakdown["formula"] = f"{norm_value:g} / {seconds:g} × 1000"
-
-    if not math.isfinite(points) or points <= 0:
-        return excluded("invalid_points")
-    breakdown["points"] = points
-    return points, None, breakdown
-
-
-def recalculate(
-    conn: sqlite3.Connection,
-    *,
-    as_of: Optional[date] = None,
-    formula_version: str = FORMULA_VERSION,
-) -> dict[str, Any]:
-    """Rebuild result scores and the rolling 365-day athlete rating."""
-    initialize(conn)
-    end_date = as_of or date.today()
-    start_date = end_date - timedelta(days=RATING_PERIOD_DAYS)
-    norms = {
-        (row["distance_class"], row["gender"]): row
-        for row in conn.execute(
-            "SELECT distance_class, gender, value, unit, year FROM rating_norm"
-        )
-    }
-
-    with conn:
-        conn.execute(
-            "DELETE FROM rating_score WHERE formula_version = ?", (formula_version,)
-        )
-        conn.execute(
-            """
-            DELETE FROM running_athlete_rating
-            WHERE formula_version = ? AND period_start = ? AND period_end = ?
-            """,
-            (formula_version, start_date.isoformat(), end_date.isoformat()),
-        )
-
-        result_rows = conn.execute(
-            """
+        cur.execute("""
             SELECT r.id, r.status, r.duplicate_of, r.gender, r.chip_time_s,
-                   r.gun_time_s, ra.norm_distance,
-                   e.date_begin, a.id AS athlete_id
+                   r.gun_time_s, r.distance_km, ra.distance_type, ra.discipline,
+                   c.date_begin, a.id AS athlete_id
             FROM result r
             JOIN race ra ON ra.id = r.race_id
-            JOIN event e ON e.id = ra.event_id
+            JOIN competition c ON c.id = ra.competition_id
             LEFT JOIN result_athlete link ON link.result_id = r.id
             LEFT JOIN athlete a ON a.id = link.athlete_id
-            """
-        ).fetchall()
+            WHERE COALESCE(ra.sport_type, c.sport_type, 'run') = 'run'
+              AND NOT r.collection_review AND ra.race_type IS DISTINCT FROM 'relay'
+        """)
+        rows = cur.fetchall()
 
         score_rows = []
-        totals: dict[str, int] = {}
-        for row in result_rows:
-            norm = norms.get((row["norm_distance"], row["gender"]))
+        scored_count = 0
+        for row in rows:
+            rid, status, dup, gender, chip_s, gun_s, dist_km, dist_type, disc, dbegin, aid = row
+            dist_class = dist_type or (f"{int(dist_km)}km" if dist_km else None)
+            norm = norms.get((dist_class, gender))
             points, reason, breakdown = _calculate_score(
-                status=row["status"],
-                duplicate_of=row["duplicate_of"],
-                gender=row["gender"],
-                distance_class=row["norm_distance"],
-                event_date=row["date_begin"],
-                chip_time_s=row["chip_time_s"],
-                gun_time_s=row["gun_time_s"],
-                distance_km=None,
+                status=status,
+                duplicate_of=dup,
+                gender=gender,
+                distance_class=dist_class,
+                event_date=str(dbegin) if dbegin else None,
+                chip_time_s=chip_s,
+                gun_time_s=gun_s,
+                distance_km=dist_km,
                 norm_value=norm["value"] if norm else None,
                 norm_unit=norm["unit"] if norm else None,
                 norm_year=norm["year"] if norm else None,
             )
-            score_rows.append(
-                (
-                    row["id"],
-                    formula_version,
-                    points,
-                    reason,
-                    json.dumps(breakdown, ensure_ascii=False, allow_nan=False),
-                )
-            )
-            totals["scored" if points is not None else reason] = totals.get(
-                "scored" if points is not None else reason, 0
-            ) + 1
+            breakdown_json = json.dumps(breakdown, ensure_ascii=False, allow_nan=False)
+            score_rows.append((rid, formula_version, points, reason, breakdown_json))
+            if points is not None:
+                scored_count += 1
 
-        conn.executemany(
-            """
-            INSERT INTO rating_score(result_id, formula_version, points, reason, breakdown_json)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            score_rows,
-        )
+        cur.executemany("""
+            INSERT INTO rating_score (result_id, formula_version, points, reason, breakdown_json)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (result_id, formula_version) DO UPDATE SET
+                points = EXCLUDED.points,
+                reason = EXCLUDED.reason,
+                breakdown_json = EXCLUDED.breakdown_json
+        """, score_rows)
 
-        aggregates = conn.execute(
-            """
+        cur.execute("""
             SELECT a.id AS athlete_id, SUM(s.points) AS points,
                    MAX(s.points) AS best_points, COUNT(*) AS starts_count
             FROM athlete a
@@ -251,124 +136,42 @@ def recalculate(
             JOIN rating_score s ON s.result_id = link.result_id
             JOIN result r ON r.id = s.result_id
             JOIN race ra ON ra.id = r.race_id
-            JOIN event e ON e.id = ra.event_id
-            WHERE s.formula_version = ?
+            JOIN competition c ON c.id = ra.competition_id
+            WHERE s.formula_version = %s
               AND s.points IS NOT NULL
-              AND substr(e.date_begin, 1, 10) BETWEEN ? AND ?
+              AND r.duplicate_of IS NULL AND NOT r.collection_review AND ra.race_type IS DISTINCT FROM 'relay'
+              AND COALESCE(ra.sport_type, c.sport_type, 'run') = 'run'
+              AND c.date_begin BETWEEN %s AND %s
             GROUP BY a.id
-            ORDER BY points DESC, best_points DESC, starts_count DESC, a.id
-            """,
-            (formula_version, start_date.isoformat(), end_date.isoformat()),
-        ).fetchall()
-        conn.executemany(
-            """
-            INSERT INTO running_athlete_rating(
+            ORDER BY points DESC, best_points DESC, starts_count DESC, a.id ASC
+        """, (formula_version, start_date, end_date))
+        aggregates = cur.fetchall()
+
+        cur.execute("""
+            DELETE FROM running_athlete_rating
+            WHERE formula_version = %s AND period_start = %s AND period_end = %s
+        """, (formula_version, start_str, end_str))
+
+        rating_rows = [
+            (agg[0], formula_version, start_str, end_str, agg[1], agg[2], agg[3], rank)
+            for rank, agg in enumerate(aggregates, 1)
+        ]
+        cur.executemany("""
+            INSERT INTO running_athlete_rating (
                 athlete_id, formula_version, period_start, period_end,
                 points, best_points, starts_count, rank
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            [
-                (
-                    row["athlete_id"],
-                    formula_version,
-                    start_date.isoformat(),
-                    end_date.isoformat(),
-                    row["points"],
-                    row["best_points"],
-                    row["starts_count"],
-                    rank,
-                )
-                for rank, row in enumerate(aggregates, 1)
-            ],
-        )
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, rating_rows)
 
-    return {
-        "formula_version": formula_version,
-        "period_start": start_date.isoformat(),
-        "period_end": end_date.isoformat(),
-        "results_total": len(result_rows),
-        "results_scored": totals.get("scored", 0),
-        "athletes_rated": len(aggregates),
-        "exclusions": {key: value for key, value in totals.items() if key != "scored"},
-    }
-
-
-def get_rating_page(
-    conn: sqlite3.Connection,
-    *,
-    gender: Optional[str] = None,
-    search: Optional[str] = None,
-    limit: int = 100,
-) -> dict[str, Any]:
-    """Возвращает сохранённый рейтинг для страницы рейтинга."""
-    period = conn.execute(
-        """
-        SELECT period_start, period_end
-        FROM running_athlete_rating
-        WHERE formula_version = ?
-        ORDER BY period_end DESC
-        LIMIT 1
-        """,
-        (FORMULA_VERSION,),
-    ).fetchone()
-    if not period:
-        return {"period_start": None, "period_end": None, "rows": [], "total": 0}
-
-    conditions = [
-        "ar.formula_version = ?",
-        "ar.period_start = ?",
-        "ar.period_end = ?",
-    ]
-    params: list[Any] = [
-        FORMULA_VERSION,
-        period["period_start"],
-        period["period_end"],
-    ]
-    if gender in ("M", "F"):
-        conditions.append("a.gender = ?")
-        params.append(gender)
-    if search:
-        conditions.append("a.name_key LIKE ?")
-        params.append(f"%{search.lower().replace('ё', 'е')}%")
-
-    where_clause = " AND ".join(conditions)
-    rows = conn.execute(
-        f"""
-        SELECT ar.rank, a.id AS athlete_id, a.display_name, a.birth_year,
-               a.gender, ar.points, ar.best_points, ar.starts_count
-        FROM running_athlete_rating ar
-        JOIN athlete a ON a.id = ar.athlete_id
-        WHERE {where_clause}
-        ORDER BY ar.points DESC, ar.best_points DESC, ar.starts_count DESC, ar.athlete_id
-        LIMIT ?
-        """,
-        (*params, limit),
-    ).fetchall()
-    total = conn.execute(
-        f"""
-        SELECT COUNT(*)
-        FROM running_athlete_rating ar
-        JOIN athlete a ON a.id = ar.athlete_id
-        WHERE {where_clause}
-        """,
-        params,
-    ).fetchone()[0]
-    rows = [
-        {
-            "rank": index,
-            "athlete_id": row["athlete_id"],
-            "display_name": row["display_name"],
-            "birth_year": row["birth_year"],
-            "gender": row["gender"],
-            "points": row["points"],
-            "best_points": row["best_points"],
-            "starts_count": row["starts_count"],
+        if commit:
+            conn.commit()
+        return {
+            "formula_version": formula_version,
+            "period_start": start_str,
+            "period_end": end_str,
+            "results_scored": scored_count,
+            "athletes_rated": len(aggregates),
         }
-        for index, row in enumerate(rows, 1)
-    ]
-    return {
-        "period_start": period["period_start"],
-        "period_end": period["period_end"],
-        "rows": rows,
-        "total": total,
-    }
+    finally:
+        if should_close:
+            conn.close()

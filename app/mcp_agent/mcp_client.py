@@ -5,11 +5,10 @@
 - llm_extract_table: извлечение табличных данных из сырого текста/HTML в JSON по схеме.
 - inspect_network_traffic: поиск скрытых JSON API в сетевых запросах страницы.
 """
-import os
-import json
 import logging
-from typing import List, Dict, Any, Optional
+import os
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("mcp_agent")
 
@@ -87,7 +86,7 @@ class MCPAgentClientStub(BaseMCPAgentClient):
 
         elif tool_name == "llm_extract_table":
             # ИИ-экстрактор таблиц: извлекает нормализованные строки протокола
-            schema = arguments.get("schema", {})
+            _ = arguments.get("schema", {})
             return MCPToolResult(
                 is_error=False,
                 content={

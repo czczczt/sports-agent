@@ -4,7 +4,10 @@ from __future__ import annotations
 import math
 import re
 
-from normalize import NORM_DISTANCES_M
+try:
+    from .normalize import NORM_DISTANCES_M
+except ImportError:  # direct CLI execution
+    from normalize import NORM_DISTANCES_M
 
 DEFAULT_SYNONYMS = [
     {'pattern': pattern, 'distance_class': cls, 'priority': 100, 'enabled': True}

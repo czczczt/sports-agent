@@ -1,7 +1,6 @@
 # Основной стек FastAPI MVP сайта
 fastapi>=0.115.0
-uvicorn[standard]>=0.30.0
-jinja2>=3.1.4
+uvicorn[standard]>=0.36.0
 pydantic>=2.9.0
 
 # HTTP-клиент для вызова GigaChat API и тестирования
@@ -9,3 +8,21 @@ httpx>=0.27.0
 
 # Управление переменными окружения (.env)
 python-dotenv>=1.0.0
+
+SQLAlchemy[asyncio]>=2.0,<2.1
+asyncpg>=0.30,<1
+alembic>=1.14,<2
+psycopg[binary,pool]>=3.2,<4
+pydantic-settings>=2.6,<3
+argon2-cffi>=23.1,<26
+procrastinate>=3.12.0
+crawl4ai>=0.9.5,<0.10
+regex>=2024.11.6
+langgraph>=1.2,<2
+langgraph-checkpoint-postgres>=3.2,<4
+langchain-gigachat>=0.5,<1
+langchain-ollama>=1,<2
+langchain-openai>=1,<2
+requests>=2.32,<3
+beautifulsoup4>=4.12,<5
+lxml>=5,<7

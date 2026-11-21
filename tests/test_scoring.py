@@ -4,7 +4,7 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'parser_running'))
-from scoring import calculate, NORMS_2026
+from scoring import NORMS_2026, calculate
 
 
 class CalculatorTests(unittest.TestCase):
@@ -28,7 +28,7 @@ class CalculatorTests(unittest.TestCase):
         cases = [({'status': status}, {}, 'not_finisher') for status in ('DNF', 'DSQ', 'DNS', 'NC', 'LAP', None)]
         cases += [({'duplicate_of': 1}, {}, 'duplicate'), ({'gender': None}, {}, 'unknown_gender'),
                   ({}, {'date_begin': None}, 'missing_date'), ({}, {'distance_type': None}, 'unclassified_distance'),
-                  ({}, {'race_type': 'relay'}, 'relay'), ({}, {'sport_type': 'trail'}, 'unsupported_sport'),
+                  ({}, {'race_type': 'relay'}, 'relay'), ({}, {'sport_type': 'curling'}, 'unsupported_sport'),
                   ({}, {'distance_type': '60m'}, 'missing_norm')]
         for patch, race_patch, reason in cases:
             with self.subTest(reason=reason, patch=patch):
@@ -94,6 +94,103 @@ class CalculatorTests(unittest.TestCase):
                            (float('nan'), 'invalid_distance')):
             self.assertEqual(calculate({'status': 'FIN', 'gender': 'M', 'distance_km': km},
                              {'distance_type': '24h', 'date_begin': date(2026, 1, 1)}, NORMS_2026)['reason'], reason)
+
+    def test_ski_and_biathlon_scoring(self):
+        # Ski race: 100 finishers, place 1 -> 100 * (100 - 1 + 1) / 100 = 100.0
+        ski_res = {'status': 'FIN', 'gender': 'M', 'place_gender': 1, 'chip_time_s': 1800}
+        ski_race = {'sport_type': 'ski', 'date_begin': date(2026, 2, 1), 'finishers_count': 100}
+        score = calculate(ski_res, ski_race, [])
+        self.assertEqual(score['points'], 100.0)
+        self.assertIsNone(score['reason'])
+        self.assertEqual(score['breakdown']['formula'], '100 × (100 - 1 + 1) / 100')
+
+        # Ski race: 100 finishers, place 50 -> 100 * (100 - 50 + 1) / 100 = 51.0
+        score_50 = calculate(ski_res | {'place_gender': 50}, ski_race, [])
+        self.assertEqual(score_50['points'], 51.0)
+
+        # Biathlon race: 80 finishers, place 10 -> 100 * (80 - 10 + 1) / 80 = 88.75
+        biathlon_res = {'status': 'FIN', 'gender': 'F', 'place_gender': 10}
+        biathlon_race = {'sport_type': 'biathlon', 'date_begin': date(2026, 2, 15), 'finishers_count': 80}
+        score_biathlon = calculate(biathlon_res, biathlon_race, [])
+        self.assertEqual(score_biathlon['points'], 88.75)
+
+        # Ineligible ski place (> N or <= 0)
+        self.assertEqual(calculate(ski_res | {'place_gender': 101}, ski_race, [])['reason'], 'invalid_place')
+        self.assertEqual(calculate(ski_res | {'place_gender': 0}, ski_race, [])['reason'], 'invalid_place')
+        self.assertEqual(calculate(ski_res | {'place_gender': None}, ski_race, [])['reason'], 'missing_place')
+        self.assertEqual(calculate(ski_res, {'sport_type': 'ski', 'date_begin': date(2026, 2, 1)}, [])['reason'], 'missing_finishers_count')
+
+    def test_ski_rl_series_scoring(self):
+        # RL marathon with known points (e.g. 1524 points -> 1524 / 7 = 217.714...)
+        res = {'status': 'FIN', 'gender': 'M', 'rl_points': 1524}
+        race = {'sport_type': 'ski', 'is_rl_series': True, 'date_begin': date(2026, 3, 1)}
+        score = calculate(res, race, [])
+        self.assertAlmostEqual(score['points'], 1524.0 / 7.0)
+        self.assertEqual(score['breakdown']['formula'], '1524 / 7')
+
+        # RL race without rl_points is excluded from place scoring per SPEC §9.2
+        self.assertEqual(calculate({'status': 'FIN', 'gender': 'M'}, race, [])['reason'], 'rl_series_excluded_from_place_scoring')
+
+    def test_triathlon_scoring(self):
+        # Olympic (Rmax = 2500), regular (K = 1.0)
+        # Winner (Ta = Tl = 7200s, Tmed = 8400s -> Bmed = 2 * (8400 - 7200) / 60 = 40.0)
+        # Points = (2500 * (1 - 0) + 40) * 1.0 = 2540.0
+        tri_res = {'status': 'FIN', 'gender': 'M', 'chip_time_s': 7200}
+        tri_race = {
+            'sport_type': 'triathlon',
+            'distance_type': 'olympic',
+            'date_begin': date(2026, 6, 1),
+            'leader_time_s': 7200,
+            'median_time_s': 8400,
+            'special': 'regular',
+        }
+        score = calculate(tri_res, tri_race, [])
+        self.assertEqual(score['points'], 2540.0)
+        self.assertIn('2500', score['breakdown']['formula'])
+        self.assertEqual(score['breakdown']['b_med'], 40.0)
+
+        # Half (Rmax = 5000), worlds status (K = 1.10)
+        # Ta = 18000s, Tl = 15000s, Tmed = 17000s (slower than median -> Bmed = 0)
+        # raw = 5000 * (1 - 3000/15000) = 5000 * 0.8 = 4000. Points = 4000 * 1.10 = 4400.0
+        half_res = {'status': 'FIN', 'gender': 'M', 'chip_time_s': 18000}
+        half_race = {
+            'sport_type': 'triathlon',
+            'distance_type': 'half',
+            'date_begin': date(2026, 7, 1),
+            'leader_time_s': 15000,
+            'median_time_s': 17000,
+            'special': 'worlds',
+        }
+        score_half = calculate(half_res, half_race, [])
+        self.assertEqual(score_half['points'], 4400.0)
+        self.assertEqual(score_half['breakdown']['b_med'], 0.0)
+
+        # Ineligible triathlon missing fields
+        self.assertEqual(calculate(tri_res, tri_race | {'leader_time_s': None}, [])['reason'], 'missing_leader_time')
+        self.assertEqual(calculate(tri_res, tri_race | {'median_time_s': None}, [])['reason'], 'missing_median_time')
+        self.assertEqual(calculate(tri_res, tri_race | {'distance_type': 'unknown_dist'}, [])['reason'], 'unclassified_distance')
+
+    def test_trail_scoring(self):
+        # 50 km, D+ = 2500 m -> Rmax = 10 * (50 + 25) = 750
+        # Tl = 18000s, Ta = 21600s, Tmed = 23400s -> Bmed = 2 * (23400 - 21600)/60 = 60.0
+        # raw = 750 * (1 - 3600/18000) + 60 = 750 * 0.8 + 60 = 600 + 60 = 660.0
+        trail_res = {'status': 'FIN', 'gender': 'M', 'chip_time_s': 21600}
+        trail_race = {
+            'sport_type': 'trail',
+            'distance_km': 50.0,
+            'elevation_gain_m': 2500,
+            'date_begin': date(2026, 8, 1),
+            'leader_time_s': 18000,
+            'median_time_s': 23400,
+        }
+        score = calculate(trail_res, trail_race, [])
+        self.assertEqual(score['points'], 660.0)
+        self.assertEqual(score['breakdown']['r_max'], 750.0)
+        self.assertEqual(score['breakdown']['b_med'], 60.0)
+
+        # Missing D+ -> missing_elevation_gain per SPEC §9.4
+        self.assertEqual(calculate(trail_res, trail_race | {'elevation_gain_m': None}, [])['reason'], 'missing_elevation_gain')
+        self.assertEqual(calculate(trail_res, trail_race | {'distance_km': None, 'distance_m': None}, [])['reason'], 'missing_distance')
 
 
 if __name__ == '__main__':

@@ -5,12 +5,12 @@
 3. Если тесты падают -> автоматически логирует issue и запускает fallback-парсинг через MCP.
 """
 import hashlib
-import sqlite3
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
 from app.db import get_db_connection
-from app.mcp_agent.validator import validate_protocol_data, ValidationReport
 from app.mcp_agent.mcp_client import MCPAgentClientStub
+from app.mcp_agent.validator import validate_protocol_data
 
 logger = logging.getLogger("mcp_agent")
 
@@ -25,9 +25,10 @@ def make_fingerprint(stage: str, kind: str, object_ref: str) -> str:
 def sync_postgres_issue(source_id: Optional[int], stage: str, kind: str, object_ref: str, details: str) -> None:
     """Синхронизирует инцидент и предложение агента в PostgreSQL для экрана /agent-review."""
     try:
-        import psycopg
         import json
         import os
+
+        import psycopg
         fp = make_fingerprint(stage, kind, object_ref)
         db_url = os.environ.get("DATABASE_URL", "postgresql://agent:change-me@127.0.0.1:5432/sports_agent")
         with psycopg.connect(db_url, autocommit=True) as pg_con:
@@ -70,7 +71,7 @@ def sync_postgres_issue(source_id: Optional[int], stage: str, kind: str, object_
 
 
 def report_quality_issue(
-    conn: sqlite3.Connection,
+    conn: Any,
     source_id: Optional[int],
     stage: str,
     kind: str,
@@ -80,15 +81,16 @@ def report_quality_issue(
     """Записывает обнаруженную проблему в таблицу issue базы данных."""
     cur = conn.cursor()
     fp = make_fingerprint(stage, kind, object_ref)
-    
+
     cur.execute("""
         INSERT INTO issue (source_id, stage, kind, object_ref, fingerprint, details, status, assignee, occurrences)
         VALUES (?, ?, ?, ?, ?, ?, 'agent_working', 'agent', 1)
         ON CONFLICT(fingerprint) DO UPDATE SET
-            occurrences = occurrences + 1,
+            occurrences = issue.occurrences + 1,
             last_seen = CURRENT_TIMESTAMP,
             details = excluded.details,
-            status = 'agent_working'
+            status = 'agent_working',
+            assignee = 'agent'
     """, (source_id, stage, kind, object_ref, fp, details))
     conn.commit()
 

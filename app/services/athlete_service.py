@@ -1,11 +1,16 @@
-import sqlite3
 import json
 import re
-from typing import List, Optional, Dict, Any
+from typing import Any
+
 from app.models import (
-    AthleteCandidate, AthleteResultItem, PersonalBestItem,
-    RatingPlaceholder, DynamicsPoint, AthleteSummaryResponse
+    AthleteCandidate,
+    AthleteResultItem,
+    AthleteSummaryResponse,
+    DynamicsPoint,
+    PersonalBestItem,
+    RatingPlaceholder,
 )
+from app.modules.athletes.web_repository import AthletesWebRepository
 
 # Словарь читаемых названий дистанций
 DISTANCE_TITLES = {
@@ -27,28 +32,37 @@ DISTANCE_TITLES = {
 }
 
 
-
-DUMMY_CLUBS_EXACT = {"нет", "лично", "индивидуально", "-", "—", "none", "null", "self", "individual", ""}
+DUMMY_CLUBS_EXACT = {
+    "нет",
+    "лично",
+    "индивидуально",
+    "-",
+    "—",
+    "none",
+    "null",
+    "self",
+    "individual",
+    "",
+}
 DUMMY_CLUBS_SUBSTR = ("нет клуба", "no club", "без клуба")
 
 
-def is_dummy_club(club: Optional[str]) -> bool:
+def is_dummy_club(club: str | None) -> bool:
     """Проверяет, является ли значение клуба технической заглушкой (Нет клуба/No club, Лично и т.п.)."""
     if not club:
         return True
     s = club.strip().lower().replace("ё", "е")
     if s in DUMMY_CLUBS_EXACT:
         return True
-    if any(k in s for k in DUMMY_CLUBS_SUBSTR):
-        return True
-    return False
+    return any(k in s for k in DUMMY_CLUBS_SUBSTR)
 
 
-def clean_club(club: Optional[str]) -> Optional[str]:
+def clean_club(club: str | None) -> str | None:
     """Возвращает очищенное название клуба или None, если это заглушка."""
     if is_dummy_club(club):
         return None
     return club.strip()
+
 
 def normalize_term(term: str) -> str:
     """Нормализует строку поиска: нижний регистр, замена ё -> е, удаление спецсимволов."""
@@ -59,11 +73,11 @@ def normalize_term(term: str) -> str:
     return " ".join(tokens)
 
 
-def format_time(seconds: Optional[float]) -> str:
+def format_time(seconds: float | None) -> str:
     """Форматирует секунды в ЧЧ:ММ:СС или ММ:СС."""
     if seconds is None or seconds <= 0:
         return "-"
-    total = int(round(seconds))
+    total = round(seconds)
     h = total // 3600
     m = (total % 3600) // 60
     s = total % 60
@@ -72,73 +86,50 @@ def format_time(seconds: Optional[float]) -> str:
     return f"{m:02d}:{s:02d}"
 
 
-def format_pace(time_s: Optional[float], dist_m: Optional[float]) -> str:
+def format_pace(time_s: float | None, dist_m: float | None) -> str:
     """Вычисляет средний темп (мин:сек / км)."""
     if not time_s or not dist_m or dist_m <= 0 or time_s <= 0:
         return "-"
     pace_s = time_s / (dist_m / 1000.0)
     m = int(pace_s // 60)
-    s = int(round(pace_s % 60))
+    s = round(pace_s % 60)
     if s >= 60:
         m += 1
         s = 0
     return f"{m:02d}:{s:02d} /км"
 
 
-def get_pace_seconds(time_s: Optional[float], dist_m: Optional[float]) -> Optional[float]:
+def get_pace_seconds(time_s: float | None, dist_m: float | None) -> float | None:
     """Возвращает темп в секундах на 1 км."""
     if not time_s or not dist_m or dist_m <= 0 or time_s <= 0:
         return None
     return time_s / (dist_m / 1000.0)
 
 
-def search_athletes(
-    conn: sqlite3.Connection,
+async def search_athletes(
+    conn: AthletesWebRepository,
     last_name: str,
-    birth_year: Optional[int] = None,
-    limit: int = 50
-) -> List[AthleteCandidate]:
+    birth_year: int | None = None,
+    limit: int = 50,
+) -> list[AthleteCandidate]:
     """
     Поиск спортсменов:
     - Регистронезависимо, замена е/ё.
     - Строгая фильтрация по году рождения.
     """
     norm = normalize_term(last_name)
-    if not norm:
-        return []
-
-    cur = conn.cursor()
-    pattern = f"%{norm}%"
-
-    if birth_year is not None:
-        query = """
-            SELECT id, display_name, birth_year, gender, city, region, club, starts_count, results_count
-            FROM athlete
-            WHERE name_key LIKE ?
-              AND starts_count > 0
-              AND birth_year = ?
-            ORDER BY 
-                starts_count DESC,
-                results_count DESC, 
-                id ASC
-            LIMIT ?
-        """
-        rows = cur.execute(query, (pattern, birth_year, limit)).fetchall()
-    else:
-        query = """
-            SELECT id, display_name, birth_year, gender, city, region, club, starts_count, results_count
-            FROM athlete
-            WHERE name_key LIKE ?
-              AND starts_count > 0
-            ORDER BY starts_count DESC, results_count DESC, id ASC
-            LIMIT ?
-        """
-        rows = cur.execute(query, (pattern, limit)).fetchall()
+    rows = await conn.search_candidates(norm, birth_year, limit) if norm else []
 
     return [
         AthleteCandidate(
             id=r["id"],
             display_name=r["display_name"],
+            first_name=r["first_name"],
+            last_name=r["last_name"],
+            middle_name=r["middle_name"],
+            birth_date=r["birth_date"],
+            employee_status=r["employee_status"],
+            is_hidden=r["is_hidden"],
             birth_year=r["birth_year"],
             gender=r["gender"],
             city=r["city"],
@@ -151,19 +142,22 @@ def search_athletes(
     ]
 
 
-def get_athlete_by_id(conn: sqlite3.Connection, athlete_id: int) -> Optional[AthleteCandidate]:
+async def get_athlete_by_id(
+    conn: AthletesWebRepository, athlete_id: int
+) -> AthleteCandidate | None:
     """Получает данные спортсмена по ID."""
-    cur = conn.cursor()
-    row = cur.execute("""
-        SELECT id, display_name, birth_year, gender, city, region, club, starts_count, results_count
-        FROM athlete
-        WHERE id = ?
-    """, (athlete_id,)).fetchone()
+    row = await conn.athlete(athlete_id)
     if not row:
         return None
     return AthleteCandidate(
         id=row["id"],
         display_name=row["display_name"],
+        first_name=row["first_name"],
+        last_name=row["last_name"],
+        middle_name=row["middle_name"],
+        birth_date=row["birth_date"],
+        employee_status=row["employee_status"],
+        is_hidden=row["is_hidden"],
         birth_year=row["birth_year"],
         gender=row["gender"],
         city=row["city"],
@@ -174,44 +168,11 @@ def get_athlete_by_id(conn: sqlite3.Connection, athlete_id: int) -> Optional[Ath
     )
 
 
-def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[AthleteResultItem]:
+async def get_athlete_results(
+    conn: AthletesWebRepository, athlete_id: int
+) -> list[AthleteResultItem]:
     """Возвращает все результаты спортсмена (включая DNS, DNF, DSQ)."""
-    cur = conn.cursor()
-    rows = cur.execute("""
-        SELECT 
-            r.id AS result_id,
-            e.id AS event_id,
-            e.title AS event_title,
-            e.date_begin AS event_date,
-            s.name AS source_name,
-            ra.id AS race_id,
-            ra.name_raw AS distance_name,
-            ra.norm_distance,
-            ra.distance_m,
-            ra.total_count AS race_total_count,
-            r.place_abs,
-            r.place_gender,
-            r.chip_time_s,
-            r.gun_time_s,
-            rs.points AS rating_points,
-            rs.reason AS rating_reason,
-            rs.breakdown_json AS rating_breakdown_json,
-            r.status,
-            r.bib,
-            (SELECT max(r2.place_abs) FROM result r2 WHERE r2.race_id = r.race_id AND r2.duplicate_of IS NULL) AS max_fin_place,
-            (SELECT count(*) FROM result r3 WHERE r3.race_id = r.race_id AND r3.duplicate_of IS NULL) AS race_participants_count
-        FROM result_athlete ral
-        JOIN result r ON r.id = ral.result_id
-        JOIN race ra ON ra.id = r.race_id
-        JOIN event e ON e.id = ra.event_id
-        JOIN source s ON s.id = e.source_id
-        LEFT JOIN rating_score rs
-          ON rs.result_id = r.id AND rs.formula_version = 'run-v1'
-        WHERE ral.athlete_id = ?
-          AND r.status = 'FIN'
-          AND r.duplicate_of IS NULL
-        ORDER BY e.date_begin DESC, r.id DESC
-    """, (athlete_id,)).fetchall()
+    rows = await conn.results(athlete_id)
 
     results = []
     for r in rows:
@@ -225,46 +186,51 @@ def get_athlete_results(conn: sqlite3.Connection, athlete_id: int) -> List[Athle
 
         tot_fin = r["max_fin_place"]
         tot_part = r["race_total_count"] or r["race_participants_count"]
-        results.append(AthleteResultItem(
-            result_id=r["result_id"],
-            event_id=r["event_id"],
-            event_title=r["event_title"] or "Беговой старт",
-            event_date=r["event_date"],
-            source_name=r["source_name"],
-            race_id=r["race_id"],
-            distance_name=r["distance_name"] or "Дистанция",
-            norm_distance=r["norm_distance"],
-            distance_m=dist_m,
-            place_abs=pl_abs,
-            place_gender=pl_gender,
-            total_finishers=tot_fin,
-            total_participants=tot_part,
-            chip_time_s=r["chip_time_s"],
-            gun_time_s=r["gun_time_s"],
-            time_formatted=time_fmt,
-            pace_formatted=pace_fmt,
-            status=status,
-            bib=r["bib"],
-            rating_points=r["rating_points"],
-            rating_reason=r["rating_reason"],
-            rating_breakdown=(
-                json.loads(r["rating_breakdown_json"])
-                if r["rating_breakdown_json"] else None
+        results.append(
+            AthleteResultItem(
+                result_id=r["result_id"],
+                event_id=r["event_id"],
+                event_title=r["event_title"] or "Беговой старт",
+                event_date=r["event_date"],
+                source_name=r["source_name"],
+                race_id=r["race_id"],
+                distance_name=r["distance_name"] or "Дистанция",
+                norm_distance=r["norm_distance"],
+                distance_m=dist_m,
+                place_abs=pl_abs,
+                place_gender=pl_gender,
+                total_finishers=tot_fin,
+                total_participants=tot_part,
+                chip_time_s=r["chip_time_s"],
+                gun_time_s=r["gun_time_s"],
+                time_formatted=time_fmt,
+                pace_formatted=pace_fmt,
+                status=status,
+                bib=r["bib"],
+                rating_points=r["rating_points"],
+                rating_reason=r["rating_reason"],
+                rating_breakdown=(
+                    json.loads(r["rating_breakdown_json"])
+                    if r["rating_breakdown_json"]
+                    else None
+                ),
             )
-        ))
+        )
     return results
 
 
-def get_athlete_summary(conn: sqlite3.Connection, athlete_id: int) -> Optional[AthleteSummaryResponse]:
+async def get_athlete_summary(
+    conn: AthletesWebRepository, athlete_id: int
+) -> AthleteSummaryResponse | None:
     """Формирует сводку по спортсмену: профиль, личные рекорды, динамику, рейтинг-заглушку."""
-    athlete = get_athlete_by_id(conn, athlete_id)
+    athlete = await get_athlete_by_id(conn, athlete_id)
     if not athlete:
         return None
 
-    results = get_athlete_results(conn, athlete_id)
+    results = await get_athlete_results(conn, athlete_id)
 
     # Вычисление личных рекордов (Personal Bests) по нормализованным дистанциям
-    pb_dict: Dict[str, Dict[str, Any]] = {}
+    pb_dict: dict[str, dict[str, Any]] = {}
     for res in results:
         if res.status != "FIN":
             continue
@@ -282,13 +248,26 @@ def get_athlete_summary(conn: sqlite3.Connection, athlete_id: int) -> Optional[A
                 "time_formatted": format_time(time_s),
                 "pace_formatted": format_pace(time_s, res.distance_m),
                 "event_title": res.event_title,
-                "event_date": res.event_date
+                "event_date": res.event_date,
             }
 
     # Порядок дистанций от коротких к длинным
     distance_order = [
-        "60m", "100m", "200m", "400m", "800m", "1000m", "1500m", "1mile",
-        "3000m", "5000m", "10000m", "half_marathon", "marathon", "100k", "24h"
+        "60m",
+        "100m",
+        "200m",
+        "400m",
+        "800m",
+        "1000m",
+        "1500m",
+        "1mile",
+        "3000m",
+        "5000m",
+        "10000m",
+        "half_marathon",
+        "marathon",
+        "100k",
+        "24h",
     ]
     sorted_pbs = []
     for d in distance_order:
@@ -299,39 +278,31 @@ def get_athlete_summary(conn: sqlite3.Connection, athlete_id: int) -> Optional[A
             sorted_pbs.append(PersonalBestItem(**item))
 
     # Формирование точек динамики для графика (по возрастанию даты)
-    dynamics: List[DynamicsPoint] = []
-    sorted_by_date = sorted([r for r in results if r.event_date and r.status == 'FIN'], key=lambda x: x.event_date or "")
+    dynamics: list[DynamicsPoint] = []
+    sorted_by_date = sorted(
+        [r for r in results if r.event_date and r.status == "FIN"],
+        key=lambda x: x.event_date or "",
+    )
     for r in sorted_by_date:
         time_s = r.chip_time_s if r.chip_time_s is not None else r.gun_time_s
         if time_s and time_s > 0:
-            dynamics.append(DynamicsPoint(
-                date=r.event_date[:10] if r.event_date else "",
-                event_title=r.event_title,
-                norm_distance=r.norm_distance,
-                distance_name=r.distance_name,
-                time_s=time_s,
-                time_formatted=format_time(time_s),
-                pace_formatted=format_pace(time_s, r.distance_m),
-                pace_s_per_km=get_pace_seconds(time_s, r.distance_m)
-            ))
+            dynamics.append(
+                DynamicsPoint(
+                    date=r.event_date[:10] if r.event_date else "",
+                    event_title=r.event_title,
+                    norm_distance=r.norm_distance,
+                    distance_name=r.distance_name,
+                    time_s=time_s,
+                    time_formatted=format_time(time_s),
+                    pace_formatted=format_pace(time_s, r.distance_m),
+                    pace_s_per_km=get_pace_seconds(time_s, r.distance_m),
+                )
+            )
 
     # Проверка наличия кэшированной оценки
-    cur = conn.cursor()
-    has_cache = cur.execute(
-        "SELECT 1 FROM athlete_assessment_cache WHERE athlete_id = ?",
-        (athlete_id,)
-    ).fetchone() is not None
+    has_cache = await conn.cached_assessment_exists(athlete_id) is not None
 
-    rating_row = cur.execute(
-        """
-        SELECT points, rank, starts_count, period_start, period_end
-        FROM running_athlete_rating
-        WHERE athlete_id = ? AND formula_version = 'run-v1'
-        ORDER BY period_end DESC
-        LIMIT 1
-        """,
-        (athlete_id,)
-    ).fetchone()
+    rating_row = await conn.published_rating(athlete_id)
 
     return AthleteSummaryResponse(
         athlete=athlete,
@@ -340,12 +311,14 @@ def get_athlete_summary(conn: sqlite3.Connection, athlete_id: int) -> Optional[A
         dynamics=dynamics,
         rating=RatingPlaceholder(
             status="counted" if rating_row else "no_data",
-            message="Рейтинг за последние 365 дней" if rating_row else "Нет результатов в рейтинговом периоде",
+            message="Рейтинг за последние 365 дней"
+            if rating_row
+            else "Нет результатов в рейтинговом периоде",
             points=rating_row["points"] if rating_row else None,
             rank=rating_row["rank"] if rating_row else None,
             starts_count=rating_row["starts_count"] if rating_row else 0,
             period_start=rating_row["period_start"] if rating_row else None,
             period_end=rating_row["period_end"] if rating_row else None,
         ),
-        has_cached_assessment=has_cache
+        has_cached_assessment=has_cache,
     )
