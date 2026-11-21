@@ -108,6 +108,36 @@ class AccessRequestsRepository(ReadRepository):
             {"athlete_id": athlete_id},
         )
 
+    async def create_athlete_from_user(self, user_row) -> int:
+        first = (user_row["first_name"] or "").strip()
+        last = (user_row["last_name"] or "").strip()
+        middle = (user_row["middle_name"] or "").strip() or None
+        display = f"{last} {first}".strip() or user_row["username"]
+        import re
+
+        tokens = sorted(re.findall(r"[a-zа-я0-9]+", display.lower().replace("ё", "е")))
+        name_key = " ".join(tokens)
+        birth_year = user_row["birth_date"].year if user_row["birth_date"] else None
+
+        row = await self.row(
+            """
+            INSERT INTO athlete (display_name, first_name, last_name, middle_name, birth_date, birth_year, city, employee_status, is_hidden, name_key)
+            VALUES (:display_name, :first_name, :last_name, :middle_name, :birth_date, :birth_year, :city, 'presumed', FALSE, :name_key)
+            RETURNING id
+            """,
+            {
+                "display_name": display,
+                "first_name": first or None,
+                "last_name": last or None,
+                "middle_name": middle,
+                "birth_date": user_row["birth_date"],
+                "birth_year": birth_year,
+                "city": user_row["city"],
+                "name_key": name_key,
+            },
+        )
+        return row["id"]
+
     async def candidates(self, ids, patterns):
         return await self.rows(
             """

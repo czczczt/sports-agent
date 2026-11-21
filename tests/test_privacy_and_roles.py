@@ -73,6 +73,28 @@ def test_race_protocol_non_employee_anonymized(client, auth_headers):
     assert non_emp_res["chip_time_s"] == 2600
 
 
+def test_race_protocol_employees_only(client, auth_headers):
+    headers = auth_headers("user")
+    resp = client.get("/api/races/1?employees_only=true", headers=headers)
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    results = data["results"]
+    assert len(results) == 2
+    assert all(r["athlete_id"] is not None for r in results)
+    assert {r["athlete_id"] for r in results} == {1, 2}
+    assert data["sber_finishers_count"] == 2
+    # Check that competition.total_finishers still counts everyone
+    assert data["competition"]["total_finishers"] == 3
+
+    resp_results = client.get(
+        "/api/races/1/results?employees_only=true", headers=headers
+    )
+    assert resp_results.status_code == 200, resp_results.text
+    results_only = resp_results.json()
+    assert len(results_only) == 2
+    assert all(r["athlete_id"] is not None for r in results_only)
+
+
 def test_rating_api_minimal_fields(client, auth_headers):
     headers = auth_headers("user")
     resp = client.get("/api/rating", headers=headers)

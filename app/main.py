@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.agent_review import router as agent_review_router
 from app.api.access_requests import router as access_requests_router
+from app.api.admin_athletes import router as admin_athletes_router
 from app.api.athletes import router as athletes_router
 from app.api.auth import get_current_user
 from app.api.auth import router as auth_router
@@ -61,6 +62,7 @@ for domain_router in (
     reports_router,
     access_requests_router,
     verify_queue_router,
+    admin_athletes_router,
     status_router,
     runs_router,
 ):

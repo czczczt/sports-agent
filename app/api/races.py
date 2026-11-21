@@ -16,9 +16,15 @@ async def get_race_page_endpoint(
     athlete_id: int | None = Query(
         None, description="ID спортсмена для подсветки «это вы»"
     ),
+    employees_only: bool = Query(
+        False, description="Показывать только сотрудников Сбера (SPEC v1.3 §10.2)"
+    ),
 ):
     page = await db.get_race_page(
-        race_id=race_id, search_query=search, athlete_id=athlete_id
+        race_id=race_id,
+        search_query=search,
+        athlete_id=athlete_id,
+        employees_only=employees_only,
     )
     if not page:
         raise HTTPException(status_code=404, detail="Дистанция не найдена")
@@ -34,9 +40,16 @@ async def get_race_results_endpoint(
     ),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    employees_only: bool = Query(
+        False, description="Показывать только сотрудников Сбера (SPEC v1.3 §10.2)"
+    ),
 ):
     results = await db.get_race_results(
-        race_id=race_id, search_query=search, limit=limit, offset=offset
+        race_id=race_id,
+        search_query=search,
+        limit=limit,
+        offset=offset,
+        employees_only=employees_only,
     )
     return results
 

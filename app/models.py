@@ -18,6 +18,8 @@ class AthleteCandidate(BaseModel):
     region: str | None = None
     club: str | None = None
     employee_status: str | None = "presumed"
+    employee_since: str | None = None
+    employee_until: str | None = None
     is_hidden: bool = False
     starts_count: int = 0
     results_count: int = 0
@@ -42,6 +44,7 @@ class AthleteResultItem(BaseModel):
     time_formatted: str
     pace_formatted: str
     status: str
+    points: float | None = None
     bib: int | str | None = None
     rating_points: float | None = None
     rating_reason: str | None = None
@@ -135,6 +138,7 @@ class RaceProtocolItem(BaseModel):
     time_formatted: str
     pace_formatted: str
     status: str
+    points: float | None = None
 
 
 class DistributionBin(BaseModel):
@@ -254,6 +258,7 @@ class RacePageResponse(BaseModel):
     pinned_athlete_result: RaceProtocolItem | None = None
     competition: CompetitionDistribution | None = None
     rating_leaders: list[RaceRatingLeader] = []
+    sber_finishers_count: int | None = None
 
 
 class ReportCreateRequest(BaseModel):
@@ -340,7 +345,66 @@ class AccessRequestOut(BaseModel):
 class AccessRequestDecision(BaseModel):
     decision: str
     athlete_id: int | None = None
+    create_athlete: bool | None = None
     comment: str | None = None
+
+
+class AdminAthleteDetail(BaseModel):
+    id: int
+    display_name: str
+    first_name: str | None = None
+    last_name: str | None = None
+    middle_name: str | None = None
+    birth_date: str | None = None
+    birth_year: int | None = None
+    gender: str | None = None
+    city: str | None = None
+    club: str | None = None
+    employee_status: str | None = "presumed"
+    employee_since: str | None = None
+    employee_until: str | None = None
+    is_hidden: bool = False
+    starts_count: int = 0
+    results_count: int = 0
+    linked_user_id: int | None = None
+    linked_username: str | None = None
+
+
+class AdminAthleteCreate(BaseModel):
+    first_name: str
+    last_name: str
+    middle_name: str | None = None
+    birth_date: str | None = None
+    birth_year: int | None = None
+    gender: str | None = None
+    city: str | None = None
+    club: str | None = None
+    employee_status: str = "presumed"
+    employee_since: str | None = None
+    employee_until: str | None = None
+    is_hidden: bool = False
+
+
+class AdminAthleteUpdate(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    middle_name: str | None = None
+    birth_date: str | None = None
+    birth_year: int | None = None
+    gender: str | None = None
+    city: str | None = None
+    club: str | None = None
+    employee_status: str | None = None
+    employee_since: str | None = None
+    employee_until: str | None = None
+    is_hidden: bool | None = None
+
+
+class RosterImportResult(BaseModel):
+    total: int
+    created: int
+    updated: int
+    errors: list[str] = []
 
 
 class VerifyQueueItem(BaseModel):

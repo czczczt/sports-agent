@@ -91,8 +91,10 @@ async def decide_access_request(
     new_status = "active" if payload.decision == "approve" else "rejected"
     linked_athlete_id = payload.athlete_id if payload.decision == "approve" else None
 
-    # Если одобрено со связкой со спортсменом, проверяем существование спортсмена
-    if linked_athlete_id:
+    # Если одобрено и запрошено создание нового спортсмена (SPEC v1.3 §8.6)
+    if payload.decision == "approve" and payload.create_athlete and not linked_athlete_id:
+        linked_athlete_id = await conn.create_athlete_from_user(target_user)
+    elif linked_athlete_id:
         ath = await conn.get_athlete(linked_athlete_id)
         if not ath:
             raise HTTPException(

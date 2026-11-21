@@ -39,6 +39,7 @@ export function RaceProtocol({ data, athleteId, search, onSearch }: RaceProtocol
                   <th scope="col">Чистое</th>
                   <th scope="col">Пистолетное</th>
                   <th scope="col">Темп</th>
+                  <th scope="col">Баллы</th>
                   <th scope="col">Статус</th>
                 </tr>
               </thead>
@@ -54,7 +55,7 @@ export function RaceProtocol({ data, athleteId, search, onSearch }: RaceProtocol
                         <br />
                         &bull;
                       </td>
-                      <td colSpan={6} className="gap-row__rest" />
+                      <td colSpan={7} className="gap-row__rest" />
                     </tr>
                   </>
                 )}

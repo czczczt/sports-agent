@@ -1,5 +1,5 @@
 import type { RaceProtocolItem } from '@/shared/api';
-import { genderLabel, hms } from '@/shared/lib';
+import { fixed1, genderLabel, hms } from '@/shared/lib';
 import { StatusChip } from '@/shared/ui';
 import { ageText } from './ageText';
 import { AthleteName } from './AthleteName';
@@ -36,6 +36,9 @@ export function ProtocolTableRow({ r, isMe }: ProtocolTableRowProps): React.JSX.
       <td className="num strong nowrap">{r.time_formatted}</td>
       <td className="num muted nowrap">{hms(r.gun_time_s)}</td>
       <td className="num nowrap">{r.pace_formatted}</td>
+      <td className="num strong nowrap" style={{ color: r.points ? 'var(--brand-text)' : undefined }}>
+        {r.points != null ? fixed1(r.points) : '—'}
+      </td>
       <td>
         <StatusChip status={r.status} />
       </td>

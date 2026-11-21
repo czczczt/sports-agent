@@ -37,9 +37,10 @@ class EventService:
         search_query: str | None = None,
         limit: int = 300,
         offset: int = 0,
+        employees_only: bool = False,
     ):
         return await events_service.get_race_results(
-            self.repository, race_id, search_query, limit, offset
+            self.repository, race_id, search_query, limit, offset, employees_only
         )
 
     async def get_athlete_race_result(self, race_id: int, athlete_id: int):
@@ -61,8 +62,13 @@ class EventService:
         return await self.repository.race(race_id)
 
     async def get_race_page(
-        self, race_id, search_query=None, athlete_id=None, limit=300
+        self,
+        race_id,
+        search_query=None,
+        athlete_id=None,
+        limit=300,
+        employees_only=False,
     ):
         return await events_service.get_race_page(
-            self.repository, race_id, search_query, athlete_id, limit
+            self.repository, race_id, search_query, athlete_id, limit, employees_only
         )

@@ -46,9 +46,17 @@ async def search_athletes_endpoint(
 
 @router.get("/{athlete_id}/results", response_model=list[AthleteResultItem])
 async def get_athlete_results_endpoint(
+    current_user: OptionalUserDep,
     db: AthleteServiceDep,
     athlete_id: int,
 ):
+    athlete = await db.athlete(athlete_id=athlete_id)
+    if not athlete:
+        raise HTTPException(status_code=404, detail="Спортсмен не найден")
+    is_privileged = bool(current_user and current_user.role in ("admin", "captain"))
+    is_self = bool(current_user and current_user.athlete_id == athlete_id)
+    if athlete.is_hidden and not (is_privileged or is_self):
+        raise HTTPException(status_code=404, detail="Спортсмен не найден")
     results = await db.results(athlete_id=athlete_id)
     return results
 
@@ -63,14 +71,25 @@ async def get_athlete_summary_endpoint(
     if not summary:
         raise HTTPException(status_code=404, detail="Спортсмен не найден")
     is_privileged = bool(current_user and current_user.role in ("admin", "captain"))
+    is_self = bool(current_user and current_user.athlete_id == athlete_id)
+    if summary.athlete.is_hidden and not (is_privileged or is_self):
+        raise HTTPException(status_code=404, detail="Спортсмен не найден")
     summary.athlete = sanitize_athlete_privacy(summary.athlete, is_privileged)
     return summary
 
 
 @router.post("/{athlete_id}/assessment", response_model=AssessmentResponse)
 async def generate_athlete_assessment_endpoint(
+    current_user: OptionalUserDep,
     db: AthleteServiceDep,
     athlete_id: int,
 ):
+    athlete = await db.athlete(athlete_id=athlete_id)
+    if not athlete:
+        raise HTTPException(status_code=404, detail="Спортсмен не найден")
+    is_privileged = bool(current_user and current_user.role in ("admin", "captain"))
+    is_self = bool(current_user and current_user.athlete_id == athlete_id)
+    if athlete.is_hidden and not (is_privileged or is_self):
+        raise HTTPException(status_code=404, detail="Спортсмен не найден")
     assessment = await db.assessment(athlete_id=athlete_id)
     return assessment

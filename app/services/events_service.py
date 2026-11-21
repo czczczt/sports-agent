@@ -105,6 +105,7 @@ def _row_to_protocol_item(r: dict, dist_m: int | None) -> RaceProtocolItem:
     else:
         display_age = raw_age
     is_employee = bool(r.get("athlete_id"))
+    pts = r.get("points")
     return RaceProtocolItem(
         result_id=r["result_id"],
         athlete_id=r["athlete_id"] if is_employee else None,
@@ -121,6 +122,7 @@ def _row_to_protocol_item(r: dict, dist_m: int | None) -> RaceProtocolItem:
         time_formatted=format_time(time_s),
         pace_formatted=format_pace(time_s, dist_m),
         status=r["status"],
+        points=round(float(pts), 1) if is_employee and pts is not None else None,
     )
 
 
@@ -130,10 +132,17 @@ async def get_race_results(
     search_query: str | None = None,
     limit: int = 300,
     offset: int = 0,
+    employees_only: bool = False,
 ) -> list[RaceProtocolItem]:
     race = await conn.race(race_id)
     dist_m = race["distance_m"] if race else None
-    rows = await conn.protocol(race_id, search_query, limit, offset)
+    rows = await conn.protocol(
+        race_id,
+        search_query,
+        limit,
+        offset,
+        employees_only=employees_only,
+    )
 
     return [_row_to_protocol_item(r, dist_m) for r in rows]
 
@@ -273,6 +282,7 @@ async def get_race_page(
     search_query: str | None = None,
     athlete_id: int | None = None,
     limit: int = 300,
+    employees_only: bool = False,
 ) -> dict[str, Any] | None:
     race_row = await conn.race(race_id)
     if not race_row:
@@ -280,7 +290,12 @@ async def get_race_page(
 
     event = await get_event_by_id(conn, event_id=race_row["event_id"])
     results = await get_race_results(
-        conn, race_id=race_id, search_query=search_query, limit=limit, offset=0
+        conn,
+        race_id=race_id,
+        search_query=search_query,
+        limit=limit,
+        offset=0,
+        employees_only=employees_only,
     )
 
     pinned = None
@@ -294,6 +309,8 @@ async def get_race_page(
             pinned = athlete_item
             results = [r for r in results if r.athlete_id != athlete_id]
 
+    sber_count = await conn.sber_finishers_count(race_id)
+
     return {
         "race": {**race_row, "name_raw": race_row["name_raw"] or "Дистанция"},
         "event": event,
@@ -303,4 +320,5 @@ async def get_race_page(
             conn, race_id=race_id, athlete_id=athlete_id
         ),
         "rating_leaders": await get_race_rating_leaders(conn, race_id=race_id),
+        "sber_finishers_count": sber_count,
     }

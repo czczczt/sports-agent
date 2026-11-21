@@ -29,6 +29,11 @@ class AthleteService:
 
         return await search_athletes(self.web_repository, last_name, birth_year, limit)
 
+    async def athlete(self, athlete_id):
+        from app.services.athlete_service import get_athlete_by_id
+
+        return await get_athlete_by_id(self.web_repository, athlete_id)
+
     async def results(self, athlete_id):
         from app.services.athlete_service import get_athlete_results
 

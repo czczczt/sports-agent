@@ -40,6 +40,9 @@ class AccessRequestsService:
     async def mark_presumed(self, athlete_id):
         return await self.repository.mark_presumed(athlete_id)
 
+    async def create_athlete_from_user(self, user_row) -> int:
+        return await self.repository.create_athlete_from_user(user_row)
+
     async def candidates(self, users):
         ids = [u["athlete_id"] for u in users if u["athlete_id"]]
         names = {

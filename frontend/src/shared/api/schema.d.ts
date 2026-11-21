@@ -443,6 +443,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/athletes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Admin Athletes
+         * @description Список карточек спортсменов для администрирования (SPEC v1.3 §8.5, §10.4).
+         */
+        get: operations["list_admin_athletes_api_admin_athletes_get"];
+        put?: never;
+        /**
+         * Create Admin Athlete
+         * @description Ручное создание карточки спортсмена (SPEC v1.3 §8.5).
+         */
+        post: operations["create_admin_athlete_api_admin_athletes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/athletes/{athlete_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Admin Athlete
+         * @description Детальная карточка спортсмена со всеми ПДн и связками (SPEC v1.3 §8.5).
+         */
+        get: operations["get_admin_athlete_api_admin_athletes__athlete_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Admin Athlete
+         * @description Редактирование карточки спортсмена капитаном или админом (SPEC v1.3 §5, §8.5, §8.7).
+         */
+        patch: operations["update_admin_athlete_api_admin_athletes__athlete_id__patch"];
+        trace?: never;
+    };
+    "/api/admin/athletes/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Athletes Roster
+         * @description Импорт списка спортсменов из CSV или XLSX файла (SPEC v1.3 §8.5).
+         */
+        post: operations["import_athletes_roster_api_admin_athletes_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/status": {
         parameters: {
             query?: never;
@@ -747,6 +815,8 @@ export interface components {
             decision: string;
             /** Athlete Id */
             athlete_id?: number | null;
+            /** Create Athlete */
+            create_athlete?: boolean | null;
             /** Comment */
             comment?: string | null;
         };
@@ -803,6 +873,117 @@ export interface components {
             open_issues_count: number;
             /** Status */
             status: string;
+        };
+        /** AdminAthleteCreate */
+        AdminAthleteCreate: {
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name: string;
+            /** Middle Name */
+            middle_name?: string | null;
+            /** Birth Date */
+            birth_date?: string | null;
+            /** Birth Year */
+            birth_year?: number | null;
+            /** Gender */
+            gender?: string | null;
+            /** City */
+            city?: string | null;
+            /** Club */
+            club?: string | null;
+            /**
+             * Employee Status
+             * @default presumed
+             */
+            employee_status: string;
+            /** Employee Since */
+            employee_since?: string | null;
+            /** Employee Until */
+            employee_until?: string | null;
+            /**
+             * Is Hidden
+             * @default false
+             */
+            is_hidden: boolean;
+        };
+        /** AdminAthleteDetail */
+        AdminAthleteDetail: {
+            /** Id */
+            id: number;
+            /** Display Name */
+            display_name: string;
+            /** First Name */
+            first_name?: string | null;
+            /** Last Name */
+            last_name?: string | null;
+            /** Middle Name */
+            middle_name?: string | null;
+            /** Birth Date */
+            birth_date?: string | null;
+            /** Birth Year */
+            birth_year?: number | null;
+            /** Gender */
+            gender?: string | null;
+            /** City */
+            city?: string | null;
+            /** Club */
+            club?: string | null;
+            /**
+             * Employee Status
+             * @default presumed
+             */
+            employee_status: string | null;
+            /** Employee Since */
+            employee_since?: string | null;
+            /** Employee Until */
+            employee_until?: string | null;
+            /**
+             * Is Hidden
+             * @default false
+             */
+            is_hidden: boolean;
+            /**
+             * Starts Count
+             * @default 0
+             */
+            starts_count: number;
+            /**
+             * Results Count
+             * @default 0
+             */
+            results_count: number;
+            /** Linked User Id */
+            linked_user_id?: number | null;
+            /** Linked Username */
+            linked_username?: string | null;
+        };
+        /** AdminAthleteUpdate */
+        AdminAthleteUpdate: {
+            /** First Name */
+            first_name?: string | null;
+            /** Last Name */
+            last_name?: string | null;
+            /** Middle Name */
+            middle_name?: string | null;
+            /** Birth Date */
+            birth_date?: string | null;
+            /** Birth Year */
+            birth_year?: number | null;
+            /** Gender */
+            gender?: string | null;
+            /** City */
+            city?: string | null;
+            /** Club */
+            club?: string | null;
+            /** Employee Status */
+            employee_status?: string | null;
+            /** Employee Since */
+            employee_since?: string | null;
+            /** Employee Until */
+            employee_until?: string | null;
+            /** Is Hidden */
+            is_hidden?: boolean | null;
         };
         /** AgentReviewDecision */
         AgentReviewDecision: {
@@ -954,6 +1135,10 @@ export interface components {
              * @default presumed
              */
             employee_status: string | null;
+            /** Employee Since */
+            employee_since?: string | null;
+            /** Employee Until */
+            employee_until?: string | null;
             /**
              * Is Hidden
              * @default false
@@ -1008,6 +1193,8 @@ export interface components {
             pace_formatted: string;
             /** Status */
             status: string;
+            /** Points */
+            points?: number | null;
             /** Bib */
             bib?: number | string | null;
             /** Rating Points */
@@ -1045,6 +1232,11 @@ export interface components {
              */
             token_type: string;
             user: components["schemas"]["UserOut"];
+        };
+        /** Body_import_athletes_roster_api_admin_athletes_import_post */
+        Body_import_athletes_roster_api_admin_athletes_import_post: {
+            /** File */
+            file: string;
         };
         /** ClearResult */
         ClearResult: {
@@ -1352,6 +1544,8 @@ export interface components {
              * @default []
              */
             rating_leaders: components["schemas"]["RaceRatingLeader"][];
+            /** Sber Finishers Count */
+            sber_finishers_count?: number | null;
         };
         /** RaceProtocolItem */
         RaceProtocolItem: {
@@ -1385,6 +1579,8 @@ export interface components {
             pace_formatted: string;
             /** Status */
             status: string;
+            /** Points */
+            points?: number | null;
         };
         /** RaceRatingLeader */
         RaceRatingLeader: {
@@ -1684,6 +1880,20 @@ export interface components {
              * @default
              */
             comment: string;
+        };
+        /** RosterImportResult */
+        RosterImportResult: {
+            /** Total */
+            total: number;
+            /** Created */
+            created: number;
+            /** Updated */
+            updated: number;
+            /**
+             * Errors
+             * @default []
+             */
+            errors: string[];
         };
         /** RunDetail */
         RunDetail: {
@@ -2326,6 +2536,8 @@ export interface operations {
                 search?: string | null;
                 /** @description ID спортсмена для подсветки «это вы» */
                 athlete_id?: number | null;
+                /** @description Показывать только сотрудников Сбера (SPEC v1.3 §10.2) */
+                employees_only?: boolean;
             };
             header?: {
                 authorization?: string | null;
@@ -2366,6 +2578,8 @@ export interface operations {
                 search?: string | null;
                 limit?: number;
                 offset?: number;
+                /** @description Показывать только сотрудников Сбера (SPEC v1.3 §10.2) */
+                employees_only?: boolean;
             };
             header?: {
                 authorization?: string | null;
@@ -2794,6 +3008,196 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VerifyQueueDecisionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_admin_athletes_api_admin_athletes_get: {
+        parameters: {
+            query?: {
+                /** @description Поиск по ФИО */
+                query?: string | null;
+                /** @description Фильтр по статусу сотрудника (presumed, confirmed, not_employee) */
+                employee_status?: string | null;
+                /** @description Фильтр по флагу скрытия */
+                is_hidden?: boolean | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAthleteDetail"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_admin_athlete_api_admin_athletes_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminAthleteCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAthleteDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_admin_athlete_api_admin_athletes__athlete_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                athlete_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAthleteDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_admin_athlete_api_admin_athletes__athlete_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                athlete_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminAthleteUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAthleteDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_athletes_roster_api_admin_athletes_import_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_athletes_roster_api_admin_athletes_import_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterImportResult"];
                 };
             };
             /** @description Validation Error */

@@ -47,9 +47,20 @@ class EventsWebRepository(ReadRepository):
             params,
         )
 
-    async def protocol(self, race_id, search, limit, offset):
+    async def protocol(
+        self,
+        race_id: int,
+        search: str | None = None,
+        limit: int = 300,
+        offset: int = 0,
+        employees_only: bool = False,
+    ):
         clauses = ["r.race_id=:id", "r.duplicate_of IS NULL"]
         params = {"id": race_id, "limit": limit, "offset": offset}
+        if employees_only:
+            clauses.append(
+                "a.id IS NOT NULL AND (a.employee_status IS NULL OR a.employee_status != 'not_employee')"
+            )
         if search:
             number = re.sub(r"^[№#\s]+", "", search.strip()).lower().replace("ё", "е")
             params["bib"] = number
@@ -85,13 +96,34 @@ class EventsWebRepository(ReadRepository):
                        WHEN a.id IS NOT NULL AND (a.employee_status IS NULL OR a.employee_status != 'not_employee') THEN r.club_raw
                        ELSE NULL
                    END AS club_raw,
-                   r.place_abs, r.place_gender, r.chip_time_s, r.gun_time_s, r.status
-            FROM web_result r LEFT JOIN athlete a ON a.id=r.athlete_id WHERE {where}
+                   r.place_abs, r.place_gender, r.chip_time_s, r.gun_time_s, r.status,
+                   CASE
+                       WHEN a.id IS NOT NULL AND (a.employee_status IS NULL OR a.employee_status != 'not_employee') THEN sc.points
+                       ELSE NULL
+                   END AS points
+            FROM web_result r
+            LEFT JOIN athlete a ON a.id=r.athlete_id
+            LEFT JOIN web_rating_score sc ON sc.result_id=r.id AND sc.formula_version='run-v1'
+            WHERE {where}
             ORDER BY CASE WHEN r.status='FIN' THEN 0 ELSE 1 END, r.place_abs NULLS LAST,
                      r.chip_time_s NULLS LAST, r.id LIMIT :limit OFFSET :offset
         """,
             params,
         )
+
+    async def sber_finishers_count(self, race_id: int) -> int:
+        row = await self.row(
+            """
+            SELECT COUNT(DISTINCT r.id) AS cnt
+            FROM web_result r
+            JOIN athlete a ON a.id = r.athlete_id
+            WHERE r.race_id = :race_id
+              AND r.duplicate_of IS NULL
+              AND (a.employee_status IS NULL OR a.employee_status != 'not_employee')
+            """,
+            {"race_id": race_id},
+        )
+        return row["cnt"] if row else 0
 
     async def event(self, event_id):
         return await self.row(
