@@ -1421,11 +1421,7 @@ export interface components {
             run_id: number;
             /** Source Id */
             source_id: number;
-            /**
-             * Source
-             * @constant
-             */
-            source: "russiarunning";
+            source: components["schemas"]["SourceCode"];
             /**
              * Kind
              * @constant
@@ -1471,6 +1467,11 @@ export interface components {
             /** Processed Distances */
             processed_distances: number;
         };
+        /**
+         * SourceCode
+         * @enum {string}
+         */
+        SourceCode: "russiarunning" | "timerman" | "legkovrace" | "pionercup" | "probeg" | "ironstar" | "grom" | "russialoppet" | "myrunstats";
         /** StartRepair */
         StartRepair: {
             /** Source Id */
@@ -1487,11 +1488,7 @@ export interface components {
              * @constant
              */
             kind: "collect";
-            /**
-             * Source
-             * @constant
-             */
-            source: "russiarunning";
+            source: components["schemas"]["SourceCode"];
             /** Event Code */
             event_code: string;
         };

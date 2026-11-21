@@ -289,6 +289,15 @@ class RatingRepository(ReadRepository):
         start_str = start_date.isoformat()
         end_str = end_date.isoformat()
 
+        await self.session.execute(text("SELECT pg_advisory_xact_lock(hashtextextended('collection:publication', 0))"))
+        await self.session.execute(text("""
+            DELETE FROM rating_score s USING result r, race ra, competition c
+            WHERE s.result_id=r.id AND r.race_id=ra.id AND ra.competition_id=c.id
+              AND s.formula_version = :formula_version
+              AND (r.collection_review OR COALESCE(ra.sport_type, c.sport_type, 'run') <> 'run'
+                   OR ra.race_type = 'relay')
+        """), {"formula_version": formula_version})
+
         norm_rows = await self.fetch("SELECT distance_class, gender, value, unit, year FROM rating_norm")
         norms = {
             (row["distance_class"], row["gender"]): row
@@ -305,6 +314,8 @@ class RatingRepository(ReadRepository):
             JOIN competition c ON c.id = ra.competition_id
             LEFT JOIN result_athlete link ON link.result_id = r.id
             LEFT JOIN athlete a ON a.id = link.athlete_id
+            WHERE COALESCE(ra.sport_type, c.sport_type, 'run') = 'run'
+              AND NOT r.collection_review AND ra.race_type IS DISTINCT FROM 'relay'
             """
         )
 
@@ -360,6 +371,8 @@ class RatingRepository(ReadRepository):
             JOIN competition c ON c.id = ra.competition_id
             WHERE s.formula_version = ?
               AND s.points IS NOT NULL
+              AND r.duplicate_of IS NULL AND NOT r.collection_review AND ra.race_type IS DISTINCT FROM 'relay'
+              AND COALESCE(ra.sport_type, c.sport_type, 'run') = 'run'
               AND c.date_begin BETWEEN ? AND ?
             GROUP BY a.id
             ORDER BY points DESC, best_points DESC, starts_count DESC, a.id ASC

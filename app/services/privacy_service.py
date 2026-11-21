@@ -16,6 +16,7 @@ async def anonymize_non_employee_results(session: AsyncSession) -> int:
             club_raw = NULL,
             city = NULL,
             country = NULL,
+            source_profile_id = NULL,
             is_anonymized = true
         WHERE r.is_anonymized IS NOT TRUE
           AND (

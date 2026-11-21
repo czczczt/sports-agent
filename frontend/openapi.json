@@ -5741,9 +5741,7 @@
             "title": "Source Id"
           },
           "source": {
-            "type": "string",
-            "const": "russiarunning",
-            "title": "Source"
+            "$ref": "#/components/schemas/SourceCode"
           },
           "kind": {
             "type": "string",
@@ -5861,6 +5859,21 @@
         ],
         "title": "RunProgress"
       },
+      "SourceCode": {
+        "type": "string",
+        "enum": [
+          "russiarunning",
+          "timerman",
+          "legkovrace",
+          "pionercup",
+          "probeg",
+          "ironstar",
+          "grom",
+          "russialoppet",
+          "myrunstats"
+        ],
+        "title": "SourceCode"
+      },
       "StartRepair": {
         "properties": {
           "source_id": {
@@ -5906,9 +5919,7 @@
             "title": "Kind"
           },
           "source": {
-            "type": "string",
-            "const": "russiarunning",
-            "title": "Source"
+            "$ref": "#/components/schemas/SourceCode"
           },
           "event_code": {
             "type": "string",

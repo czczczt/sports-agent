@@ -24,3 +24,5 @@ langchain-gigachat>=0.5,<1
 langchain-ollama>=1,<2
 langchain-openai>=1,<2
 requests>=2.32,<3
+beautifulsoup4>=4.12,<5
+lxml>=5,<7

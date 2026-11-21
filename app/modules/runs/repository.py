@@ -11,12 +11,16 @@ class RunRepository:
         cursor = await self.connection.execute(query, params)
         return await cursor.fetchone()
 
-    async def prepare_source(self):
-        await self.connection.execute("SELECT pg_advisory_xact_lock(hashtextextended('pilot:russiarunning', 0))")
+    async def prepare_source(self, code, base_url, platform, parse_method, sport_types):
         await self.connection.execute(
-            "INSERT INTO source(name,base_url,platform,parse_method) VALUES ('russiarunning','https://results.russiarunning.com','rr_api','api') ON CONFLICT(name) DO NOTHING"
+            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (f"pilot:{code}",)
         )
-        return await self.one("SELECT id,enabled FROM source WHERE name='russiarunning'")
+        await self.connection.execute(
+            "INSERT INTO source(name,base_url,platform,parse_method,sport_types) "
+            "VALUES (%s,%s,%s,%s,%s) ON CONFLICT(name) DO NOTHING",
+            (code, base_url, platform, parse_method, sport_types),
+        )
+        return await self.one("SELECT id,enabled FROM source WHERE name=%s", (code,))
 
     async def active(self, source_id):
         return await self.one("SELECT id FROM pilot_run WHERE source_id=%s AND status IN ('queued','running')", (source_id,))

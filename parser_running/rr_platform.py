@@ -9,6 +9,8 @@ import hashlib
 import json
 import time
 from pathlib import Path
+from threading import Lock
+from urllib.parse import urlsplit
 
 import requests
 
@@ -22,10 +24,25 @@ else:
 SOURCES = {
     "russiarunning": "https://results.russiarunning.com/api",
     "timerman": "https://timerman.org/results/api",
+    "legkovrace": "https://results.legkovrace.ru/api",
+    "pionercup": "https://results.pionercup.ru/api",
 }
 RAW = Path(__file__).parent / "data" / "raw"
 DELAY_S = 0.5
+_REQUEST_LOCK = Lock()
+_NEXT_REQUEST: dict[str, float] = {}
 PAGE = 100  # максимум, который принимает API (Page.Take 1..100)
+
+
+def _pace(url: str) -> None:
+    if not DELAY_S:
+        return
+    host = urlsplit(url).hostname or url
+    with _REQUEST_LOCK:
+        now = time.monotonic()
+        scheduled = max(now, _NEXT_REQUEST.get(host, now))
+        _NEXT_REQUEST[host] = scheduled + DELAY_S
+    time.sleep(max(0, scheduled - time.monotonic()))
 
 
 class RRClient:
@@ -46,7 +63,7 @@ class RRClient:
             return json.loads(f.read_text(encoding="utf-8"))
         for attempt in range(3):  # E2: разовые таймауты
             try:
-                time.sleep(DELAY_S)
+                _pace(self.base)
                 r = self.s.request(method, self.base + path, json=body, params=params, timeout=60)
                 r.raise_for_status()
                 break
@@ -134,9 +151,11 @@ class RRConnector:
                                  if is_sber_club(c.get("title"), c.get("code"))]}
                 for r in ev["races"]]
 
-    def results(self, comp: dict, race: dict) -> tuple[list[dict], int]:
+    def results(self, comp: dict, race: dict, *, options: dict | None = None) -> tuple[list[dict], int]:
         """HTTPError 404 = протокола на платформе нет (E13) — пробрасываем, решает run.py."""
-        race["is_final"] = bool(self.cli.race_options(race["external_id"]).get("isFinalProtocol"))
+        if options is None:
+            options = self.cli.race_options(race["external_id"])
+        race["is_final"] = options.get("isFinalProtocol") is True
         rows, total = self.cli.individual_results(comp["_rr_event_id"], race["external_id"])
         out = []
         for r in rows:
@@ -154,7 +173,11 @@ class RRConnector:
                 "place_gender": next((r[k] for k in ("individualGenderPosition", "absoluteGenderPosition")
                                       if fin and (r.get(k) or 0) > 0), None),
                 "age_group": r.get("genderAgeNominationName"),
+                "place_age_group": next((r[k] for k in ("individualGenderAgePosition", "absoluteGenderAgePosition")
+                                         if fin and (r.get(k) or 0) > 0), None),
                 "chip_time_s": to_seconds(r.get("individualResult")), "gun_time_s": to_seconds(r.get("absoluteResult")),
+                "official_time_s": (to_seconds(r.get("timeResult"))
+                                    if race.get("sport") == "ski-biathlon" and fin else None),
             })
         self._mark_sber_by_filter(comp, race, out)
         return out, total
