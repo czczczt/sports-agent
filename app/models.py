@@ -341,3 +341,35 @@ class AccessRequestDecision(BaseModel):
     decision: str
     athlete_id: int | None = None
     comment: str | None = None
+
+
+class VerifyQueueItem(BaseModel):
+    athlete_id: int
+    display_name: str
+    first_name: str | None = None
+    last_name: str | None = None
+    middle_name: str | None = None
+    gender: str | None = None
+    birth_date: str | None = None
+    birth_year: int | None = None
+    sport: str = "run"
+    rank: int
+    points: float
+    starts_count: int = 0
+    employee_status: str | None = "presumed"
+    linked_user_id: int | None = None
+    linked_username: str | None = None
+    linked_user_email: str | None = None
+
+
+class VerifyQueueDecision(BaseModel):
+    status: str = Field(..., pattern="^(confirmed|not_employee)$")
+    comment: str | None = None
+
+
+class VerifyQueueDecisionResponse(BaseModel):
+    success: bool
+    athlete_id: int
+    new_status: str
+    auto_blocked_user: bool = False
+    message: str

@@ -8,7 +8,7 @@ const keys = {
 };
 
 export function useModeration(
-  tab: 'access' | 'reports',
+  tab: 'access' | 'reports' | 'unverified',
   accessFilter: string,
   reportFilter: string,
   enabled: boolean,

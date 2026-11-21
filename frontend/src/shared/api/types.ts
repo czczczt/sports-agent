@@ -27,3 +27,5 @@ export type RepairReview = Schemas['RepairReview'];
 export type ReviewDecision = Schemas['ReviewDecision'];
 export type ReviewAction = Schemas['DecisionIn'];
 export type SystemStatus = Schemas['SystemStatus'];
+export type VerifyQueueItem = Schemas['VerifyQueueItem'];
+export type VerifyQueueDecision = Schemas['VerifyQueueDecision'];

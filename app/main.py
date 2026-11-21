@@ -16,6 +16,7 @@ from app.api.rating import router as rating_router
 from app.api.reports import router as reports_router
 from app.api.runs import router as runs_router
 from app.api.status import router as status_router
+from app.api.verify_queue import router as verify_queue_router
 from app.config import APP_HOST, APP_PORT, DATABASE_URL
 from app.core.database import async_postgres_url
 from app.frontend import mount_frontend
@@ -59,6 +60,7 @@ for domain_router in (
     rating_router,
     reports_router,
     access_requests_router,
+    verify_queue_router,
     status_router,
     runs_router,
 ):

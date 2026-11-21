@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { AccessCard } from './AccessCard';
 import styles from './AdminRequestsView.module.css';
 import { ReportCard } from './ReportCard';
+import { VerifyQueue } from './VerifyQueue';
 import { useModeration } from './useModeration';
 
 export function AdminRequestsView(): React.JSX.Element {
@@ -12,7 +13,10 @@ export function AdminRequestsView(): React.JSX.Element {
   const isModerator = isAdmin || user?.role === 'captain';
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const currentTab = z.enum(['access', 'reports']).catch('access').parse(searchParams.get('tab'));
+  const currentTab = z
+    .enum(['access', 'reports', 'unverified'])
+    .catch('access')
+    .parse(searchParams.get('tab'));
   const accessFilter = searchParams.get('access_status') ?? 'pending';
   const reportsFilter = searchParams.get('report_status') ?? 'new';
 
@@ -41,7 +45,7 @@ export function AdminRequestsView(): React.JSX.Element {
     );
   }
 
-  const setTab = (tab: 'access' | 'reports') => {
+  const setTab = (tab: typeof currentTab) => {
     const next = new URLSearchParams(searchParams);
     next.set('tab', tab);
     setSearchParams(next);
@@ -64,7 +68,7 @@ export function AdminRequestsView(): React.JSX.Element {
       <div className="page-head">
         <div className="page-head__text">
           <h1 className="h1 h1-sm">Модерация заявок</h1>
-          <p className="lead">Рассмотрение заявок на регистрацию и обращений спортсменов.</p>
+          <p className="lead">Регистрация, обращения спортсменов и проверка сотрудников в топе рейтинга.</p>
         </div>
 
         <div className="rating-segment">
@@ -83,6 +87,14 @@ export function AdminRequestsView(): React.JSX.Element {
             onClick={() => setTab('reports')}
           >
             Обращения
+          </button>
+          <button
+            type="button"
+            aria-pressed={currentTab === 'unverified'}
+            className={currentTab === 'unverified' ? 'is-active' : undefined}
+            onClick={() => setTab('unverified')}
+          >
+            Очередь «не проверен»
           </button>
         </div>
       </div>
@@ -136,7 +148,9 @@ export function AdminRequestsView(): React.JSX.Element {
         </div>
       )}
 
-      {error ? (
+      {currentTab === 'unverified' ? (
+        <VerifyQueue />
+      ) : error ? (
         <ErrorState error={error} onRetry={loadData} />
       ) : loading ? (
         <Loader text="Загрузка списка заявок…" />

@@ -1916,6 +1916,193 @@
         }
       }
     },
+    "/api/admin/verify-queue": {
+      "get": {
+        "tags": [
+          "verify-queue"
+        ],
+        "summary": "Get Verify Queue",
+        "description": "Возвращает список неподтверждённых спортсменов (presumed) из топ-N каждого рейтинга (SPEC §3.5, §10.4).",
+        "operationId": "get_verify_queue_api_admin_verify_queue_get",
+        "parameters": [
+          {
+            "name": "top_n",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Глубина топа по каждому полу (SPEC §3.5)",
+              "default": 10,
+              "title": "Top N"
+            },
+            "description": "Глубина топа по каждому полу (SPEC §3.5)"
+          },
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Фильтр по виду спорта",
+              "title": "Sport"
+            },
+            "description": "Фильтр по виду спорта"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "auth_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VerifyQueueItem"
+                  },
+                  "title": "Response Get Verify Queue Api Admin Verify Queue Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/verify-queue/{athlete_id}/decision": {
+      "post": {
+        "tags": [
+          "verify-queue"
+        ],
+        "summary": "Decide Verify Queue Item",
+        "description": "Принимает решение по спортсмену в очереди проверки: 'confirmed' или 'not_employee' (SPEC §3.5, §5, §10.4).",
+        "operationId": "decide_verify_queue_item_api_admin_verify_queue__athlete_id__decision_post",
+        "parameters": [
+          {
+            "name": "athlete_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Athlete Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "auth_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyQueueDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyQueueDecisionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/status": {
       "get": {
         "tags": [
@@ -6902,6 +7089,213 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VerifyQueueDecision": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "pattern": "^(confirmed|not_employee)$",
+            "title": "Status"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "VerifyQueueDecision"
+      },
+      "VerifyQueueDecisionResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "athlete_id": {
+            "type": "integer",
+            "title": "Athlete Id"
+          },
+          "new_status": {
+            "type": "string",
+            "title": "New Status"
+          },
+          "auto_blocked_user": {
+            "type": "boolean",
+            "title": "Auto Blocked User",
+            "default": false
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "athlete_id",
+          "new_status",
+          "message"
+        ],
+        "title": "VerifyQueueDecisionResponse"
+      },
+      "VerifyQueueItem": {
+        "properties": {
+          "athlete_id": {
+            "type": "integer",
+            "title": "Athlete Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "first_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "middle_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Middle Name"
+          },
+          "gender": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gender"
+          },
+          "birth_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Date"
+          },
+          "birth_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Year"
+          },
+          "sport": {
+            "type": "string",
+            "title": "Sport",
+            "default": "run"
+          },
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          },
+          "points": {
+            "type": "number",
+            "title": "Points"
+          },
+          "starts_count": {
+            "type": "integer",
+            "title": "Starts Count",
+            "default": 0
+          },
+          "employee_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employee Status",
+            "default": "presumed"
+          },
+          "linked_user_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linked User Id"
+          },
+          "linked_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linked Username"
+          },
+          "linked_user_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linked User Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "athlete_id",
+          "display_name",
+          "rank",
+          "points"
+        ],
+        "title": "VerifyQueueItem"
       }
     }
   }

@@ -71,6 +71,13 @@ test('фильтр рейтинга переживает обновление и
   await expect(page.getByRole('link', { name: 'Женщины' })).toHaveClass(/is-active/);
   await page.getByRole('link', { name: 'Как считается беговой рейтинг' }).click();
   await expect(page.getByRole('heading', { name: 'Как посчитано' })).toBeVisible();
+  await page.getByRole('button', { name: 'Триатлон', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Триатлон (TriStats)' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Нормативы бега' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Все виды' }).click();
+  await expect(page.getByRole('heading', { name: 'Лыжный рейтинг и биатлон' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Трейлраннинг' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Нормативы бега' })).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/gender=F/);
 });
@@ -133,4 +140,52 @@ test('модератор отклоняет заявку и видит обно�
   await page.getByLabel('Комментарий модератора').fill('Дубликат');
   await page.getByRole('button', { name: 'Отклонить', exact: true }).click();
   await expect(page.getByText('Заявок на доступ не найдено')).toBeVisible();
+});
+
+test('очередь сотрудников применяет фильтры и обновляется после решения', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('auth_token', 'test-session'));
+  let decided = false;
+  await page.route('**/api/admin/verify-queue?*', (route) => {
+    const params = new URL(route.request().url()).searchParams;
+    const matching = params.get('top_n') === '20' && !params.has('sport');
+    return route.fulfill({
+      json:
+        matching && !decided
+          ? [
+              {
+                athlete_id: 7,
+                display_name: 'Иван Иванов',
+                sport: 'run',
+                gender: 'M',
+                rank: 15,
+                points: 450,
+                starts_count: 2,
+              },
+            ]
+          : [],
+    });
+  });
+  await page.route('**/api/admin/verify-queue/7/decision', (route) => {
+    expect(route.request().postDataJSON()).toEqual({ status: 'not_employee', comment: 'Проверено' });
+    decided = true;
+    return route.fulfill({
+      json: {
+        success: true,
+        athlete_id: 7,
+        new_status: 'not_employee',
+        auto_blocked_user: true,
+        message: 'Решение сохранено',
+      },
+    });
+  });
+  await page.goto('/admin/requests?tab=reports');
+  await page.getByRole('button', { name: 'Очередь «не проверен»' }).click();
+  await page.getByRole('button', { name: '20', exact: true }).click();
+  await page.getByRole('button', { name: 'Все', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Иван Иванов' })).toBeVisible();
+  await page.reload();
+  await page.getByLabel('Примечание проверки в «Пульсе»').fill('Проверено');
+  await page.getByRole('button', { name: 'Не сотрудник', exact: true }).click();
+  await expect(page.getByText('Очередь проверки пуста')).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('связанный пользователь заблокирован');
 });
