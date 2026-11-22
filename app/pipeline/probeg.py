@@ -230,7 +230,7 @@ def _protocol_page(html, event_id, race_id):
             raise PilotRejected("Incomplete ПроБЕГ results row")
         rows.append(_row(tr, cells, columns))
 
-    page_info = html.select_one("#raceTable ~ .muted")
+    page_info = html.select_one("#raceTable ~ .muted") or html.select_one(".muted")
     range_match = _RANGE.search(_text(page_info))
     if range_match:
         total, first, last = map(_number, range_match.groups())
