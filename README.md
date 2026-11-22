@@ -75,6 +75,24 @@
 | **Grom** (`grom.place`) | `parser_running/grom.py` | HTML + JSON | Извлечение структуры данных RaceResult из атрибута `:initial-rows`. |
 | **Probeg** (`probeg.org`) | `parse_url.py` / `test_probeg_parser.py` | HTML (urllib + BeautifulSoup) | Автоматически сгенерированный и верифицированный адаптер таблицы финишеров с извлечением 100/100 участников. |
 
+### Фоновый сбор через API
+
+В Swagger (`/docs`) администратор запускает `POST /api/v1/runs` с `kind: "collect"`, `source` и `event_code`.
+Для обработки запроса нужен работающий воркер Procrastinate.
+
+| Источник | Значение `source` | Значение `event_code` |
+|---|---|---|
+| RussiaRunning, Timerman, Легков, Pioner Cup | `russiarunning`, `timerman`, `legkovrace`, `pionercup` | Код старта из ссылки на результаты |
+| ПроБЕГ | `probeg` | Число из `/event/54476/` |
+| IRONSTAR | `ironstar` | Код старта в официальном протоколе RussiaRunning |
+| Grom | `grom` | Код из `/results/<код>` |
+| Russialoppet | `russialoppet` | Год и ID через дефис. Для `/results/2025/850/` это `2025-850` |
+| MyRunStats | `myrunstats` | Число из `/events/297` |
+
+`GET /api/v1/runs/{run_id}` показывает статус, число дистанций и ошибку, если она возникла.
+Успешный импорт лыж, трейла или триатлона может завершиться с `rating_version_id: null`.
+Этот запуск публикует версию рейтинга для индивидуальных беговых дистанций.
+
 ### 3.2 Автоматические проверки качества данных (6 инвариантов)
 
 Каждая загруженная дистанция перед сохранением в базу проходит валидатор (`parser_running/store.py`):
