@@ -15,7 +15,23 @@ export function RatingTableRow({ row, isMe, plainPlace = false }: RatingTableRow
   return (
     <tr className={isMe ? 'me-row' : undefined} id={isMe ? 'me-row' : undefined}>
       <td>
-        <span className={`rating-place rating-place--${medal}`}>{row.rank}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span className={`rating-place rating-place--${medal}`}>{row.rank}</span>
+          {row.rank_delta !== null && row.rank_delta !== undefined && (
+            <span
+              className={
+                row.rank_delta > 0
+                  ? layout.rankDeltaUp
+                  : row.rank_delta < 0
+                  ? layout.rankDeltaDown
+                  : layout.rankDeltaNeutral
+              }
+              title={`Динамика за месяц: ${row.rank_delta > 0 ? `+${row.rank_delta}` : row.rank_delta}`}
+            >
+              {row.rank_delta > 0 ? `▲${row.rank_delta}` : row.rank_delta < 0 ? `▼${Math.abs(row.rank_delta)}` : '—'}
+            </span>
+          )}
+        </div>
       </td>
       <td>
         <Link to={paths.athlete(row.athlete_id)} className={layout.ratingAthlete}>

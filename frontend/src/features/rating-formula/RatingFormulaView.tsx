@@ -110,7 +110,7 @@ export function RatingFormulaView(): React.JSX.Element {
             <h2 id="formula-triathlon-title">Триатлон (TriStats)</h2>
             <p className={layout.formulaCaption}>Относительно лидера группы (SPEC §9.3, §10.2)</p>
 
-            <div className={layout.formulaExpression}>баллы = (Rmax × (1 − (Tа − Tл) / Tл) + Bmed) × K</div>
+            <div className={layout.formulaExpression}>баллы = (Rmax × (1 − (T − Tл) / Tл) + Bmed) × K</div>
 
             <div className={layout.formulaSimpleNote}>
               <p>Группа формируется по полу и возрасту внутри гонки (если возрастных групп нет — по полу).</p>
@@ -170,7 +170,7 @@ export function RatingFormulaView(): React.JSX.Element {
             <p className={layout.formulaCaption}>Без набора высоты не считается (SPEC §9.4, §10.2)</p>
 
             <div className={layout.formulaExpression}>
-              баллы = max(0, 10 × (км + D+ / 100) × (1 − (Tа − Tл) / Tл) + Bmed)
+              баллы = max(0, 10 × (км + D+ / 100) × (1 − (T − Tл) / Tл) + Bmed)
             </div>
 
             <div className={layout.formulaSimpleNote}>
@@ -201,7 +201,7 @@ export function RatingFormulaView(): React.JSX.Element {
 
         <div className={layout.formulaLegendGrid}>
           <div className={layout.formulaLegendItem}>
-            <span className={layout.formulaLegendSymbol}>Tа</span>
+            <span className={layout.formulaLegendSymbol}>T</span>
             <span className={layout.formulaLegendDesc}>Время финиша спортсмена (в секундах).</span>
           </div>
           <div className={layout.formulaLegendItem}>
@@ -219,7 +219,7 @@ export function RatingFormulaView(): React.JSX.Element {
           <div className={layout.formulaLegendItem}>
             <span className={layout.formulaLegendSymbol}>Bmed</span>
             <span className={layout.formulaLegendDesc}>
-              Бонус за обгон медианы: <strong>2 × max(0, Tмед − Tа)</strong> в минутах. Для финишировавших
+              Бонус за обгон медианы: <strong>2 × max(0, Tмед − T)</strong> в минутах. Для финишировавших
               позже медианы Bmed = 0.
             </span>
           </div>

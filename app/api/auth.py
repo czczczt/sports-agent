@@ -168,6 +168,12 @@ async def get_current_user(
                 detail="Доступ закрыт: статус сотрудника снят (not_employee)",
             )
 
+    captain_sports: list[str] = []
+    if user_row["role"] == "captain":
+        captain_sports = await conn.get_captain_sports(user_row["id"])
+    elif user_row["role"] == "admin":
+        captain_sports = ["run", "ski", "biathlon", "triathlon", "trail"]
+
     return UserOut(
         id=user_row["id"],
         username=user_row["username"],
@@ -175,7 +181,31 @@ async def get_current_user(
         status=user_row["status"],
         display_name=user_row["display_name"] or user_row["username"],
         athlete_id=user_row["athlete_id"],
+        captain_sports=captain_sports,
     )
+
+
+def check_captain_sport_scope(
+    user: UserOut, sport: str | None, action_desc: str = "действие"
+) -> None:
+    if user.role == "admin":
+        return
+    if user.role != "captain":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Доступ запрещён: требуются права капитана или администратора",
+        )
+    effective = (sport or "run").lower()
+    if effective not in [s.lower() for s in user.captain_sports]:
+        sports_str = (
+            ", ".join(user.captain_sports)
+            if user.captain_sports
+            else "нет назначенных видов"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Доступ запрещён: {action_desc} доступно только для видов спорта капитана ({sports_str})",
+        )
 
 
 CurrentUserDep = Annotated[UserOut, Depends(get_current_user)]

@@ -48,6 +48,26 @@ export function EventsList({ events }: EventsListProps): React.JSX.Element {
                       <Link to={paths.event(ev.id)} className="cell-title">
                         {ev.title}
                       </Link>
+                      {ev.status === 'planned' && (
+                        <span className="chip chip--sm chip--primary" style={{ marginLeft: 6 }}>
+                          Запланирован
+                        </span>
+                      )}
+                      {Boolean(ev.possible_duplicate_id) && (
+                        <span className="chip chip--sm chip--warning" style={{ marginLeft: 6 }}>
+                          Возможный дубль
+                        </span>
+                      )}
+                      {Boolean(ev.series_name) && (
+                        <span className="chip chip--sm" style={{ marginLeft: 6 }}>
+                          {ev.series_name}
+                        </span>
+                      )}
+                      {Boolean(ev.past_edition?.employees_total) && (
+                        <span className="chip chip--sm" style={{ marginLeft: 6 }} title="Участников компании в прошлом выпуске">
+                          В прошлом: {ev.past_edition?.employees_total} сотр.
+                        </span>
+                      )}
                       {ev.races.length > 0 && (
                         <div className={['chips', styles.chips].join(' ')}>
                           {ev.races.map((r) => (
@@ -87,7 +107,19 @@ export function EventsList({ events }: EventsListProps): React.JSX.Element {
             )}
             <Link to={paths.event(ev.id)} className="list-row">
               <div className={styles.description}>
-                <div className="list-row__title">{ev.title}</div>
+                <div className="list-row__title">
+                  {ev.title}
+                  {ev.status === 'planned' && (
+                    <span className="chip chip--sm chip--primary" style={{ marginLeft: 6 }}>
+                      Запланирован
+                    </span>
+                  )}
+                  {Boolean(ev.possible_duplicate_id) && (
+                    <span className="chip chip--sm chip--warning" style={{ marginLeft: 6 }}>
+                      Дубль
+                    </span>
+                  )}
+                </div>
                 <div className="list-row__meta num">
                   {dateRu(ev.date_begin)}
                   {(ev.place || ev.address) && ` · ${ev.place || ev.address}`}

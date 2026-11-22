@@ -1,8 +1,11 @@
 import { plural } from '@/shared/lib';
+import { useAuth } from '@/shared/session';
 import { AsyncView, EmptyState } from '@/shared/ui';
+import { useState } from 'react';
 import { EventFiltersForm } from './EventFiltersForm';
 import { EventsList } from './EventsList';
 import type { EventFilters } from './filters';
+import { PlanEventModal } from './PlanEventModal';
 import { useEvents } from './useEvents';
 
 export interface EventsViewProps {
@@ -13,6 +16,8 @@ export interface EventsViewProps {
 
 export function EventsView({ filters, onApply, onReset }: EventsViewProps): React.JSX.Element {
   const filtersKey = JSON.stringify(filters);
+  const { isAdmin, isCaptain } = useAuth();
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
 
   const query = useEvents(filters);
   const events = query.data;
@@ -30,7 +35,20 @@ export function EventsView({ filters, onApply, onReset }: EventsViewProps): Reac
             {events ? `${count} ${plural(count, 'старт', 'старта', 'стартов')}` : '…'}
           </p>
         </div>
+        {(isAdmin || isCaptain) && (
+          <div className="page-head__actions">
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => setIsPlanModalOpen(true)}
+            >
+              Запланировать старт
+            </button>
+          </div>
+        )}
       </div>
+
+      <PlanEventModal isOpen={isPlanModalOpen} onClose={() => setIsPlanModalOpen(false)} />
 
       <EventFiltersForm
         key={filtersKey}

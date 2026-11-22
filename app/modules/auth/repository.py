@@ -18,6 +18,13 @@ class AuthRepository(ReadRepository):
             {"athlete_id": athlete_id},
         )
 
+    async def get_captain_sports(self, user_id: int) -> list[str]:
+        rows = await self.rows(
+            "SELECT sport FROM captain_sport WHERE user_id = :user_id ORDER BY sport",
+            {"user_id": user_id},
+        )
+        return [r["sport"] for r in rows if r["sport"]]
+
     async def block_user(self, user_id):
         return await self.execute(
             "UPDATE app_user SET status = 'blocked' WHERE id = :user_id",

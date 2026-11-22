@@ -1,6 +1,8 @@
 import type { components } from './schema';
+export type { components };
 
 type Schemas = components['schemas'];
+export type PlannedEventCreate = Schemas['PlannedEventCreate'];
 export type User = Schemas['UserOut'];
 export type AccessRequestItem = Schemas['AccessRequestOut'];
 export type ReportItem = Schemas['ReportOut'];

@@ -25,6 +25,7 @@ from app.models import (
     VerifyQueueDecisionResponse,
     VerifyQueueItem,
 )
+from app.services.rating_service import get_unverified_queue
 
 router = APIRouter(prefix="/admin/verify-queue", tags=["verify-queue"])
 
@@ -115,6 +116,19 @@ class VerifyQueueRepository(ReadRepository):
             {"athlete_id": athlete_id},
         )
 
+    async def get_athlete_sports(self, athlete_id: int) -> list[str]:
+        rows = await self.rows(
+            """
+            SELECT DISTINCT COALESCE(ra.sport, c.sport_type, 'run') AS sport
+            FROM result r
+            JOIN race ra ON ra.id = r.race_id
+            LEFT JOIN competition c ON c.id = ra.competition_id
+            WHERE r.athlete_id = :athlete_id
+            """,
+            {"athlete_id": athlete_id},
+        )
+        return [r["sport"] for r in rows if r["sport"]]
+
     async def block_user(self, user_id: int):
         await self.execute(
             "UPDATE app_user SET status = 'blocked', updated_at = NOW() WHERE id = :user_id",
@@ -135,12 +149,12 @@ class VerifyQueueRepository(ReadRepository):
 async def get_verify_queue(
     current_user: CaptainOrAdminDep,
     session: SessionDep,
-    top_n: int = Query(10, ge=1, le=100, description="Глубина топа по каждому полу (SPEC §3.5)"),
+    top_n: int | None = Query(
+        None, ge=1, le=100, description="Глубина топа по каждому полу (SPEC §3.5)"
+    ),
     sport: str | None = Query(None, description="Фильтр по виду спорта"),
 ):
     """Возвращает список неподтверждённых спортсменов (presumed) из топ-N каждого рейтинга (SPEC §3.5, §10.4)."""
-    repo = VerifyQueueRepository(session)
-
     # Капитан может просматривать очередь только по своим видам спорта
     if current_user.role == "captain" and current_user.captain_sports:
         if sport and sport not in current_user.captain_sports:
@@ -151,7 +165,7 @@ async def get_verify_queue(
         if not sport:
             sport = list(current_user.captain_sports)[0]
 
-    rows = await repo.list_unverified_top(top_n=top_n, sport=sport)
+    rows = await get_unverified_queue(session, top_n=top_n, sport=sport)
 
     results: list[VerifyQueueItem] = []
     for r in rows:
@@ -192,6 +206,18 @@ async def decide_verify_queue_item(
     if not athlete:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Спортсмен не найден")
 
+    # Проверка прав капитана по видам спорта
+    if current_user.role == "captain":
+        athlete_sports = await repo.get_athlete_sports(athlete_id)
+        if athlete_sports and not any(
+            s.lower() in [cs.lower() for cs in current_user.captain_sports]
+            for s in athlete_sports
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Доступ запрещён: спортсмен не относится к видам спорта капитана",
+            )
+
     old_status = athlete["employee_status"] or "presumed"
     new_status = decision.status
     moderator_name = current_user.username
@@ -217,6 +243,22 @@ async def decide_verify_queue_item(
     auto_blocked = False
     # При not_employee автоматически блокируем связанную учётную запись (SPEC §5, §8.7)
     if new_status == "not_employee":
+        if current_user.role == "captain":
+            await repo.log_audit(
+                user_id=current_user.id,
+                action="captain_set_not_employee",
+                entity="athlete",
+                entity_id=athlete_id,
+                diff={
+                    "athlete_name": athlete["display_name"],
+                    "old_status": old_status,
+                    "new_status": "not_employee",
+                    "moderator": current_user.username,
+                    "moderator_role": "captain",
+                    "comment": decision.comment,
+                },
+            )
+
         linked_users = await repo.get_linked_users(athlete_id)
         for u in linked_users:
             if u["status"] != "blocked":

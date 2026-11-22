@@ -1,6 +1,7 @@
 import type { VerifyQueueItem } from '@/shared/api';
 import { paths } from '@/shared/config';
 import { dateRu } from '@/shared/lib';
+import { useAuth } from '@/shared/session';
 import { AsyncView, EmptyState } from '@/shared/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -78,9 +79,20 @@ function VerifyCard({
 }
 
 export function VerifyQueue() {
+  const { isCaptain, captainSports } = useAuth();
+  const availableSports =
+    isCaptain && captainSports.length > 0
+      ? Object.fromEntries(Object.entries(sports).filter(([k]) => k !== 'all' && captainSports.includes(k)))
+      : sports;
+
   const [params, setParams] = useSearchParams();
   const topN = z.coerce.number().int().min(1).max(100).catch(10).parse(params.get('top_n'));
-  const sport = params.get('sport') || 'run';
+  const fallbackSport = captainSports[0] ?? 'run';
+  const rawSport = params.get('sport') || (isCaptain && captainSports.length > 0 ? fallbackSport : 'run');
+  const sport = isCaptain && captainSports.length > 0 && !captainSports.includes(rawSport)
+    ? fallbackSport
+    : rawSport;
+
   const setFilter = (name: string, value: string) => {
     const next = new URLSearchParams(params);
     next.set(name, value);
@@ -119,7 +131,7 @@ export function VerifyQueue() {
         </div>
         <span className="small muted">Вид спорта</span>
         <div className="rating-segment">
-          {Object.entries(sports).map(([value, label]) => (
+          {Object.entries(availableSports).map(([value, label]) => (
             <button
               type="button"
               key={value}

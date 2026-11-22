@@ -67,7 +67,14 @@ export function AdminRequestsView(): React.JSX.Element {
     <>
       <div className="page-head">
         <div className="page-head__text">
-          <h1 className="h1 h1-sm">Модерация заявок</h1>
+          <h1 className="h1 h1-sm">
+            Модерация заявок
+            {user?.role === 'captain' && (
+              <span className="chip chip--sm chip--brand" style={{ marginLeft: 8 }}>
+                Капитан ({user.captain_sports?.join(', ') || 'вид не назначен'})
+              </span>
+            )}
+          </h1>
           <p className="lead">Регистрация, обращения спортсменов и проверка сотрудников в топе рейтинга.</p>
         </div>
 

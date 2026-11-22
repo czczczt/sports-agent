@@ -112,7 +112,20 @@ export function parseIsoDate(s?: string | null): Date | null {
 }
 
 export function dateTimeRu(iso?: string | null): string {
-  if (!iso) return '';
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
-  return m ? `${m[3]}.${m[2]}.${m[1]} ${m[4]}:${m[5]}` : iso;
+  const m = iso?.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  return m ? `${m[3]}.${m[2]}.${m[1]} ${m[4]}:${m[5]}` : (iso ?? '');
 }
+
+const SPORT_TITLES: Record<string, string> = {
+  all: 'Все виды',
+  run: 'Бег',
+  ski: 'Лыжи и биатлон',
+  triathlon: 'Триатлон',
+  trail: 'Трейл',
+};
+
+export function sportTitle(sport?: string | null): string {
+  if (!sport) return '';
+  return SPORT_TITLES[sport.toLowerCase()] ?? sport;
+}
+

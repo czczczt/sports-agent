@@ -9,6 +9,8 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isCaptain: boolean;
+  captainSports: string[];
   isAuthModalOpen: boolean;
   openAuthModal: () => void;
   closeAuthModal: () => void;
@@ -63,6 +65,8 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
     isLoading: hasToken && session.isLoading,
     isAuthenticated: user !== null,
     isAdmin: user?.role === 'admin',
+    isCaptain: user?.role === 'captain',
+    captainSports: user?.captain_sports ?? [],
     isAuthModalOpen,
     openAuthModal: () => setIsAuthModalOpen(true),
     closeAuthModal,

@@ -172,6 +172,19 @@ class AdminAthletesRepository(ReadRepository):
             {"athlete_id": athlete_id},
         )
 
+    async def get_athlete_sports(self, athlete_id: int) -> list[str]:
+        rows = await self.rows(
+            """
+            SELECT DISTINCT COALESCE(ra.sport, c.sport_type, 'run') AS sport
+            FROM result r
+            JOIN race ra ON ra.id = r.race_id
+            LEFT JOIN competition c ON c.id = ra.competition_id
+            WHERE r.athlete_id = :athlete_id
+            """,
+            {"athlete_id": athlete_id},
+        )
+        return [r["sport"] for r in rows if r["sport"]]
+
     async def block_user(self, user_id: int) -> None:
         await self.execute(
             "UPDATE app_user SET status = 'blocked', updated_at = NOW() WHERE id = :user_id",
@@ -275,6 +288,18 @@ async def update_admin_athlete(
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Спортсмен не найден")
 
+    # Проверка скоупа капитана по видам спорта (SPEC v1.3 §2, §3.2)
+    if current_user.role == "captain":
+        athlete_sports = await repo.get_athlete_sports(athlete_id)
+        if athlete_sports and not any(
+            s.lower() in [cs.lower() for cs in current_user.captain_sports]
+            for s in athlete_sports
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Доступ запрещён: спортсмен не относится к видам спорта капитана",
+            )
+
     updates: dict[str, Any] = {}
     raw_data = data.model_dump(exclude_unset=True)
 
@@ -342,6 +367,22 @@ async def update_admin_athlete(
 
     # При переводе в not_employee: автоматически блокируем связанную учётку (SPEC §5, §8.7)
     if new_status == "not_employee" and old_status != "not_employee":
+        if current_user.role == "captain":
+            await repo.log_audit(
+                user_id=current_user.id,
+                action="captain_set_not_employee",
+                entity="athlete",
+                entity_id=athlete_id,
+                diff={
+                    "athlete_name": existing["display_name"],
+                    "old_status": old_status,
+                    "new_status": "not_employee",
+                    "moderator": current_user.username,
+                    "moderator_role": "captain",
+                    "comment": raw_data.get("comment"),
+                },
+            )
+
         linked_users = await repo.get_linked_users(athlete_id)
         for u in linked_users:
             if u["status"] != "blocked":

@@ -4,6 +4,7 @@ from app.models import (
     CompetitionDistribution,
     DistributionBin,
     EventItem,
+    PastEditionStats,
     RaceItem,
     RaceProtocolItem,
 )
@@ -48,6 +49,14 @@ async def list_events(
             for ra in races_rows
         ]
 
+        past_edition_data = await conn.get_past_edition_stats(
+            event_id=r["id"],
+            series_id=r.get("series_id"),
+            title=r.get("title"),
+            date_begin=r.get("date_begin"),
+        )
+        past_stats = PastEditionStats(**past_edition_data) if past_edition_data else None
+
         events.append(
             EventItem(
                 id=r["id"],
@@ -58,6 +67,12 @@ async def list_events(
                 date_end=r["date_end"],
                 place=r["place"],
                 address=r["address"],
+                status=r.get("status") or "done",
+                sport=r.get("sport") or "run",
+                series_id=r.get("series_id"),
+                series_name=r.get("series_name"),
+                possible_duplicate_id=r.get("possible_duplicate_id"),
+                past_edition=past_stats,
                 races=races,
             )
         )
@@ -84,6 +99,14 @@ async def get_event_by_id(conn: EventsWebRepository, event_id: int) -> EventItem
         for ra in races_rows
     ]
 
+    past_edition_data = await conn.get_past_edition_stats(
+        event_id=row["id"],
+        series_id=row.get("series_id"),
+        title=row.get("title"),
+        date_begin=row.get("date_begin"),
+    )
+    past_stats = PastEditionStats(**past_edition_data) if past_edition_data else None
+
     return EventItem(
         id=row["id"],
         source_id=row["source_id"],
@@ -93,6 +116,12 @@ async def get_event_by_id(conn: EventsWebRepository, event_id: int) -> EventItem
         date_end=row["date_end"],
         place=row["place"],
         address=row["address"],
+        status=row.get("status") or "done",
+        sport=row.get("sport") or "run",
+        series_id=row.get("series_id"),
+        series_name=row.get("series_name"),
+        possible_duplicate_id=row.get("possible_duplicate_id"),
+        past_edition=past_stats,
         races=races,
     )
 

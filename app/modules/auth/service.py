@@ -11,6 +11,9 @@ class AuthService:
     async def athlete_employee_status(self, athlete_id):
         return await self.repository.athlete_employee_status(athlete_id)
 
+    async def get_captain_sports(self, user_id: int) -> list[str]:
+        return await self.repository.get_captain_sports(user_id)
+
     async def block_user(self, user_id):
         return await self.repository.block_user(user_id)
 

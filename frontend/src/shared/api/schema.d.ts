@@ -511,6 +511,300 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/events/planned": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Planned Event
+         * @description Создаёт запланированный старт капитаном или администратором (SPEC v1.3 §3.4, §8).
+         */
+        post: operations["create_planned_event_api_admin_events_planned_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/events/series/suggest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Suggest Series
+         * @description Автоподсказка серии по названию, городу и виду спорта (SPEC v1.3 §3.4, §8).
+         */
+        get: operations["suggest_series_api_admin_events_series_suggest_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/events/{event_id}/series": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Attach Event To Series
+         * @description Подтверждение привязки старта к серии администратором или капитаном (SPEC v1.3 §8).
+         */
+        post: operations["attach_event_to_series_api_admin_events__event_id__series_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/events/{event_id}/duplicates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Event Duplicate Candidates
+         * @description Кандидаты на склейку planned ↔ done (SPEC v1.3 §3.4, §8).
+         */
+        get: operations["get_event_duplicate_candidates_api_admin_events__event_id__duplicates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/events/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge Events
+         * @description Склейка planned ↔ done старта с переносом данных (SPEC v1.3 §3.4, §8).
+         */
+        post: operations["merge_events_api_admin_events_merge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/races/{race_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Admin Race
+         * @description Капитан или администратор правит класс, D+, RL-статус дистанции (SPEC v1.3 §2, §3.2, §8.5).
+         *
+         *     Капитан может править только дистанции своего вида спорта (иначе 403).
+         */
+        patch: operations["update_admin_race_api_admin_races__race_id__patch"];
+        trace?: never;
+    };
+    "/api/admin/races/{race_id}/manual-upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Manual Upload Protocol
+         * @description Ручная загрузка результатов протокола (SPEC v1.3 §2, §3.2, §3.5).
+         *
+         *     Капитан может загружать результаты только для своего вида спорта (иначе 403).
+         */
+        post: operations["manual_upload_protocol_api_admin_races__race_id__manual_upload_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/races/{race_id}/protocol": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Race Protocol
+         * @description Удаление протокола дистанции (SPEC v1.3 §2, §3.5).
+         *
+         *     Капитану удаление протокола ЗАПРЕЩЕНО (403 Forbidden). Доступно только администратору.
+         */
+        delete: operations["delete_race_protocol_api_admin_races__race_id__protocol_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Admin Users
+         * @description Список пользователей и их ролей. Доступно только администратору (SPEC v1.3 §2).
+         */
+        get: operations["list_admin_users_api_admin_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Admin User
+         * @description Карточка пользователя с ролями и видами спорта капитана (SPEC v1.3 §2).
+         */
+        get: operations["get_admin_user_api_admin_users__user_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Admin User
+         * @description Назначение ролей и видов спорта капитана. Доступно только администратору (SPEC v1.3 §2, §3.5).
+         */
+        patch: operations["update_admin_user_api_admin_users__user_id__patch"];
+        trace?: never;
+    };
+    "/api/admin/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Admin Settings
+         * @description Список настроек системы. Доступно только администратору (SPEC v1.3 §2, §5).
+         */
+        get: operations["list_admin_settings_api_admin_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Admin Setting
+         * @description Обновление настройки системы. Доступно только администратору (SPEC v1.3 §2, §5).
+         */
+        patch: operations["update_admin_setting_api_admin_settings_patch"];
+        trace?: never;
+    };
+    "/api/admin/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Admin Sources
+         * @description Список источников данных. Доступно только администратору (SPEC v1.3 §2, §5).
+         */
+        get: operations["list_admin_sources_api_admin_sources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/sources/{source_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Admin Source
+         * @description Управление источником данных. Доступно только администратору (SPEC v1.3 §2, §5).
+         */
+        patch: operations["update_admin_source_api_admin_sources__source_id__patch"];
+        trace?: never;
+    };
+    "/api/admin/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Admin Summary
+         * @description Сводка данных для администратора (SPEC v1.3 §3.5). Доступно только администратору.
+         */
+        get: operations["get_admin_summary_api_admin_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/status": {
         parameters: {
             query?: never;
@@ -985,6 +1279,173 @@ export interface components {
             /** Is Hidden */
             is_hidden?: boolean | null;
         };
+        /** AdminRaceDetail */
+        AdminRaceDetail: {
+            /** Id */
+            id: number;
+            /** Competition Id */
+            competition_id: number;
+            /** Name */
+            name?: string | null;
+            /** Sport */
+            sport?: string | null;
+            /** Scoring Class */
+            scoring_class?: string | null;
+            /** Distance Class Override */
+            distance_class_override?: string | null;
+            /** Distance M */
+            distance_m?: number | null;
+            /** Distance Km Raw */
+            distance_km_raw?: number | null;
+            /** Elevation Gain M */
+            elevation_gain_m?: number | null;
+            /**
+             * Is Rl Series
+             * @default false
+             */
+            is_rl_series: boolean;
+            /**
+             * Special
+             * @default regular
+             */
+            special: string | null;
+            /**
+             * Total Count
+             * @default 0
+             */
+            total_count: number | null;
+        };
+        /** AdminRaceUpdate */
+        AdminRaceUpdate: {
+            /** Scoring Class */
+            scoring_class?: string | null;
+            /** Distance Class Override */
+            distance_class_override?: string | null;
+            /** Elevation Gain M */
+            elevation_gain_m?: number | null;
+            /** Is Rl Series */
+            is_rl_series?: boolean | null;
+            /** Sport */
+            sport?: string | null;
+            /** Special */
+            special?: string | null;
+        };
+        /** AdminSettingItem */
+        AdminSettingItem: {
+            /** Key */
+            key: string;
+            /** Value */
+            value: unknown;
+            /** Updated At */
+            updated_at?: string | null;
+            /** Updated By */
+            updated_by?: number | null;
+        };
+        /** AdminSettingUpdate */
+        AdminSettingUpdate: {
+            /** Key */
+            key: string;
+            /** Value */
+            value: unknown;
+        };
+        /** AdminSourceOut */
+        AdminSourceOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Base Url */
+            base_url?: string | null;
+            /** Platform */
+            platform?: string | null;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Priority
+             * @default 100
+             */
+            priority: number;
+            /** Sport Types */
+            sport_types?: string | null;
+        };
+        /** AdminSourceUpdate */
+        AdminSourceUpdate: {
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Priority */
+            priority?: number | null;
+            /** Sport Types */
+            sport_types?: string | null;
+            /** Base Url */
+            base_url?: string | null;
+        };
+        /** AdminSummaryResponse */
+        AdminSummaryResponse: {
+            /** Captain Not Employee Changes */
+            captain_not_employee_changes?: components["schemas"]["CaptainNotEmployeeItem"][];
+            /**
+             * Pending Access Requests Count
+             * @default 0
+             */
+            pending_access_requests_count: number;
+            /**
+             * Pending Reports Count
+             * @default 0
+             */
+            pending_reports_count: number;
+            /**
+             * Unverified Top N Count
+             * @default 0
+             */
+            unverified_top_n_count: number;
+            /**
+             * Trails Without Elevation Count
+             * @default 0
+             */
+            trails_without_elevation_count: number;
+            /**
+             * Failed Adapters Count
+             * @default 0
+             */
+            failed_adapters_count: number;
+        };
+        /** AdminUserOut */
+        AdminUserOut: {
+            /** Id */
+            id: number;
+            /** Username */
+            username: string;
+            /** Email */
+            email?: string | null;
+            /** Role */
+            role: string;
+            /** Status */
+            status: string;
+            /** Display Name */
+            display_name?: string | null;
+            /** Athlete Id */
+            athlete_id?: number | null;
+            /** Captain Sports */
+            captain_sports?: string[];
+            /** Created At */
+            created_at?: string | null;
+        };
+        /** AdminUserUpdate */
+        AdminUserUpdate: {
+            /** Role */
+            role?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Display Name */
+            display_name?: string | null;
+            /** Athlete Id */
+            athlete_id?: number | null;
+            /** Captain Sports */
+            captain_sports?: string[] | null;
+        };
         /** AgentReviewDecision */
         AgentReviewDecision: {
             /** Decision */
@@ -1238,6 +1699,28 @@ export interface components {
             /** File */
             file: string;
         };
+        /** CaptainNotEmployeeItem */
+        CaptainNotEmployeeItem: {
+            /** Audit Id */
+            audit_id: number;
+            /** Athlete Id */
+            athlete_id: number;
+            /** Athlete Name */
+            athlete_name?: string | null;
+            /** Moderator Username */
+            moderator_username: string;
+            /** Old Status */
+            old_status?: string | null;
+            /**
+             * New Status
+             * @default not_employee
+             */
+            new_status: string;
+            /** Created At */
+            created_at: string;
+            /** Comment */
+            comment?: string | null;
+        };
         /** ClearResult */
         ClearResult: {
             /** Status */
@@ -1329,6 +1812,17 @@ export interface components {
             /** Author */
             author: string;
         };
+        /** DeleteProtocolResponse */
+        DeleteProtocolResponse: {
+            /** Success */
+            success: boolean;
+            /** Race Id */
+            race_id: number;
+            /** Deleted Count */
+            deleted_count: number;
+            /** Message */
+            message: string;
+        };
         /** DeleteResult */
         DeleteResult: {
             /** Issue Id */
@@ -1375,6 +1869,21 @@ export interface components {
             /** Pace S Per Km */
             pace_s_per_km?: number | null;
         };
+        /** EventDuplicateCandidate */
+        EventDuplicateCandidate: {
+            /** Event Id */
+            event_id: number;
+            /** Title */
+            title: string;
+            /** Date Begin */
+            date_begin?: string | null;
+            /** Place */
+            place?: string | null;
+            /** Status */
+            status: string;
+            /** Similarity Reason */
+            similarity_reason: string;
+        };
         /** EventItem */
         EventItem: {
             /** Id */
@@ -1394,10 +1903,39 @@ export interface components {
             /** Address */
             address?: string | null;
             /**
+             * Status
+             * @default done
+             */
+            status: string;
+            /**
+             * Sport
+             * @default run
+             */
+            sport: string;
+            /** Series Id */
+            series_id?: number | null;
+            /** Series Name */
+            series_name?: string | null;
+            /** Possible Duplicate Id */
+            possible_duplicate_id?: number | null;
+            past_edition?: components["schemas"]["PastEditionStats"] | null;
+            /**
              * Races
              * @default []
              */
             races: components["schemas"]["RaceItem"][];
+        };
+        /** EventMergeRequest */
+        EventMergeRequest: {
+            /** Planned Event Id */
+            planned_event_id: number;
+            /** Actual Event Id */
+            actual_event_id: number;
+        };
+        /** EventSeriesAttachRequest */
+        EventSeriesAttachRequest: {
+            /** Series Id */
+            series_id: number;
         };
         /** GoldenInput */
         GoldenInput: {
@@ -1432,6 +1970,50 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** ManualProtocolRow */
+        ManualProtocolRow: {
+            /** Bib */
+            bib?: string | null;
+            /** Full Name Raw */
+            full_name_raw: string;
+            /** Gender */
+            gender?: string | null;
+            /** Birth Year */
+            birth_year?: number | null;
+            /** Birth Date */
+            birth_date?: string | null;
+            /** Club Raw */
+            club_raw?: string | null;
+            /**
+             * Status
+             * @default FIN
+             */
+            status: string | null;
+            /** Place Abs */
+            place_abs?: number | null;
+            /** Place Gender */
+            place_gender?: number | null;
+            /** Chip Time S */
+            chip_time_s?: number | null;
+            /** Gun Time S */
+            gun_time_s?: number | null;
+        };
+        /** ManualProtocolUploadRequest */
+        ManualProtocolUploadRequest: {
+            /** Rows */
+            rows: components["schemas"]["ManualProtocolRow"][];
+        };
+        /** ManualProtocolUploadResponse */
+        ManualProtocolUploadResponse: {
+            /** Success */
+            success: boolean;
+            /** Race Id */
+            race_id: number;
+            /** Imported Count */
+            imported_count: number;
+            /** Message */
+            message: string;
+        };
         /** MessageResponse */
         MessageResponse: {
             /** Status */
@@ -1451,6 +2033,27 @@ export interface components {
             /** Email */
             email: string;
         };
+        /** PastEditionDistanceCount */
+        PastEditionDistanceCount: {
+            /** Distance Name */
+            distance_name: string;
+            /** Count */
+            count: number;
+        };
+        /** PastEditionStats */
+        PastEditionStats: {
+            /** Edition Year */
+            edition_year?: number | null;
+            /** Edition Title */
+            edition_title?: string | null;
+            /**
+             * Employees Total
+             * @default 0
+             */
+            employees_total: number;
+            /** Distance Counts */
+            distance_counts?: components["schemas"]["PastEditionDistanceCount"][];
+        };
         /** PersonalBestItem */
         PersonalBestItem: {
             /** Norm Distance */
@@ -1467,6 +2070,39 @@ export interface components {
             event_title: string;
             /** Event Date */
             event_date?: string | null;
+        };
+        /** PlannedDistanceCreate */
+        PlannedDistanceCreate: {
+            /** Name */
+            name: string;
+            /** Distance M */
+            distance_m?: number | null;
+            /** Distance Km */
+            distance_km?: number | null;
+        };
+        /** PlannedEventCreate */
+        PlannedEventCreate: {
+            /** Title */
+            title: string;
+            /**
+             * Sport
+             * @default run
+             */
+            sport: string;
+            /** City */
+            city?: string | null;
+            /** Address */
+            address?: string | null;
+            /** Planned Date Start */
+            planned_date_start: string;
+            /** Planned Date End */
+            planned_date_end?: string | null;
+            /** Planned Note */
+            planned_note?: string | null;
+            /** Series Id */
+            series_id?: number | null;
+            /** Races */
+            races?: components["schemas"]["PlannedDistanceCreate"][];
         };
         /** ProtocolSample */
         ProtocolSample: {
@@ -1631,6 +2267,13 @@ export interface components {
             version_id?: number | null;
             /** Published At */
             published_at?: string | null;
+            /**
+             * Sport
+             * @default run
+             */
+            sport: string;
+            /** As Of */
+            as_of?: string | null;
             /** Period Start */
             period_start?: string | null;
             /** Period End */
@@ -1953,6 +2596,25 @@ export interface components {
             /** Processed Distances */
             processed_distances: number;
         };
+        /** SeriesSuggestItem */
+        SeriesSuggestItem: {
+            /** Series Id */
+            series_id: number;
+            /** Series Name */
+            series_name: string;
+            /** City */
+            city?: string | null;
+            /**
+             * Sport
+             * @default run
+             */
+            sport: string;
+            /**
+             * Similarity
+             * @default 1
+             */
+            similarity: number;
+        };
         /** StartRepair */
         StartRepair: {
             /** Source Id */
@@ -2014,6 +2676,8 @@ export interface components {
             display_name: string;
             /** Athlete Id */
             athlete_id?: number | null;
+            /** Captain Sports */
+            captain_sports?: string[];
         };
         /** ValidationError */
         ValidationError: {
@@ -2654,6 +3318,10 @@ export interface operations {
     get_rating_endpoint_api_rating_get: {
         parameters: {
             query?: {
+                /** @description Вид спорта: run, ski, triathlon, trail */
+                sport?: string;
+                /** @description Срез на дату (только для капитана и админа) */
+                as_of?: string | null;
                 /** @description Пол: M или F (иначе — все) */
                 gender?: string | null;
                 /** @description Поиск по ФИО */
@@ -2948,7 +3616,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Глубина топа по каждому полу (SPEC §3.5) */
-                top_n?: number;
+                top_n?: number | null;
                 /** @description Фильтр по виду спорта */
                 sport?: string | null;
             };
@@ -3198,6 +3866,592 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RosterImportResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_planned_event_api_admin_events_planned_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlannedEventCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggest_series_api_admin_events_series_suggest_get: {
+        parameters: {
+            query: {
+                /** @description ID старта */
+                event_id: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeriesSuggestItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    attach_event_to_series_api_admin_events__event_id__series_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                event_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventSeriesAttachRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_event_duplicate_candidates_api_admin_events__event_id__duplicates_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                event_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventDuplicateCandidate"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    merge_events_api_admin_events_merge_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventMergeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_admin_race_api_admin_races__race_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                race_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminRaceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminRaceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    manual_upload_protocol_api_admin_races__race_id__manual_upload_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                race_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualProtocolUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualProtocolUploadResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_race_protocol_api_admin_races__race_id__protocol_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                race_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteProtocolResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_admin_users_api_admin_users_get: {
+        parameters: {
+            query?: {
+                /** @description Фильтр по роли */
+                role?: string | null;
+                /** @description Фильтр по статусу */
+                status?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_admin_user_api_admin_users__user_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                user_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_admin_user_api_admin_users__user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                user_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_admin_settings_api_admin_settings_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSettingItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_admin_setting_api_admin_settings_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSettingUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSettingItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_admin_sources_api_admin_sources_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSourceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_admin_source_api_admin_sources__source_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                source_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSourceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_admin_summary_api_admin_summary_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSummaryResponse"];
                 };
             };
             /** @description Validation Error */

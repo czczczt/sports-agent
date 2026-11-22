@@ -3,6 +3,8 @@
 """
 import asyncio
 import unittest
+from unittest.mock import MagicMock, patch
+
 from app.mcp_agent.validator import validate_protocol_data
 from app.mcp_agent.mcp_client import MCPAgentClientStub
 from app.mcp_agent.orchestrator import ParsingAgentOrchestrator
@@ -34,8 +36,23 @@ class TestMCPAgentFallback(unittest.TestCase):
         self.assertTrue(any("high_null_names" in issue for issue in report.issues))
         self.assertTrue(any("high_null_times" in issue for issue in report.issues))
 
-    def test_03_orchestrator_triggers_mcp_fallback(self):
+    @patch("app.mcp_agent.orchestrator.sync_postgres_issue")
+    @patch("app.mcp_agent.orchestrator.get_db_connection")
+    @patch("test_mcp_agent.get_db_connection")
+    def test_03_orchestrator_triggers_mcp_fallback(self, mock_test_db, mock_orch_db, mock_sync):
         """3. Оркестратор при провале тестов запускает ИИ-агента через MCP и логирует issue."""
+        import sqlite3
+        mem_conn = sqlite3.connect(":memory:")
+        mem_conn.row_factory = sqlite3.Row
+        mem_conn.execute(
+            "CREATE TABLE issue (id INTEGER PRIMARY KEY, source_id INT, stage TEXT, kind TEXT, object_ref TEXT, fingerprint TEXT UNIQUE, details TEXT, status TEXT, assignee TEXT, occurrences INT DEFAULT 1, last_seen TIMESTAMP)"
+        )
+        # Avoid closing the in-memory db during test
+        wrapped = MagicMock(wraps=mem_conn)
+        wrapped.close = MagicMock()
+        mock_orch_db.return_value = wrapped
+        mock_test_db.return_value = wrapped
+
         mcp_client = MCPAgentClientStub()
         orchestrator = ParsingAgentOrchestrator(mcp_client=mcp_client)
 

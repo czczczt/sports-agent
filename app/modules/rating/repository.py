@@ -3,6 +3,7 @@ from typing import Any
 from sqlalchemy import text
 
 from app.core.repository import ReadRepository
+from app.modules.rating.calculator import RATING_PERIOD_DAYS
 
 FORMULA_VERSION = "run-v1"
 
@@ -75,70 +76,278 @@ class RatingRepository(ReadRepository):
     async def get_rating_page(
         self,
         *,
+        sport: str = "run",
+        as_of: Any = None,
         gender: str | None = None,
         search: str | None = None,
         limit: int = 100,
     ) -> dict[str, Any]:
-        """Возвращает сохранённый рейтинг для страницы рейтинга."""
-        version = await self._published_version()
-        if version:
-            rows, total = await self._published_rows(version, gender, search, limit=limit)
-            return {**dict(version), "rows": rows, "total": total}
+        """Возвращает сохранённый рейтинг или динамический срез на дату (SPEC v1.3 §9.6)."""
+        from datetime import date, timedelta
+
+        # 1. Срез на дату для капитана / админа (расчёт на лету, не меняет снимки)
+        if as_of is not None:
+            end_date = as_of if isinstance(as_of, date) else date.fromisoformat(str(as_of)[:10])
+            start_date = end_date - timedelta(days=RATING_PERIOD_DAYS)
+            start_str = start_date.isoformat()
+            end_str = end_date.isoformat()
+
+            sport_clause = (
+                "(ra.sport = 'run' OR ra.sport IS NULL)"
+                if sport == "run"
+                else ("ra.sport IN ('ski', 'biathlon')" if sport == "ski" else "ra.sport = ?")
+            )
+            query_args: list[Any] = [start_date, end_date]
+            if sport not in ("run", "ski"):
+                query_args.append(sport)
+
+            cut_rows = await self.fetch(
+                f"""
+                SELECT a.id AS athlete_id, a.display_name, a.birth_year, a.gender,
+                       SUM(s.points) AS points, MAX(s.points) AS best_points,
+                       COUNT(*) AS starts_count
+                FROM athlete a
+                JOIN result_athlete link ON link.athlete_id = a.id
+                JOIN rating_score s ON s.result_id = link.result_id
+                JOIN result r ON r.id = s.result_id
+                JOIN race ra ON ra.id = r.race_id
+                JOIN competition c ON c.id = ra.competition_id
+                WHERE s.points IS NOT NULL
+                  AND c.date_begin BETWEEN ? AND ?
+                  AND {sport_clause}
+                  AND a.is_hidden = FALSE
+                  AND a.employee_status != 'not_employee'
+                GROUP BY a.id, a.display_name, a.birth_year, a.gender
+                ORDER BY points DESC, best_points DESC, starts_count DESC, a.id ASC
+                """,
+                *query_args,
+            )
+
+            # Для лыж учитываем очки RL
+            if sport == "ski":
+                try:
+                    rl_rows = await self.fetch("SELECT athlete_id, points FROM rl_points")
+                    rl_map = {r["athlete_id"]: float(r["points"]) for r in rl_rows}
+                except Exception:
+                    rl_map = {}
+            else:
+                rl_map = {}
+
+            processed = []
+            for r in cut_rows:
+                aid = r["athlete_id"]
+                pts = float(r["points"])
+                if sport == "ski" and aid in rl_map:
+                    pts += rl_map[aid] / 7.0
+                processed.append({
+                    "athlete_id": aid,
+                    "display_name": r["display_name"],
+                    "birth_year": r["birth_year"],
+                    "gender": r["gender"],
+                    "points": pts,
+                    "best_points": float(r["best_points"]),
+                    "starts_count": int(r["starts_count"]),
+                })
+
+            processed.sort(
+                key=lambda x: (x["points"], x["best_points"], x["starts_count"], -x["athlete_id"]),
+                reverse=True,
+            )
+
+            # Фильтрация по полу и поиску
+            if gender in ("M", "F"):
+                processed = [p for p in processed if p["gender"] == gender]
+            if search:
+                s_lower = search.lower().replace("ё", "е")
+                processed = [p for p in processed if s_lower in p["display_name"].lower().replace("ё", "е")]
+
+            # Определение rank_delta по снимку за предыдущий месяц (~30 дней)
+            target_snap_date = end_date - timedelta(days=30)
+            snap_map: dict[int, int] = {}
+            try:
+                prev_snaps = await self.fetch(
+                    """
+                    SELECT athlete_id, rank
+                    FROM rating_snapshot
+                    WHERE sport = ?
+                      AND taken_on = (
+                          SELECT MAX(taken_on) FROM rating_snapshot
+                          WHERE sport = ? AND taken_on <= ?
+                      )
+                    """,
+                    sport, sport, target_snap_date,
+                )
+                snap_map = {s["athlete_id"]: int(s["rank"]) for s in prev_snaps}
+            except Exception:
+                pass
+
+            total_count = len(processed)
+            ranked_rows = []
+            for idx, item in enumerate(processed[:limit], 1):
+                prev_rank = snap_map.get(item["athlete_id"])
+                delta = (prev_rank - idx) if prev_rank is not None else None
+                ranked_rows.append({
+                    "rank": idx,
+                    "athlete_id": item["athlete_id"],
+                    "display_name": item["display_name"],
+                    "birth_year": item["birth_year"],
+                    "gender": item["gender"],
+                    "points": item["points"],
+                    "best_points": item["best_points"],
+                    "starts_count": item["starts_count"],
+                    "rank_delta": delta,
+                })
+
+            return {
+                "sport": sport,
+                "as_of": end_str,
+                "period_start": start_str,
+                "period_end": end_str,
+                "rows": ranked_rows,
+                "total": total_count,
+            }
+
+        # 2. Обычный режим (rolling 365 дней)
+        # Проверяем published_version (только для бега)
+        if sport == "run":
+            version = await self._published_version()
+            if version:
+                rows, total = await self._published_rows(version, gender, search, limit=limit)
+                return {**dict(version), "sport": sport, "rows": rows, "total": total}
+
+        # Ищем период в rating_entry или fallback на running_athlete_rating
         period = await self.fetchrow(
             """
             SELECT period_start, period_end
-            FROM running_athlete_rating
-            WHERE formula_version = ?
+            FROM rating_entry
+            WHERE sport = ? AND period_type = 'rolling'
             ORDER BY period_end DESC
             LIMIT 1
             """,
-            FORMULA_VERSION,
+            sport,
         )
-        if not period:
-            return {"period_start": None, "period_end": None, "rows": [], "total": 0}
+        if not period and sport == "run":
+            period = await self.fetchrow(
+                """
+                SELECT period_start, period_end
+                FROM running_athlete_rating
+                WHERE formula_version = ?
+                ORDER BY period_end DESC
+                LIMIT 1
+                """,
+                FORMULA_VERSION,
+            )
 
+        if not period:
+            return {"sport": sport, "period_start": None, "period_end": None, "rows": [], "total": 0}
+
+        # Загрузка строк из rating_entry или fallback
         conditions = [
-            "ar.formula_version = ?",
-            "ar.period_start = ?",
-            "ar.period_end = ?",
             "a.is_hidden = FALSE",
             "a.employee_status != 'not_employee'",
         ]
-        params: list[Any] = [
-            FORMULA_VERSION,
-            period["period_start"],
-            period["period_end"],
-        ]
-        if gender in ("M", "F"):
-            conditions.append("a.gender = ?")
-            params.append(gender)
-        if search:
-            conditions.append("a.name_key LIKE ?")
-            params.append(f"%{search.lower().replace('ё', 'е')}%")
 
-        where_clause = " AND ".join(conditions)
-        rows = await self.fetch(
-            f"""
-            SELECT ar.rank, a.id AS athlete_id, a.display_name, a.birth_year,
-                   a.gender, ar.points, ar.best_points, ar.starts_count
-            FROM running_athlete_rating ar
-            JOIN athlete a ON a.id = ar.athlete_id
-            WHERE {where_clause}
-            ORDER BY ar.points DESC, ar.best_points DESC, ar.starts_count DESC, ar.athlete_id
-            LIMIT ?
-            """,
-            *params,
-            limit,
-        )
-        total = await self.fetchval(
-            f"""
-            SELECT COUNT(*)
-            FROM running_athlete_rating ar
-            JOIN athlete a ON a.id = ar.athlete_id
-            WHERE {where_clause}
-            """,
-            *params,
-        )
+        try:
+            # Пробуем rating_entry
+            conditions_re = [
+                "re.sport = ?",
+                "re.period_type = 'rolling'",
+                "re.period_start = ?",
+                "re.period_end = ?",
+            ] + conditions
+            params_re: list[Any] = [sport, period["period_start"], period["period_end"]]
+            if gender in ("M", "F"):
+                conditions_re.append("a.gender = ?")
+                params_re.append(gender)
+            if search:
+                conditions_re.append("a.name_key LIKE ?")
+                params_re.append(f"%{search.lower().replace('ё', 'е')}%")
+
+            where_re = " AND ".join(conditions_re)
+            raw_rows = await self.fetch(
+                f"""
+                SELECT re.rank, a.id AS athlete_id, a.display_name, a.birth_year,
+                       a.gender, re.points, re.best_points, re.starts_count
+                FROM rating_entry re
+                JOIN athlete a ON a.id = re.athlete_id
+                WHERE {where_re}
+                ORDER BY re.points DESC, re.best_points DESC, re.starts_count DESC, re.athlete_id
+                LIMIT ?
+                """,
+                *params_re,
+                limit,
+            )
+            total = await self.fetchval(
+                f"""
+                SELECT COUNT(*)
+                FROM rating_entry re
+                JOIN athlete a ON a.id = re.athlete_id
+                WHERE {where_re}
+                """,
+                *params_re,
+            )
+        except Exception:
+            raw_rows = []
+            total = 0
+
+        if not raw_rows and sport == "run":
+            conditions_rar = [
+                "ar.formula_version = ?",
+                "ar.period_start = ?",
+                "ar.period_end = ?",
+            ] + conditions
+            params_rar: list[Any] = [FORMULA_VERSION, period["period_start"], period["period_end"]]
+            if gender in ("M", "F"):
+                conditions_rar.append("a.gender = ?")
+                params_rar.append(gender)
+            if search:
+                conditions_rar.append("a.name_key LIKE ?")
+                params_rar.append(f"%{search.lower().replace('ё', 'е')}%")
+
+            where_rar = " AND ".join(conditions_rar)
+            raw_rows = await self.fetch(
+                f"""
+                SELECT ar.rank, a.id AS athlete_id, a.display_name, a.birth_year,
+                       a.gender, ar.points, ar.best_points, ar.starts_count
+                FROM running_athlete_rating ar
+                JOIN athlete a ON a.id = ar.athlete_id
+                WHERE {where_rar}
+                ORDER BY ar.points DESC, ar.best_points DESC, ar.starts_count DESC, ar.athlete_id
+                LIMIT ?
+                """,
+                *params_rar,
+                limit,
+            )
+            total = await self.fetchval(
+                f"""
+                SELECT COUNT(*)
+                FROM running_athlete_rating ar
+                JOIN athlete a ON a.id = ar.athlete_id
+                WHERE {where_rar}
+                """,
+                *params_rar,
+            )
+
+        # Вычисляем rank_delta по rating_snapshot за прошлый месяц
+        snap_map = {}
+        try:
+            p_end_date = date.fromisoformat(str(period["period_end"])[:10])
+            prev_snaps = await self.fetch(
+                """
+                SELECT athlete_id, rank
+                FROM rating_snapshot
+                WHERE sport = ?
+                  AND taken_on = (
+                      SELECT MAX(taken_on) FROM rating_snapshot
+                      WHERE sport = ? AND taken_on <= ?
+                  )
+                """,
+                sport, sport, p_end_date - timedelta(days=30),
+            )
+            snap_map = {s["athlete_id"]: int(s["rank"]) for s in prev_snaps}
+        except Exception:
+            pass
+
         rows = [
             {
                 "rank": index,
@@ -149,10 +358,12 @@ class RatingRepository(ReadRepository):
                 "points": row["points"],
                 "best_points": row["best_points"],
                 "starts_count": row["starts_count"],
+                "rank_delta": (snap_map.get(row["athlete_id"]) - index) if row["athlete_id"] in snap_map else None,
             }
-            for index, row in enumerate(rows, 1)
+            for index, row in enumerate(raw_rows, 1)
         ]
         return {
+            "sport": sport,
             "period_start": period["period_start"],
             "period_end": period["period_end"],
             "rows": rows,
@@ -163,80 +374,19 @@ class RatingRepository(ReadRepository):
         self,
         athlete_id: int,
         gender: str | None = None,
+        sport: str = "run",
+        as_of: Any = None,
     ) -> dict[str, Any] | None:
         """Строка «это вы» для страницы рейтинга.
 
         Если выбран фильтр по полу, место пересчитывается среди спортсменов этого пола
         (с теми же тай-брейками, что и общий рейтинг). Спортсмен другого пола скрывается.
         """
-        version = await self._published_version()
-        if version:
-            rows, _ = await self._published_rows(version, gender, athlete_id=athlete_id, limit=1)
-            return rows[0] if rows else None
-        ar = await self.fetchrow(
-            """
-            SELECT a.id AS athlete_id, a.display_name, a.birth_year, a.gender,
-                   ar.points, ar.best_points, ar.starts_count, ar.rank AS overall_rank,
-                   ar.period_start, ar.period_end
-            FROM athlete a
-            LEFT JOIN running_athlete_rating ar
-              ON ar.athlete_id = a.id AND ar.formula_version = ?
-            WHERE a.id = ?
-            ORDER BY ar.period_end DESC
-            LIMIT 1
-            """,
-            FORMULA_VERSION,
-            athlete_id,
-        )
-        if not ar or ar["points"] is None:
-            return None
-        if gender and ar["gender"] != gender:
-            return None
-
-        if gender:
-            rank = await self.fetchval(
-                """
-                SELECT COUNT(*) + 1 AS rank
-                FROM running_athlete_rating rar
-                JOIN athlete a ON a.id = rar.athlete_id
-                WHERE rar.formula_version = ?
-                  AND a.gender = ?
-                  AND rar.period_start = ? AND rar.period_end = ?
-                  AND (
-                      rar.points > ?
-                      OR (rar.points = ? AND rar.best_points > ?)
-                      OR (rar.points = ? AND rar.best_points = ? AND rar.starts_count > ?)
-                      OR (rar.points = ? AND rar.best_points = ? AND rar.starts_count = ? AND rar.athlete_id < ?)
-                  )
-                """,
-                FORMULA_VERSION,
-                gender,
-                ar["period_start"],
-                ar["period_end"],
-                ar["points"],
-                ar["points"],
-                ar["best_points"],
-                ar["points"],
-                ar["best_points"],
-                ar["starts_count"],
-                ar["points"],
-                ar["best_points"],
-                ar["starts_count"],
-                ar["athlete_id"],
-            )
-        else:
-            rank = ar["overall_rank"]
-
-        return {
-            "rank": rank,
-            "athlete_id": ar["athlete_id"],
-            "display_name": ar["display_name"],
-            "birth_year": ar["birth_year"],
-            "gender": ar["gender"],
-            "points": ar["points"],
-            "best_points": ar["best_points"],
-            "starts_count": ar["starts_count"],
-        }
+        page = await self.get_rating_page(sport=sport, as_of=as_of, gender=gender, limit=1000)
+        for row in page.get("rows", []):
+            if row["athlete_id"] == athlete_id:
+                return row
+        return None
 
     async def get_rating_norms(self, year: int = 2026) -> dict[str, Any]:
         """Нормативы года и период действующего рейтинга — для страницы «Как посчитано»."""
@@ -280,9 +430,13 @@ class RatingRepository(ReadRepository):
     ) -> dict[str, Any]:
         """Пересчитывает баллы результатов и агрегированный 365-дневный рейтинг бега в PostgreSQL."""
         import json
+        import statistics
         from datetime import date, timedelta
 
-        from app.modules.rating.calculator import RATING_PERIOD_DAYS, _calculate_score
+        from app.modules.rating.calculator import (
+            RATING_PERIOD_DAYS,
+            _calculate_score,
+        )
 
         end_date = as_of or date.today()
         start_date = end_date - timedelta(days=RATING_PERIOD_DAYS)
@@ -297,8 +451,10 @@ class RatingRepository(ReadRepository):
 
         result_rows = await self.fetch(
             """
-            SELECT r.id, r.status, r.duplicate_of, r.gender, r.chip_time_s,
-                   r.gun_time_s, r.distance_km, ra.distance_type, ra.discipline,
+            SELECT r.id, r.race_id, r.status, r.duplicate_of, r.gender, r.chip_time_s,
+                   r.gun_time_s, r.distance_km, r.position, r.position_gender,
+                   ra.distance_type, ra.discipline, ra.sport, ra.scoring_class,
+                   ra.elevation_gain_m, ra.is_rl_series, ra.special,
                    c.date_begin, a.id AS athlete_id
             FROM result r
             JOIN race ra ON ra.id = r.race_id
@@ -308,23 +464,65 @@ class RatingRepository(ReadRepository):
             """
         )
 
+        # Precompute race statistics per (race_id, gender) for multi-sport calculations
+        race_stats: dict[tuple[Any, Any], dict[str, Any]] = {}
+        for row in result_rows:
+            rid_key = (row.get("race_id"), row.get("gender"))
+            if rid_key not in race_stats:
+                race_stats[rid_key] = {"times": [], "count": 0}
+            if row.get("status") == "FIN":
+                race_stats[rid_key]["count"] += 1
+                t_val = row.get("chip_time_s") if row.get("chip_time_s") is not None else row.get("gun_time_s")
+                if isinstance(t_val, (int, float)) and t_val > 0:
+                    race_stats[rid_key]["times"].append(float(t_val))
+
+        for stats in race_stats.values():
+            times = stats["times"]
+            stats["leader_time_s"] = min(times) if times else None
+            stats["median_time_s"] = statistics.median(times) if times else None
+            stats["finishers_count"] = stats["count"]
+
         scored_count = 0
         for row in result_rows:
-            dist_class = row["distance_type"] or (f"{int(row['distance_km'])}km" if row["distance_km"] else None)
-            norm = norms.get((dist_class, row["gender"]))
+            rid_key = (row.get("race_id"), row.get("gender"))
+            stats = race_stats.get(rid_key, {})
+            sport = row.get("sport") or "run"
+            dist_class = (
+                row.get("scoring_class")
+                or row.get("distance_type")
+                or (f"{int(row['distance_km'])}km" if row.get("distance_km") else None)
+            )
+            norm = norms.get((dist_class, row.get("gender")))
+
+            place = row.get("position_gender") or row.get("position")
+            finishers_count = stats.get("finishers_count")
+            leader_time_s = stats.get("leader_time_s")
+            median_time_s = stats.get("median_time_s")
+
             points, reason, breakdown = _calculate_score(
-                status=row["status"],
-                duplicate_of=row["duplicate_of"],
-                gender=row["gender"],
+                status=row.get("status"),
+                duplicate_of=row.get("duplicate_of"),
+                gender=row.get("gender"),
                 distance_class=dist_class,
-                event_date=str(row["date_begin"]) if row["date_begin"] else None,
-                chip_time_s=row["chip_time_s"],
-                gun_time_s=row["gun_time_s"],
-                distance_km=row["distance_km"],
+                event_date=str(row["date_begin"]) if row.get("date_begin") else None,
+                chip_time_s=row.get("chip_time_s"),
+                gun_time_s=row.get("gun_time_s"),
+                distance_km=row.get("distance_km"),
                 norm_value=norm["value"] if norm else None,
                 norm_unit=norm["unit"] if norm else None,
                 norm_year=norm["year"] if norm else None,
+                sport=sport,
+                finishers_count=finishers_count,
+                place=place,
+                leader_time_s=leader_time_s,
+                median_time_s=median_time_s,
+                elevation_gain_m=row.get("elevation_gain_m"),
+                special=row.get("special") or "regular",
+                is_rl_series=bool(row.get("is_rl_series", False)),
+                discipline=row.get("discipline"),
+                formula_version=formula_version if sport == "run" else None,
             )
+            f_ver = breakdown.get("formula_version") or formula_version
             breakdown_json = json.dumps(breakdown, ensure_ascii=False, allow_nan=False)
             await self.session.execute(
                 text(
@@ -339,7 +537,7 @@ class RatingRepository(ReadRepository):
                 ),
                 {
                     "res_id": row["id"],
-                    "ver": formula_version,
+                    "ver": f_ver,
                     "pts": points,
                     "rsn": reason,
                     "bd": breakdown_json,
@@ -348,27 +546,146 @@ class RatingRepository(ReadRepository):
             if points is not None:
                 scored_count += 1
 
-        aggregates = await self.fetch(
-            """
-            SELECT a.id AS athlete_id, SUM(s.points) AS points,
-                   MAX(s.points) AS best_points, COUNT(*) AS starts_count
-            FROM athlete a
-            JOIN result_athlete link ON link.athlete_id = a.id
-            JOIN rating_score s ON s.result_id = link.result_id
-            JOIN result r ON r.id = s.result_id
-            JOIN race ra ON ra.id = r.race_id
-            JOIN competition c ON c.id = ra.competition_id
-            WHERE s.formula_version = ?
-              AND s.points IS NOT NULL
-              AND c.date_begin BETWEEN ? AND ?
-            GROUP BY a.id
-            ORDER BY points DESC, best_points DESC, starts_count DESC, a.id ASC
-            """,
-            formula_version,
-            start_date,
-            end_date,
-        )
+        # Multi-sport aggregation for rating_entry and rating_snapshot (SPEC v1.3 §5, §9)
+        sport_definitions = [
+            ("run", "run-v1", "(ra.sport = 'run' OR ra.sport IS NULL)"),
+            ("ski", "ski-v1", "ra.sport IN ('ski', 'biathlon')"),
+            ("triathlon", "triathlon-v1", "ra.sport = 'triathlon'"),
+            ("trail", "trail-v1", "ra.sport = 'trail'"),
+        ]
 
+        rl_map: dict[int, float] = {}
+        try:
+            rl_rows = await self.fetch("SELECT athlete_id, points FROM rl_points")
+            rl_map = {r["athlete_id"]: float(r["points"]) for r in rl_rows}
+        except Exception:
+            pass
+
+        run_aggregates: list[dict[str, Any]] = []
+
+        for sp, f_ver, sp_where in sport_definitions:
+            aggs = await self.fetch(
+                f"""
+                SELECT a.id AS athlete_id, SUM(s.points) AS points,
+                       MAX(s.points) AS best_points, COUNT(*) AS starts_count
+                FROM athlete a
+                JOIN result_athlete link ON link.athlete_id = a.id
+                JOIN rating_score s ON s.result_id = link.result_id
+                JOIN result r ON r.id = s.result_id
+                JOIN race ra ON ra.id = r.race_id
+                JOIN competition c ON c.id = ra.competition_id
+                WHERE s.points IS NOT NULL
+                  AND c.date_begin BETWEEN ? AND ?
+                  AND {sp_where}
+                GROUP BY a.id
+                ORDER BY points DESC, best_points DESC, starts_count DESC, a.id ASC
+                """,
+                start_date,
+                end_date,
+            )
+
+            processed_aggs = []
+            for agg in aggs:
+                aid = agg["athlete_id"]
+                pts = float(agg["points"])
+                best_pts = float(agg["best_points"])
+                starts = int(agg["starts_count"])
+                if sp == "ski" and aid in rl_map:
+                    pts += rl_map[aid] / 7.0
+                processed_aggs.append({
+                    "athlete_id": aid,
+                    "points": pts,
+                    "best_points": best_pts,
+                    "starts_count": starts,
+                })
+
+            processed_aggs.sort(
+                key=lambda x: (x["points"], x["best_points"], x["starts_count"], -x["athlete_id"]),
+                reverse=True,
+            )
+
+            if sp == "run":
+                run_aggregates = processed_aggs
+
+            # Clean and insert rating_entry and rating_snapshot
+            try:
+                await self.session.execute(
+                    text(
+                        """
+                        DELETE FROM rating_entry
+                        WHERE sport = :sp AND period_type = 'rolling'
+                          AND period_start = :p_start AND period_end = :p_end
+                        """
+                    ),
+                    {"sp": sp, "p_start": start_str, "p_end": end_str},
+                )
+                for rank, item in enumerate(processed_aggs, 1):
+                    await self.session.execute(
+                        text(
+                            """
+                            INSERT INTO rating_entry (
+                                sport, period_type, period_start, period_end,
+                                athlete_id, formula_version, points, best_points, starts_count, rank
+                            ) VALUES (
+                                :sport, 'rolling', :period_start, :period_end,
+                                :athlete_id, :formula_version, :points, :best_points, :starts_count, :rank
+                            )
+                            ON CONFLICT (sport, period_type, period_start, period_end, athlete_id) DO UPDATE SET
+                                points = EXCLUDED.points,
+                                best_points = EXCLUDED.best_points,
+                                starts_count = EXCLUDED.starts_count,
+                                rank = EXCLUDED.rank
+                            """
+                        ),
+                        {
+                            "sport": sp,
+                            "period_start": start_str,
+                            "period_end": end_str,
+                            "athlete_id": item["athlete_id"],
+                            "formula_version": f_ver,
+                            "points": item["points"],
+                            "best_points": item["best_points"],
+                            "starts_count": item["starts_count"],
+                            "rank": rank,
+                        },
+                    )
+
+                # Snapshot for ▲▼ dynamics
+                await self.session.execute(
+                    text(
+                        """
+                        DELETE FROM rating_snapshot
+                        WHERE sport = :sp AND taken_on = :t_on
+                        """
+                    ),
+                    {"sp": sp, "t_on": end_date},
+                )
+                for rank, item in enumerate(processed_aggs, 1):
+                    await self.session.execute(
+                        text(
+                            """
+                            INSERT INTO rating_snapshot (
+                                sport, taken_on, athlete_id, rank, points
+                            ) VALUES (
+                                :sport, :taken_on, :athlete_id, :rank, :points
+                            )
+                            ON CONFLICT (sport, taken_on, athlete_id) DO UPDATE SET
+                                rank = EXCLUDED.rank,
+                                points = EXCLUDED.points
+                            """
+                        ),
+                        {
+                            "sport": sp,
+                            "taken_on": end_date,
+                            "athlete_id": item["athlete_id"],
+                            "rank": rank,
+                            "points": item["points"],
+                        },
+                    )
+            except Exception:
+                pass
+
+        # Legacy running_athlete_rating synchronization
         await self.session.execute(
             text(
                 """
@@ -379,7 +696,7 @@ class RatingRepository(ReadRepository):
             {"ver": formula_version, "p_start": start_str, "p_end": end_str},
         )
 
-        for rank, agg in enumerate(aggregates, 1):
+        for rank, agg in enumerate(run_aggregates, 1):
             await self.session.execute(
                 text(
                     """
@@ -410,5 +727,6 @@ class RatingRepository(ReadRepository):
             "period_start": start_str,
             "period_end": end_str,
             "results_scored": scored_count,
-            "athletes_rated": len(aggregates),
+            "athletes_rated": len(run_aggregates),
         }
+

@@ -130,13 +130,108 @@ class EventsWebRepository(ReadRepository):
             """
             SELECT
                 e.id, e.source_id, s.name AS source_name, e.title,
-                e.date_begin, e.date_end, e.place, e.address
+                e.date_begin, e.date_end, e.place, e.address,
+                COALESCE(e.status, 'done') AS status,
+                COALESCE(e.sport, 'run') AS sport,
+                e.series_id, e.series_name, e.possible_duplicate_id
             FROM web_event e
             JOIN source s ON s.id = e.source_id
             WHERE e.id = :event_id
         """,
             {"event_id": event_id},
         )
+
+    async def get_past_edition_stats(
+        self,
+        event_id: int,
+        series_id: int | None = None,
+        title: str | None = None,
+        date_begin: str | None = None,
+    ) -> dict | None:
+        """Агрегаты прошлого выпуска серии по сотрудникам (числа без ФИО и списков людей)."""
+        past_event = None
+        if series_id:
+            past_event = await self.row(
+                """
+                SELECT c.id, c.name AS title, c.date_begin
+                FROM competition c
+                WHERE c.series_id = :series_id
+                  AND c.id != :event_id
+                  AND (c.status = 'done' OR c.status IS NULL)
+                  AND (CAST(:date_begin AS text) IS NULL OR c.date_begin < CAST(:date_begin AS date))
+                ORDER BY c.date_begin DESC NULLS LAST, c.id DESC
+                LIMIT 1
+                """,
+                {"series_id": series_id, "event_id": event_id, "date_begin": str(date_begin) if date_begin else None},
+            )
+
+        if not past_event and title:
+            norm_title = re.sub(r"\d{4}", "", title).strip()
+            past_event = await self.row(
+                """
+                SELECT c.id, c.name AS title, c.date_begin
+                FROM competition c
+                WHERE c.id != :event_id
+                  AND (c.status = 'done' OR c.status IS NULL)
+                  AND search_text(c.name) LIKE search_text(:pattern)
+                  AND (CAST(:date_begin AS text) IS NULL OR c.date_begin < CAST(:date_begin AS date))
+                ORDER BY c.date_begin DESC NULLS LAST, c.id DESC
+                LIMIT 1
+                """,
+                {"event_id": event_id, "pattern": f"%{norm_title[:15]}%", "date_begin": str(date_begin) if date_begin else None},
+            )
+
+        if not past_event:
+            return None
+
+        past_id = past_event["id"]
+        try:
+            total_res = await self.scalar(
+                """
+                SELECT COUNT(DISTINCT l.athlete_id)
+                FROM race ra
+                JOIN result r ON r.race_id = ra.id
+                JOIN result_athlete l ON l.result_id = r.id
+                JOIN athlete a ON a.id = l.athlete_id
+                WHERE ra.competition_id = :past_id
+                  AND a.employee_status IN ('presumed', 'confirmed')
+                """,
+                {"past_id": past_id},
+            )
+
+            dist_rows = await self.rows(
+                """
+                SELECT COALESCE(ra.name, 'Дистанция') AS distance_name, COUNT(DISTINCT l.athlete_id) AS count
+                FROM race ra
+                JOIN result r ON r.race_id = ra.id
+                JOIN result_athlete l ON l.result_id = r.id
+                JOIN athlete a ON a.id = l.athlete_id
+                WHERE ra.competition_id = :past_id
+                  AND a.employee_status IN ('presumed', 'confirmed')
+                GROUP BY ra.id, ra.name
+                ORDER BY count DESC, ra.id ASC
+                """,
+                {"past_id": past_id},
+            )
+        except Exception:
+            return None
+
+        year = None
+        if past_event.get("date_begin"):
+            try:
+                year = int(str(past_event["date_begin"])[:4])
+            except ValueError:
+                pass
+
+        return {
+            "edition_year": year,
+            "edition_title": past_event.get("title"),
+            "employees_total": int(total_res or 0),
+            "distance_counts": [
+                {"distance_name": d.get("distance_name") or "Дистанция", "count": int(d.get("count", 0))}
+                for d in dist_rows
+            ],
+        }
 
     async def event_races(self, event_id):
         return await self.rows(

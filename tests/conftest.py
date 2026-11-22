@@ -1,9 +1,13 @@
+import asyncio
 import os
 import sqlite3
 import subprocess
 import sys
 import uuid
 from pathlib import Path
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 import psycopg
 import pytest
@@ -150,6 +154,9 @@ def seed_users(url):
                     display,
                 ),
             )
+        connection.execute(
+            "INSERT INTO captain_sport (user_id, sport) SELECT id, 'run' FROM app_user WHERE username = 'captain' ON CONFLICT DO NOTHING"
+        )
 
 
 @pytest.fixture

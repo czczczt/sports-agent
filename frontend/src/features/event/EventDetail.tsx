@@ -30,9 +30,24 @@ export function EventDetail({ event }: EventDetailProps): React.JSX.Element {
           <div className="chips">
             <span className="chip chip--run">
               <Icon name="run" className="icon-sm" />
-              Бег
+              {event.sport === 'ski'
+                ? 'Лыжи'
+                : event.sport === 'triathlon'
+                  ? 'Триатлон'
+                  : event.sport === 'trail'
+                    ? 'Трейл'
+                    : 'Бег'}
             </span>
             <span className="chip">{sourceName(event.source_name)}</span>
+            {event.status === 'planned' && (
+              <span className="chip chip--primary">Запланирован</span>
+            )}
+            {Boolean(event.possible_duplicate_id) && (
+              <span className="chip chip--warning">Возможный дубль</span>
+            )}
+            {Boolean(event.series_name) && (
+              <span className="chip">Серия: {event.series_name}</span>
+            )}
           </div>
           <h1 className="h1 h1-sm">{event.title}</h1>
           <div className="muted num">
@@ -57,6 +72,32 @@ export function EventDetail({ event }: EventDetailProps): React.JSX.Element {
           </div>
         </div>
       </section>
+
+      <div className="track-divider" />
+
+      {Boolean(event.past_edition) && (
+        <section className="card card--clip">
+          <div className="card__head">
+            <h2 className="h2">Прошлый выпуск ({event.past_edition?.edition_year || 'ранее'})</h2>
+          </div>
+          <div className="card--pad">
+            <div className="muted small">{event.past_edition?.edition_title}</div>
+            <div className="tile" style={{ margin: '0.75rem 0' }}>
+              <div className="tile__value num">{event.past_edition?.employees_total}</div>
+              <div className="tile__label">сотрудников финишировало в прошлом выпуске</div>
+            </div>
+            {Boolean(event.past_edition?.distance_counts?.length) && (
+              <div className="chips">
+                {(event.past_edition?.distance_counts ?? []).map((dc) => (
+                  <span key={dc.distance_name} className="chip chip--sm">
+                    {dc.distance_name}: <strong className="num">{dc.count}</strong> сотр.
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       <div className="track-divider" />
 

@@ -36,7 +36,7 @@
     text-decoration: none;
   }
   .formulaSimpleBack:hover {
-    color: var(--palette-f1f5f2);
+    color: var(--text-primary);
   }
   .formulaSimpleHeader h1 {
     font: 700 42px/1.1 var(--font-display);

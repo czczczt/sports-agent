@@ -1,4 +1,10 @@
-from app.modules.rating.calculator import _calculate_score
+from app.modules.rating.calculator import (
+    _calculate_score,
+    calculate_running_score,
+    calculate_ski_score,
+    calculate_trail_score,
+    calculate_triathlon_score,
+)
 
 
 def test_run_calculator():
@@ -132,3 +138,63 @@ def test_trail_calculator():
     )
     assert pts_no_d is None
     assert reason_no_d == "missing_elevation_gain"
+
+
+def test_pure_calculators_direct_call():
+    # Test pure functions directly
+    run_res = calculate_running_score(
+        status="FIN",
+        duplicate_of=None,
+        gender="F",
+        distance_class="5000m",
+        event_date="2026-05-01",
+        chip_time_s=1200.0,
+        norm_value=965.0,
+        norm_unit="s",
+        norm_year=2026,
+    )
+    assert run_res.reason is None
+    assert round(run_res.points, 2) == round(965.0 / 1200.0 * 1000.0, 2)
+    assert run_res.breakdown["formula_version"] == "run-v1"
+
+    ski_res = calculate_ski_score(
+        status="FIN",
+        duplicate_of=None,
+        gender="M",
+        event_date="2026-01-10",
+        finishers_count=50,
+        place=5,
+    )
+    assert ski_res.reason is None
+    assert ski_res.points == 100.0 * (50 - 5 + 1) / 50
+    assert ski_res.breakdown["formula_version"] == "ski-v1"
+
+    tri_res = calculate_triathlon_score(
+        status="FIN",
+        duplicate_of=None,
+        gender="M",
+        distance_class="sprint",
+        event_date="2026-07-04",
+        chip_time_s=3600.0,
+        leader_time_s=3600.0,
+        median_time_s=4200.0,
+        special="regular",
+    )
+    assert tri_res.reason is None
+    assert tri_res.breakdown["formula_version"] == "triathlon-v1"
+
+    trail_res = calculate_trail_score(
+        status="FIN",
+        duplicate_of=None,
+        gender="F",
+        distance_km=30.0,
+        elevation_gain_m=1200.0,
+        event_date="2026-09-01",
+        chip_time_s=14400.0,
+        leader_time_s=12000.0,
+        median_time_s=15000.0,
+    )
+    assert trail_res.reason is None
+    assert trail_res.points > 0
+    assert trail_res.breakdown["formula_version"] == "trail-v1"
+
