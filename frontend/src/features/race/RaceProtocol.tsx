@@ -36,7 +36,7 @@ export function RaceProtocol({ data, athleteId, search, onSearch }: RaceProtocol
                   <th scope="col">Место</th>
                   <th scope="col">Участник</th>
                   <th scope="col">Пол / возраст</th>
-                  <th scope="col">Чистое</th>
+                  <th scope="col">Время в протоколе</th>
                   <th scope="col">Пистолетное</th>
                   <th scope="col">Темп</th>
                   <th scope="col">Баллы</th>

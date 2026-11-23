@@ -22,6 +22,12 @@ def _save_and_publish(run_id: int, source_id: int, event: dict) -> tuple[int, in
         count = save_event(conn, source_id, event)
         includes_running = any(
             item['race']['sport'] == 'run' and item['race']['race_type'] == 'individual'
+            and any(
+                row['status'] == 'FIN' and row.get('gender') in {'M', 'F'}
+                and (item['race']['place_by'] != 'official'
+                     or row.get('chip_time_s') is not None or row.get('gun_time_s') is not None)
+                for row in item['rows']
+            )
             for item in event['races']
         )
         version_id = publish_rating(conn, run_id) if includes_running else None

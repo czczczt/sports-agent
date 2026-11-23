@@ -19,10 +19,19 @@ def downgrade() -> None:
         DROP TABLE IF EXISTS setting;
         DROP INDEX IF EXISTS idx_race_scoring_class;
         DROP INDEX IF EXISTS idx_race_sport;
+        -- Keep the shared field when the collector branch is still applied.
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_attribute WHERE attrelid = 'race'::regclass
+                  AND attname = 'sport_type' AND NOT attisdropped
+            ) THEN
+                ALTER TABLE race DROP COLUMN IF EXISTS elevation_gain_m;
+            END IF;
+        END $$;
         ALTER TABLE race
             DROP COLUMN IF EXISTS special,
             DROP COLUMN IF EXISTS is_rl_series,
-            DROP COLUMN IF EXISTS elevation_gain_m,
             DROP COLUMN IF EXISTS scoring_class,
             DROP COLUMN IF EXISTS sport;
         DROP TABLE IF EXISTS captain_sport;

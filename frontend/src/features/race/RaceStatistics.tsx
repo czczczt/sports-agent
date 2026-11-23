@@ -27,7 +27,7 @@ export function RaceStatistics({ data, search }: RaceStatisticsProps): React.JSX
           <div className="grid-2">
             <div className={['tile', styles.tile].join(' ')}>
               <div className="tile__value num">{me.time_formatted}</div>
-              <div className="tile__label">чистое время</div>
+              <div className="tile__label">время в протоколе</div>
             </div>
             <div className={['tile', styles.tile].join(' ')}>
               <div className="tile__value num">{me.pace_formatted}</div>
