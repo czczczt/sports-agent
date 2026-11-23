@@ -15,6 +15,9 @@ def _validate_protocol(race: dict, rows: list[dict]) -> None:
     if not all(ids) or len(set(ids)) != len(ids):
         raise PilotRejected("Missing or duplicate source participant ID")
     for row in rows:
+        points = row.get("toplist_points")
+        if points is not None and (type(points) not in (int, float) or not math.isfinite(points) or points < 0):
+            raise PilotRejected("Invalid TopList reference points")
         for field in ("chip_time_s", "gun_time_s", "official_time_s"):
             value = row.get(field)
             if value is not None and (
@@ -27,9 +30,10 @@ def _validate_protocol(race: dict, rows: list[dict]) -> None:
             if value is not None and (type(value) is not int or not low <= value <= high):
                 raise PilotRejected(f"Invalid source {field}")
     place_by = race["place_by"]
-    if race.get("source_discipline") == "ski-biathlon":
-        # RR separately reports the track time and the official time with penalties.
-        rows = [{**row, f"{place_by}_time_s": row.get("official_time_s")} for row in rows]
+    if place_by == "official" or race.get("source_discipline") == "ski-biathlon":
+        # Apply the existing checks to the official clock without replacing source timings.
+        place_by = "gun"
+        rows = [{**row, "gun_time_s": row.get("official_time_s")} for row in rows]
     visible = sorted(
         (row for row in rows if row["status"] == "FIN" and row.get("place_abs")),
         key=lambda row: row["place_abs"],
@@ -60,11 +64,16 @@ def validate_event(event: dict) -> None:
             raise PilotRejected("Unknown source sport")
         if race.get("is_final") is False:
             raise PilotRejected("Source protocol is preliminary")
-        if race.get("place_by") not in {"chip", "gun"}:
+        if race.get("place_by") not in {"chip", "gun", "official"}:
             raise PilotRejected("Unknown source timing scale")
         distance = race.get("distance_km")
         if distance is not None and (
             type(distance) not in (int, float) or not math.isfinite(distance) or not km_to_m(distance)
         ):
             raise PilotRejected("Invalid source distance")
+        elevation = race.get("elevation_gain_m")
+        if elevation is not None and (
+            type(elevation) not in (int, float) or not math.isfinite(elevation) or elevation < 0
+        ):
+            raise PilotRejected("Invalid source elevation gain")
         _validate_protocol(race, item["rows"])

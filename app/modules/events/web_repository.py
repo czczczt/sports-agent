@@ -97,11 +97,13 @@ class EventsWebRepository(ReadRepository):
                        ELSE NULL
                    END AS club_raw,
                    r.place_abs, r.place_gender, r.chip_time_s, r.gun_time_s, r.status,
+                   timing.official_time_s, timing_race.place_by,
                    CASE
                        WHEN a.id IS NOT NULL AND (a.employee_status IS NULL OR a.employee_status != 'not_employee') THEN sc.points
                        ELSE NULL
                    END AS points
-            FROM web_result r
+            FROM web_result r JOIN result timing ON timing.id=r.id
+            JOIN race timing_race ON timing_race.id=r.race_id
             LEFT JOIN athlete a ON a.id=r.athlete_id
             LEFT JOIN web_rating_score sc ON sc.result_id=r.id AND sc.formula_version='run-v1'
             WHERE {where}
@@ -268,8 +270,11 @@ class EventsWebRepository(ReadRepository):
                 r.place_gender,
                 r.chip_time_s,
                 r.gun_time_s,
-                r.status
-            FROM web_result r
+                r.status,
+                timing.official_time_s,
+                timing_race.place_by
+            FROM web_result r JOIN result timing ON timing.id=r.id
+            JOIN race timing_race ON timing_race.id=r.race_id
             WHERE r.race_id = :race_id AND r.athlete_id = :athlete_id AND r.duplicate_of IS NULL
             LIMIT 1
         """,
