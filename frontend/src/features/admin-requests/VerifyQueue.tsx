@@ -116,13 +116,13 @@ export function VerifyQueue() {
     <>
       <div className={['filters-bar', styles.filters].join(' ')}>
         <span className="small muted">Топ-N (на вид × пол)</span>
-        <div className="rating-segment">
+        <div className={styles.segment}>
           {[10, 20, 50].map((n) => (
             <button
               type="button"
               key={n}
               aria-pressed={topN === n}
-              className={topN === n ? 'is-active' : undefined}
+              className={[styles.segmentBtn, topN === n ? styles.segmentBtnActive : ''].join(' ')}
               onClick={() => setFilter('top_n', String(n))}
             >
               {n}
@@ -130,13 +130,13 @@ export function VerifyQueue() {
           ))}
         </div>
         <span className="small muted">Вид спорта</span>
-        <div className="rating-segment">
+        <div className={styles.segment}>
           {Object.entries(availableSports).map(([value, label]) => (
             <button
               type="button"
               key={value}
               aria-pressed={sport === value}
-              className={sport === value ? 'is-active' : undefined}
+              className={[styles.segmentBtn, sport === value ? styles.segmentBtnActive : ''].join(' ')}
               onClick={() => setFilter('sport', value)}
             >
               {label}

@@ -78,11 +78,11 @@ export function AdminRequestsView(): React.JSX.Element {
           <p className="lead">Регистрация, обращения спортсменов и проверка сотрудников в топе рейтинга.</p>
         </div>
 
-        <div className="rating-segment">
+        <div className={styles.segment}>
           <button
             type="button"
             aria-pressed={currentTab === 'access'}
-            className={currentTab === 'access' ? 'is-active' : undefined}
+            className={[styles.segmentBtn, currentTab === 'access' ? styles.segmentBtnActive : ''].join(' ')}
             onClick={() => setTab('access')}
           >
             Заявки на доступ
@@ -90,7 +90,7 @@ export function AdminRequestsView(): React.JSX.Element {
           <button
             type="button"
             aria-pressed={currentTab === 'reports'}
-            className={currentTab === 'reports' ? 'is-active' : undefined}
+            className={[styles.segmentBtn, currentTab === 'reports' ? styles.segmentBtnActive : ''].join(' ')}
             onClick={() => setTab('reports')}
           >
             Обращения
@@ -98,7 +98,7 @@ export function AdminRequestsView(): React.JSX.Element {
           <button
             type="button"
             aria-pressed={currentTab === 'unverified'}
-            className={currentTab === 'unverified' ? 'is-active' : undefined}
+            className={[styles.segmentBtn, currentTab === 'unverified' ? styles.segmentBtnActive : ''].join(' ')}
             onClick={() => setTab('unverified')}
           >
             Очередь «не проверен»
@@ -109,7 +109,7 @@ export function AdminRequestsView(): React.JSX.Element {
       {currentTab === 'access' && (
         <div className={['filters-bar', styles.filters].join(' ')}>
           <span className="small muted">Статус:</span>
-          <div className="rating-segment">
+          <div className={styles.segment}>
             {[
               { val: 'pending', label: 'Ожидают' },
               { val: 'active', label: 'Одобренные' },
@@ -120,7 +120,7 @@ export function AdminRequestsView(): React.JSX.Element {
                 key={f.val}
                 type="button"
                 aria-pressed={accessFilter === f.val}
-                className={accessFilter === f.val ? 'is-active' : undefined}
+                className={[styles.segmentBtn, accessFilter === f.val ? styles.segmentBtnActive : ''].join(' ')}
                 onClick={() => setAccessStatusFilter(f.val)}
               >
                 {f.label}
@@ -133,7 +133,7 @@ export function AdminRequestsView(): React.JSX.Element {
       {currentTab === 'reports' && (
         <div className={['filters-bar', styles.filters].join(' ')}>
           <span className="small muted">Статус:</span>
-          <div className="rating-segment">
+          <div className={styles.segment}>
             {[
               { val: 'new', label: 'Новые' },
               { val: 'accepted', label: 'Принятые' },
@@ -145,7 +145,7 @@ export function AdminRequestsView(): React.JSX.Element {
                 key={f.val}
                 type="button"
                 aria-pressed={reportsFilter === f.val}
-                className={reportsFilter === f.val ? 'is-active' : undefined}
+                className={[styles.segmentBtn, reportsFilter === f.val ? styles.segmentBtnActive : ''].join(' ')}
                 onClick={() => setReportsStatusFilter(f.val)}
               >
                 {f.label}

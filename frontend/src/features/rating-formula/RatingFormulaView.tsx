@@ -60,7 +60,6 @@ export function RatingFormulaView(): React.JSX.Element {
           <section className={layout.formulaSimpleCard} aria-labelledby="formula-run-title">
             <span className={layout.formulaBadge}>Бег</span>
             <h2 id="formula-run-title">Беговой рейтинг</h2>
-            <p className={layout.formulaCaption}>Нормативы по году, дистанции и полу (SPEC §9.1, §10.2)</p>
 
             <div className={layout.formulaExpression}>баллы = (норматив / время) × 1000</div>
 
@@ -82,9 +81,6 @@ export function RatingFormulaView(): React.JSX.Element {
           <section className={layout.formulaSimpleCard} aria-labelledby="formula-ski-title">
             <span className={layout.formulaBadge}>Лыжи и биатлон</span>
             <h2 id="formula-ski-title">Лыжный рейтинг и биатлон</h2>
-            <p className={layout.formulaCaption}>
-              Плюс очки Russialoppet ÷ 7 (подтверждение методологов, SPEC §9.2, §10.2)
-            </p>
 
             <div className={layout.formulaExpression}>гонка = 100 × (N − место + 1) / N</div>
             <div className={layout.formulaExpression}>сезон = Σ баллы_гонок + очки_RL ÷ 7</div>
@@ -108,7 +104,6 @@ export function RatingFormulaView(): React.JSX.Element {
           <section className={layout.formulaSimpleCard} aria-labelledby="formula-triathlon-title">
             <span className={layout.formulaBadge}>Триатлон</span>
             <h2 id="formula-triathlon-title">Триатлон (TriStats)</h2>
-            <p className={layout.formulaCaption}>Относительно лидера группы (SPEC §9.3, §10.2)</p>
 
             <div className={layout.formulaExpression}>баллы = (Rmax × (1 − (T − Tл) / Tл) + Bmed) × K</div>
 
@@ -167,7 +162,6 @@ export function RatingFormulaView(): React.JSX.Element {
           <section className={layout.formulaSimpleCard} aria-labelledby="formula-trail-title">
             <span className={layout.formulaBadge}>Трейл</span>
             <h2 id="formula-trail-title">Трейлраннинг</h2>
-            <p className={layout.formulaCaption}>Без набора высоты не считается (SPEC §9.4, §10.2)</p>
 
             <div className={layout.formulaExpression}>
               баллы = max(0, 10 × (км + D+ / 100) × (1 − (T − Tл) / Tл) + Bmed)
@@ -188,7 +182,7 @@ export function RatingFormulaView(): React.JSX.Element {
         )}
       </div>
 
-      {/* Карточка Легенды по SPEC §10.2 */}
+      {/* Карточка Легенды */}
       <section
         className={[layout.formulaSimpleCard, layout.formulaLegendCard].join(' ')}
         aria-labelledby="legend-title"
@@ -196,59 +190,75 @@ export function RatingFormulaView(): React.JSX.Element {
         <div className={layout.formulaSimpleCardHeading}>
           <span>Справочник</span>
           <h2 id="legend-title">Легенда обозначений</h2>
-          <p>Параметры и константы формул по спецификации SPEC v1.3 §10.2</p>
+          <p>Параметры и константы формул.</p>
         </div>
 
         <div className={layout.formulaLegendGrid}>
-          <div className={layout.formulaLegendItem}>
-            <span className={layout.formulaLegendSymbol}>T</span>
-            <span className={layout.formulaLegendDesc}>Время финиша спортсмена (в секундах).</span>
-          </div>
-          <div className={layout.formulaLegendItem}>
-            <span className={layout.formulaLegendSymbol}>Tл</span>
-            <span className={layout.formulaLegendDesc}>
-              Время лидера группы (пол + возрастная категория; либо только пол). Считается по всем финишёрам.
-            </span>
-          </div>
-          <div className={layout.formulaLegendItem}>
-            <span className={layout.formulaLegendSymbol}>Tмед</span>
-            <span className={layout.formulaLegendDesc}>
-              Медианное время группы (считается по всем строкам протокола, включая сторонних участников).
-            </span>
-          </div>
-          <div className={layout.formulaLegendItem}>
-            <span className={layout.formulaLegendSymbol}>Bmed</span>
-            <span className={layout.formulaLegendDesc}>
-              Бонус за обгон медианы: <strong>2 × max(0, Tмед − T)</strong> в минутах. Для финишировавших
-              позже медианы Bmed = 0.
-            </span>
-          </div>
-          <div className={layout.formulaLegendItem}>
-            <span className={layout.formulaLegendSymbol}>K</span>
-            <span className={layout.formulaLegendDesc}>
-              Коэффициент статуса гонки: <strong>1.0</strong> (обычный старт), <strong>1.10</strong>{' '}
-              (чемпионат мира / worlds), <strong>1.15</strong> (Kona).
-            </span>
-          </div>
-          <div className={layout.formulaLegendItem}>
-            <span className={layout.formulaLegendSymbol}>Rmax</span>
-            <span className={layout.formulaLegendDesc}>
-              Максимум баллов класса дистанции (для триатлона — фиксированный класс; для трейла — 10 × (км +
-              D+/100)).
-            </span>
-          </div>
-          <div className={layout.formulaLegendItem}>
-            <span className={layout.formulaLegendSymbol}>D+</span>
-            <span className={layout.formulaLegendDesc}>
-              Суммарный вертикальный набор высоты (в метрах). Обязателен для зачёта трейла.
-            </span>
-          </div>
-          <div className={layout.formulaLegendItem}>
-            <span className={layout.formulaLegendSymbol}>N</span>
-            <span className={layout.formulaLegendDesc}>
-              Общее число финишёров того же пола на данной дистанции гонки.
-            </span>
-          </div>
+          {(activeTab === 'all' || activeTab === 'run' || activeTab === 'triathlon' || activeTab === 'trail') && (
+            <div className={layout.formulaLegendItem}>
+              <span className={layout.formulaLegendSymbol}>T</span>
+              <span className={layout.formulaLegendDesc}>Время финиша спортсмена (в секундах).</span>
+            </div>
+          )}
+          {(activeTab === 'all' || activeTab === 'triathlon' || activeTab === 'trail') && (
+            <div className={layout.formulaLegendItem}>
+              <span className={layout.formulaLegendSymbol}>Tл</span>
+              <span className={layout.formulaLegendDesc}>
+                Время лидера группы (пол + возрастная категория; либо только пол). Считается по всем финишёрам.
+              </span>
+            </div>
+          )}
+          {(activeTab === 'all' || activeTab === 'triathlon' || activeTab === 'trail') && (
+            <div className={layout.formulaLegendItem}>
+              <span className={layout.formulaLegendSymbol}>Tмед</span>
+              <span className={layout.formulaLegendDesc}>
+                Медианное время группы (считается по всем строкам протокола, включая сторонних участников).
+              </span>
+            </div>
+          )}
+          {(activeTab === 'all' || activeTab === 'triathlon' || activeTab === 'trail') && (
+            <div className={layout.formulaLegendItem}>
+              <span className={layout.formulaLegendSymbol}>Bmed</span>
+              <span className={layout.formulaLegendDesc}>
+                Бонус за обгон медианы: <strong>2 × max(0, Tмед − T)</strong> в минутах. Для финишировавших
+                позже медианы Bmed = 0.
+              </span>
+            </div>
+          )}
+          {(activeTab === 'all' || activeTab === 'triathlon') && (
+            <div className={layout.formulaLegendItem}>
+              <span className={layout.formulaLegendSymbol}>K</span>
+              <span className={layout.formulaLegendDesc}>
+                Коэффициент статуса гонки: <strong>1.0</strong> (обычный старт), <strong>1.10</strong>{' '}
+                (чемпионат мира / worlds), <strong>1.15</strong> (Kona).
+              </span>
+            </div>
+          )}
+          {(activeTab === 'all' || activeTab === 'triathlon' || activeTab === 'trail') && (
+            <div className={layout.formulaLegendItem}>
+              <span className={layout.formulaLegendSymbol}>Rmax</span>
+              <span className={layout.formulaLegendDesc}>
+                Максимум баллов класса дистанции (для триатлона — фиксированный класс; для трейла — 10 × (км +
+                D+/100)).
+              </span>
+            </div>
+          )}
+          {(activeTab === 'all' || activeTab === 'trail') && (
+            <div className={layout.formulaLegendItem}>
+              <span className={layout.formulaLegendSymbol}>D+</span>
+              <span className={layout.formulaLegendDesc}>
+                Суммарный вертикальный набор высоты (в метрах). Обязателен для зачёта трейла.
+              </span>
+            </div>
+          )}
+          {(activeTab === 'all' || activeTab === 'ski') && (
+            <div className={layout.formulaLegendItem}>
+              <span className={layout.formulaLegendSymbol}>N</span>
+              <span className={layout.formulaLegendDesc}>
+                Общее число финишёров того же пола на данной дистанции гонки.
+              </span>
+            </div>
+          )}
         </div>
       </section>
 
