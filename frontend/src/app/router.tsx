@@ -31,7 +31,7 @@ export const routes: RouteObject[] = [
       {
         path: routePaths.status,
         lazy: () => import('@/pages/status'),
-        handle: handle({ section: 'status', isPublic: true }),
+        handle: handle({ section: 'status' }),
       },
       {
         path: routePaths.resetPassword,

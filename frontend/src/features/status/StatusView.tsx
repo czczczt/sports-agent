@@ -1,10 +1,31 @@
+import { useAuth } from '@/shared/session';
 import { ErrorState, Icon, Loader } from '@/shared/ui';
 import { AdapterTable } from './AdapterTable';
 import styles from './StatusView.module.css';
 import { useSystemStatus } from './useSystemStatus';
 
 export function StatusView(): React.JSX.Element {
+  const { user, isAdmin, openAuthModal } = useAuth();
   const { data, error, isFetching: loading, refetch: fetchStatus } = useSystemStatus();
+
+  if (!isAdmin) {
+    return (
+      <div className="card empty agent-auth-guard">
+        <span className="empty__icon">
+          <Icon name="user" />
+        </span>
+        <div className="strong">Требуются права администратора</div>
+        <p className="small muted">
+          Просмотр технического состояния и очереди задач доступен только администратору.
+        </p>
+        {!user && (
+          <button type="button" className="btn btn--primary" onClick={openAuthModal}>
+            Войти
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={['status-page', styles.page].join(' ')}>

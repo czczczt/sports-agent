@@ -83,13 +83,14 @@ export function pyRound(v: number, digits: number): string {
 }
 
 export function athleteMeta(a: {
+  birth_date?: string | null;
   birth_year?: number | null;
   city?: string | null;
   region?: string | null;
   gender?: string | null;
   club?: string | null;
 }): string {
-  let s = a.birth_year ? String(a.birth_year) : 'год не указан';
+  let s = a.birth_date ? dateRu(a.birth_date) : a.birth_year ? String(a.birth_year) : 'год не указан';
   if (a.gender) s += ` · ${genderLabel(a.gender)}`;
   return s;
 }

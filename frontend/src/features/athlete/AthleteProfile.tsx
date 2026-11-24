@@ -17,6 +17,11 @@ export function AthleteProfile({ summary, results }: AthleteProfileProps): React
   const a = summary.athlete;
   const pbCount = summary.personal_bests.length;
 
+  const fullName =
+    a.middle_name && !a.display_name.includes(a.middle_name)
+      ? `${a.display_name} ${a.middle_name}`
+      : a.display_name;
+
   return (
     <>
       <BackLink to={paths.search}>Найти себя</BackLink>
@@ -27,7 +32,12 @@ export function AthleteProfile({ summary, results }: AthleteProfileProps): React
             {initials(a.display_name)}
           </span>
           <div className={styles.name}>
-            <h1 className="h1 h1-sm">{a.display_name}</h1>
+            <div className="row" style={{ alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <h1 className="h1 h1-sm">{fullName}</h1>
+              {a.employee_status === 'confirmed' && (
+                <span className="chip chip--sm chip--brand">Сотрудник Сбера</span>
+              )}
+            </div>
             <div className={['muted num', styles.meta].join(' ')}>{athleteMeta(a)}</div>
           </div>
         </div>

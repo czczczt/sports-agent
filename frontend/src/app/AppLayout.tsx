@@ -24,6 +24,7 @@ export function AppLayout(): React.JSX.Element {
   const { user, isAdmin, isLoading } = useAuth();
   const current = (s: Section) => (s === section ? 'page' : undefined);
   const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (item.section === 'status') return isAdmin;
     if (item.section === 'agent') return isAdmin;
     if (item.section === 'admin') return isAdmin || user?.role === 'captain';
     return true;

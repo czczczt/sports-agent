@@ -29,6 +29,10 @@ export function SearchResults({ lastName, birthYear }: SearchResultsProps): Reac
             <div className="grid-cards">
               {candidates.map((cand) => {
                 const meta = athleteMeta(cand);
+                const fullName =
+                  cand.middle_name && !cand.display_name.includes(cand.middle_name)
+                    ? `${cand.display_name} ${cand.middle_name}`
+                    : cand.display_name;
                 return (
                   <div key={cand.id} className="card card--pad candidate-card">
                     <div className="row candidate-card__head">
@@ -36,7 +40,7 @@ export function SearchResults({ lastName, birthYear }: SearchResultsProps): Reac
                         {initials(cand.display_name)}
                       </span>
                       <div className={styles.identity}>
-                        <div className="strong candidate-card__name">{cand.display_name}</div>
+                        <div className="strong candidate-card__name">{fullName}</div>
                         <div className="small muted num candidate-card__meta" title={meta}>
                           {meta}
                         </div>
@@ -51,6 +55,9 @@ export function SearchResults({ lastName, birthYear }: SearchResultsProps): Reac
                         <Icon name="run" className="icon-sm" />
                         Бег · {cand.starts_count} {plural(cand.starts_count, 'старт', 'старта', 'стартов')}
                       </Link>
+                      {cand.employee_status === 'confirmed' && (
+                        <span className="chip chip--sm chip--brand">Сотрудник Сбера</span>
+                      )}
                     </div>
                   </div>
                 );
