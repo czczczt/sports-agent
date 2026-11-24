@@ -3,7 +3,7 @@
 import json
 import re
 from datetime import date, datetime
-from time import monotonic, sleep
+from time import sleep
 from uuid import UUID
 
 import requests
@@ -13,6 +13,7 @@ from app.pipeline.errors import PilotRejected
 from app.pipeline.validation import validate_event
 from parser_running.http_cache import UA
 from parser_running.normalize import km_from_name, to_seconds
+from parser_running.request_pacing import pace_request
 
 BASE_URL = "https://results.racetime.online"
 _RESULTS_TEMPLATE = (
@@ -180,12 +181,8 @@ def fetch_event(event_code: str) -> dict:
         raise PilotRejected("Invalid RaceTime event code")
     with requests.Session() as session:
         session.headers.update(UA)
-        next_request = 0.0
-
         def get(url, **kwargs):
-            nonlocal next_request
-            sleep(max(0, next_request - monotonic()))
-            next_request = monotonic() + 1
+            pace_request(url, 1, sleep=sleep)
             response = session.get(url, timeout=(8, 40), allow_redirects=False, **kwargs)
             response.raise_for_status()
             if response.status_code != 200:

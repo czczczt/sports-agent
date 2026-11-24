@@ -7,19 +7,18 @@ from __future__ import annotations
 
 import hashlib
 import json
-import time
 from pathlib import Path
-from threading import Lock
-from urllib.parse import urlsplit
 
 import requests
 
 if __package__:
     from .http_cache import log_fetch
     from .normalize import GENDER_RR, STATUS_RR, is_sber_club, to_seconds
+    from .request_pacing import pace_request
 else:
     from http_cache import log_fetch
     from normalize import GENDER_RR, STATUS_RR, is_sber_club, to_seconds
+    from request_pacing import pace_request
 
 SOURCES = {
     "russiarunning": "https://results.russiarunning.com/api",
@@ -29,20 +28,7 @@ SOURCES = {
 }
 RAW = Path(__file__).parent / "data" / "raw"
 DELAY_S = 0.5
-_REQUEST_LOCK = Lock()
-_NEXT_REQUEST: dict[str, float] = {}
 PAGE = 100  # максимум, который принимает API (Page.Take 1..100)
-
-
-def _pace(url: str) -> None:
-    if not DELAY_S:
-        return
-    host = urlsplit(url).hostname or url
-    with _REQUEST_LOCK:
-        now = time.monotonic()
-        scheduled = max(now, _NEXT_REQUEST.get(host, now))
-        _NEXT_REQUEST[host] = scheduled + DELAY_S
-    time.sleep(max(0, scheduled - time.monotonic()))
 
 
 class RRClient:
@@ -63,7 +49,7 @@ class RRClient:
             return json.loads(f.read_text(encoding="utf-8"))
         for attempt in range(3):  # E2: разовые таймауты
             try:
-                _pace(self.base)
+                pace_request(self.base, DELAY_S)
                 r = self.s.request(method, self.base + path, json=body, params=params, timeout=60)
                 r.raise_for_status()
                 break
@@ -78,9 +64,12 @@ class RRClient:
         return data
 
     def list_events(self, skip: int, take: int) -> list[dict]:
+        return self.event_catalog_page(skip, take)["list"]
+
+    def event_catalog_page(self, skip: int, take: int) -> dict:
         # список меняется со временем — не кешируем
         return self._call("POST", "/events/list", {"page": {"skip": skip, "take": take}, "language": "ru"},
-                          cache=False)["list"]
+                          cache=False)
 
     def get_event(self, code: str) -> dict:
         return self._call("POST", "/events/get", {"eventCode": code, "language": "ru"})

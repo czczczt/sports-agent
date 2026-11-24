@@ -6,6 +6,7 @@ from html.parser import HTMLParser
 import requests
 
 from app.pipeline.errors import PilotRejected
+from parser_running.request_pacing import pace_request
 
 BASE = "https://orgeo.ru"
 EVENT_CODE = r"[A-Za-z0-9_-]{1,64}"
@@ -38,6 +39,7 @@ class _EventLinks(HTMLParser):
 
 def _get(session, path):
     try:
+        pace_request(BASE)
         response = session.get(f"{BASE}{path}", timeout=(5, 15), allow_redirects=False)
     except requests.RequestException as exc:
         raise PilotRejected(f"Orgeo is unreachable; {MANUAL}") from exc

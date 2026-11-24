@@ -1,0 +1,1 @@
+export { AdminCollectionView } from './AdminCollectionView';

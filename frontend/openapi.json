@@ -3909,6 +3909,375 @@
         }
       }
     },
+    "/api/admin/collection/sources": {
+      "get": {
+        "tags": [
+          "admin-collection"
+        ],
+        "summary": "Get Sources",
+        "operationId": "get_sources_api_admin_collection_sources_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "auth_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SourceSummary"
+                  },
+                  "title": "Response Get Sources Api Admin Collection Sources Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/collection/batches": {
+      "post": {
+        "tags": [
+          "admin-collection"
+        ],
+        "summary": "Start Batch",
+        "operationId": "start_batch_api_admin_collection_batches_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "auth_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "admin-collection"
+        ],
+        "summary": "Get Batches",
+        "operationId": "get_batches_api_admin_collection_batches_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "auth_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BatchSummary"
+                  },
+                  "title": "Response Get Batches Api Admin Collection Batches Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/collection/batches/{batch_id}": {
+      "get": {
+        "tags": [
+          "admin-collection"
+        ],
+        "summary": "Get Batch",
+        "operationId": "get_batch_api_admin_collection_batches__batch_id__get",
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Batch Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "auth_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/collection/batches/{batch_id}/approve": {
+      "post": {
+        "tags": [
+          "admin-collection"
+        ],
+        "summary": "Approve Batch",
+        "operationId": "approve_batch_api_admin_collection_batches__batch_id__approve_post",
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Batch Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "auth_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auth Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/status": {
       "get": {
         "tags": [
@@ -6910,6 +7279,89 @@
         ],
         "title": "ApplyResult"
       },
+      "ApprovalRequest": {
+        "properties": {
+          "draft_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Draft Ids"
+          },
+          "resolutions": {
+            "items": {
+              "$ref": "#/components/schemas/RaceResolution"
+            },
+            "type": "array",
+            "title": "Resolutions"
+          },
+          "preview_revision": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Preview Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "draft_ids",
+          "preview_revision"
+        ],
+        "title": "ApprovalRequest"
+      },
+      "ApprovalResult": {
+        "properties": {
+          "approved_draft_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Approved Draft Ids"
+          },
+          "pending_draft_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Pending Draft Ids"
+          },
+          "published_races": {
+            "type": "integer",
+            "title": "Published Races"
+          },
+          "rating_version_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Version Id"
+          },
+          "publication_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "published",
+              "failed"
+            ],
+            "title": "Publication Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "approved_draft_ids",
+          "pending_draft_ids",
+          "published_races",
+          "rating_version_id",
+          "publication_status"
+        ],
+        "title": "ApprovalResult"
+      },
       "AssessmentResponse": {
         "properties": {
           "athlete_id": {
@@ -7401,6 +7853,135 @@
         ],
         "title": "AuthResponse"
       },
+      "BatchCreated": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "BatchCreated"
+      },
+      "BatchDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceProgress"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "drafts": {
+            "items": {
+              "$ref": "#/components/schemas/DraftSummary"
+            },
+            "type": "array",
+            "title": "Drafts"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/EventPreview"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "preview_revision": {
+            "type": "string",
+            "title": "Preview Revision"
+          },
+          "publication_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "published",
+              "failed"
+            ],
+            "title": "Publication Status"
+          },
+          "publication_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publication Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "sources",
+          "drafts",
+          "events",
+          "preview_revision",
+          "publication_status",
+          "publication_error"
+        ],
+        "title": "BatchDetail"
+      },
+      "BatchRequest": {
+        "properties": {
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceCode"
+            },
+            "type": "array",
+            "maxItems": 15,
+            "minItems": 1,
+            "title": "Sources"
+          },
+          "starts": {
+            "items": {
+              "$ref": "#/components/schemas/KnownStart"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Starts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sources"
+        ],
+        "title": "BatchRequest"
+      },
+      "BatchSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at"
+        ],
+        "title": "BatchSummary"
+      },
       "Body_import_athletes_roster_api_admin_athletes_import_post": {
         "properties": {
           "file": {
@@ -7867,6 +8448,108 @@
         ],
         "title": "DistributionBin"
       },
+      "DraftSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceCode"
+          },
+          "event_code": {
+            "type": "string",
+            "title": "Event Code"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "ready",
+              "failed",
+              "approved",
+              "unchanged"
+            ],
+            "title": "Status"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "participants": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participants"
+          },
+          "is_new": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is New"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "event_code",
+          "status",
+          "error"
+        ],
+        "title": "DraftSummary"
+      },
       "DynamicsPoint": {
         "properties": {
           "date": {
@@ -8128,6 +8811,79 @@
         ],
         "title": "EventMergeRequest"
       },
+      "EventPreview": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "draft_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Draft Ids"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "participants": {
+            "type": "integer",
+            "title": "Participants"
+          },
+          "is_new": {
+            "type": "boolean",
+            "title": "Is New"
+          },
+          "races": {
+            "items": {
+              "$ref": "#/components/schemas/RacePreview"
+            },
+            "type": "array",
+            "title": "Races"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "draft_ids",
+          "title",
+          "date",
+          "city",
+          "source",
+          "participants",
+          "is_new",
+          "races"
+        ],
+        "title": "EventPreview"
+      },
       "EventSeriesAttachRequest": {
         "properties": {
           "series_id": {
@@ -8217,6 +8973,25 @@
           "status"
         ],
         "title": "IssueStatus"
+      },
+      "KnownStart": {
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/SourceCode"
+          },
+          "event_code": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,200}$",
+            "title": "Event Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "event_code"
+        ],
+        "title": "KnownStart"
       },
       "LoginRequest": {
         "properties": {
@@ -8720,6 +9495,145 @@
         ],
         "title": "ProtocolSample"
       },
+      "ProtocolSummary": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "draft_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Id"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "race_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Race Name"
+          },
+          "distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          },
+          "sport": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sport"
+          },
+          "relay": {
+            "type": "boolean",
+            "title": "Relay"
+          },
+          "participants": {
+            "type": "integer",
+            "title": "Participants"
+          },
+          "is_final": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Final"
+          },
+          "published": {
+            "type": "boolean",
+            "title": "Published"
+          },
+          "planned": {
+            "type": "boolean",
+            "title": "Planned"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "draft_id",
+          "source",
+          "title",
+          "date",
+          "city",
+          "url",
+          "race_name",
+          "distance_m",
+          "sport",
+          "relay",
+          "participants",
+          "is_final",
+          "published",
+          "planned"
+        ],
+        "title": "ProtocolSummary"
+      },
       "QueueStatus": {
         "properties": {
           "status": {
@@ -8953,6 +9867,90 @@
           "results"
         ],
         "title": "RacePageResponse"
+      },
+      "RacePreview": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          },
+          "sport": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sport"
+          },
+          "relay": {
+            "type": "boolean",
+            "title": "Relay"
+          },
+          "participants": {
+            "type": "integer",
+            "title": "Participants"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning"
+          },
+          "preferred_protocol_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferred Protocol Key"
+          },
+          "protocols": {
+            "items": {
+              "$ref": "#/components/schemas/ProtocolSummary"
+            },
+            "type": "array",
+            "title": "Protocols"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "distance_m",
+          "sport",
+          "relay",
+          "participants",
+          "warning",
+          "preferred_protocol_key",
+          "protocols"
+        ],
+        "title": "RacePreview"
       },
       "RaceProtocolItem": {
         "properties": {
@@ -9192,6 +10190,29 @@
           "rating_starts"
         ],
         "title": "RaceRatingLeader"
+      },
+      "RaceResolution": {
+        "properties": {
+          "race_key": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Race Key"
+          },
+          "protocol_key": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Protocol Key"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "race_key",
+          "protocol_key"
+        ],
+        "title": "RaceResolution"
       },
       "RatingFormulaResponse": {
         "properties": {
@@ -10422,6 +11443,70 @@
           "racetime"
         ],
         "title": "SourceCode"
+      },
+      "SourceProgress": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/SourceCode"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed",
+              "unsupported",
+              "disabled"
+            ],
+            "title": "Status"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "status",
+          "error"
+        ],
+        "title": "SourceProgress"
+      },
+      "SourceSummary": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/SourceCode"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "automatic": {
+            "type": "boolean",
+            "title": "Automatic"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "label",
+          "automatic",
+          "enabled"
+        ],
+        "title": "SourceSummary"
       },
       "StartRepair": {
         "properties": {

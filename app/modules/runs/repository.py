@@ -42,6 +42,12 @@ class RunRepository:
         row = await self.one("SELECT pg_try_advisory_lock(hashtextextended(%s,0)) AS locked", (f'pilot:{run_id}',))
         return row['locked']
 
+    async def claim_collection_source(self, source_id):
+        # Shared by both collectors, including jobs recovered after a stalled heartbeat.
+        await self.connection.execute(
+            "SELECT pg_advisory_lock(hashtextextended(%s, 0))", (f"collection-source:{source_id}",),
+        )
+
     async def phase(self, run_id, phase):
         await self.connection.execute(
             "UPDATE pilot_run SET status='running',phase=%s,error=NULL,updated_at=now() WHERE id=%s", (phase, run_id),

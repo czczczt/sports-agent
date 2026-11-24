@@ -70,3 +70,19 @@ async def purge_expired_raw_records(
     )
     res = await session.execute(update_query, {"cutoff": cutoff_time})
     return res.rowcount or 0
+
+
+async def purge_expired_bulk_drafts(session: AsyncSession, days: int = RAW_TTL_DAYS) -> int:
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+    res = await session.execute(
+        text("""
+            UPDATE bulk_draft d
+            SET payload = NULL,
+                status = CASE WHEN d.status = 'ready' THEN 'failed' ELSE d.status END,
+                error = CASE WHEN d.status = 'ready' THEN :expired ELSE d.error END
+            FROM bulk_batch b
+            WHERE b.id = d.batch_id AND b.created_at < :cutoff AND d.payload IS NOT NULL
+        """),
+        {"cutoff": cutoff, "expired": "Срок хранения черновика истёк. Запусти сбор повторно."},
+    )
+    return res.rowcount or 0

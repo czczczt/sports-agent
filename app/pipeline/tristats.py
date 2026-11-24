@@ -10,6 +10,7 @@ import requests
 
 from app.pipeline.errors import PilotRejected
 from parser_running.normalize import to_seconds
+from parser_running.request_pacing import pace_request
 
 BASE = "https://tristats.ru"
 EVENT_CODE = re.compile(r"([a-z0-9][a-z0-9-]*)__([a-z0-9][a-z0-9-]*)__([a-z0-9][a-z0-9-]*)__([0-9]{4})")
@@ -98,12 +99,8 @@ def fetch_event(event_code: str) -> dict:
     url = f"{BASE}/result{path}"
     deadline = monotonic() + 150
     with requests.Session() as session:
-        next_request = 0.0
-
         def get(route):
-            nonlocal next_request
-            sleep(max(0, next_request - monotonic()))
-            next_request = monotonic() + 0.5
+            pace_request(BASE, sleep=sleep)
             if monotonic() >= deadline:
                 raise requests.Timeout("TriStats collection timed out")
             response = session.get(f"{BASE}/api{route}", timeout=(5, 15), allow_redirects=False)

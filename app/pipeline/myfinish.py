@@ -7,6 +7,7 @@ from uuid import uuid4
 import requests
 
 from app.pipeline.errors import PilotRejected
+from parser_running.request_pacing import pace_request
 
 BASE = "https://new.myfinish.info"
 DATA_URL = "https://myfinish.info/php/gate_online.php"
@@ -20,6 +21,7 @@ def fetch_event(event_code: str) -> dict:
     # The public frontend requests d=2 for the class list. A reachable HTML
     # shell or catalog does not establish access to the protocol data.
     try:
+        pace_request(DATA_URL)
         response = requests.get(
             DATA_URL,
             params={"evid": event_code, "d": 2, "U": int(time())},

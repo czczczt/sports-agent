@@ -1,7 +1,7 @@
 import { paths } from './paths';
 import type { IconName } from '@/shared/ui';
 
-export type Section = 'events' | 'rating' | 'search' | 'agent' | 'admin' | 'status';
+export type Section = 'events' | 'rating' | 'search' | 'agent' | 'admin' | 'status' | 'collection';
 
 export interface NavItem {
   section: Section;
@@ -17,5 +17,12 @@ export const NAV_ITEMS: NavItem[] = [
   { section: 'search', to: paths.search, label: 'Найти себя', icon: 'user', mobile: true },
   { section: 'admin', to: paths.adminRequests, label: 'Заявки', icon: 'flag', mobile: false },
   { section: 'agent', to: paths.agentReview, label: 'Правки агента', icon: 'spark', mobile: false },
+  {
+    section: 'collection',
+    to: paths.adminCollection,
+    label: 'Обновление данных',
+    icon: 'spark',
+    mobile: true,
+  },
   { section: 'status', to: paths.status, label: 'Статус', icon: 'spark', mobile: false },
 ];

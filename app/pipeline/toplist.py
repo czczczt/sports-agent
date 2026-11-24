@@ -9,6 +9,7 @@ import requests
 
 from app.pipeline.errors import PilotRejected
 from parser_running.normalize import to_seconds
+from parser_running.request_pacing import pace_request
 
 BASE = "https://toplist.run"
 PAGE_SIZE = 50
@@ -84,12 +85,8 @@ def fetch_event(event_code: str) -> dict:
     event_url = f"{BASE}/race/{event_id}"
     deadline = monotonic() + 150
     with requests.Session() as session:
-        next_request = 0.0
-
         def get(path, params=None):
-            nonlocal next_request
-            sleep(max(0, next_request - monotonic()))
-            next_request = monotonic() + 0.5
+            pace_request(BASE, sleep=sleep)
             if monotonic() >= deadline:
                 raise requests.Timeout("TopList collection timed out")
             response = session.get(f"{BASE}/api{path}", params=params, timeout=(5, 15), allow_redirects=False)

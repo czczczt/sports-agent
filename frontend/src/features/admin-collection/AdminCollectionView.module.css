@@ -1,0 +1,113 @@
+.stack {
+  display: grid;
+  gap: var(--space-16px);
+  min-width: 0;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: var(--space-12px);
+}
+
+.sources {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.sources legend {
+  margin-bottom: var(--space-12px);
+  padding: 0;
+}
+
+.panel {
+  padding: var(--space-12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.row,
+.choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8px);
+}
+
+.row {
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.action {
+  justify-self: start;
+}
+
+.choice {
+  align-items: baseline;
+}
+
+.choice input {
+  flex: 0 0 auto;
+  accent-color: var(--brand-fill);
+}
+
+.sourceMeta {
+  margin: var(--space-4px) 0 0;
+}
+
+.codes {
+  margin-top: var(--space-8px);
+}
+
+.codes summary,
+.protocols summary {
+  cursor: pointer;
+}
+
+.codes label {
+  margin-top: var(--space-8px);
+}
+
+.protocols > :not(summary) {
+  margin-top: var(--space-8px);
+}
+
+.cleanList {
+  display: grid;
+  gap: var(--space-8px);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.error {
+  color: var(--status-error);
+  overflow-wrap: anywhere;
+}
+
+.warning {
+  color: var(--status-pending);
+}
+
+.raceName {
+  font-weight: 600;
+}
+
+.protocolPanel {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4px);
+}
+
+.protocolPanel p {
+  margin: 0;
+}
+
+.history {
+  min-width: min(100%, 260px);
+}

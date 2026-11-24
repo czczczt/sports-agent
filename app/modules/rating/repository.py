@@ -113,6 +113,7 @@ class RatingRepository(ReadRepository):
                 JOIN race ra ON ra.id = r.race_id
                 JOIN competition c ON c.id = ra.competition_id
                 WHERE s.points IS NOT NULL
+                  AND ra.superseded_by_race_id IS NULL
                   AND c.date_begin BETWEEN ? AND ?
                   AND {sport_clause}
                   AND a.is_hidden = FALSE
@@ -472,6 +473,7 @@ class RatingRepository(ReadRepository):
             LEFT JOIN athlete a ON a.id = link.athlete_id
             WHERE COALESCE(ra.sport_type, c.sport_type, 'run') = 'run'
               AND NOT r.collection_review AND ra.race_type IS DISTINCT FROM 'relay'
+              AND ra.superseded_by_race_id IS NULL
             """
         )
 
@@ -586,6 +588,7 @@ class RatingRepository(ReadRepository):
                 JOIN race ra ON ra.id = r.race_id
                 JOIN competition c ON c.id = ra.competition_id
                 WHERE s.points IS NOT NULL
+                  AND ra.superseded_by_race_id IS NULL
                   AND c.date_begin BETWEEN ? AND ?
                   AND {sp_where}
                 GROUP BY a.id

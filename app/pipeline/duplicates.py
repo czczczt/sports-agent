@@ -13,7 +13,8 @@ def _protocol_rows(cursor, event_id):
                   r.chip_time_s, r.gun_time_s, l.athlete_id
            FROM race ra JOIN result r ON r.race_id=ra.id
            LEFT JOIN result_athlete l ON l.result_id=r.id
-           WHERE ra.competition_id=%s AND r.status='FIN' AND r.duplicate_of IS NULL
+           WHERE ra.competition_id=%s AND ra.superseded_by_race_id IS NULL
+             AND r.status='FIN' AND r.duplicate_of IS NULL
              AND ra.distance_m IS NOT NULL AND r.is_anonymized IS NOT TRUE""", (event_id,),
     ).fetchall()
 

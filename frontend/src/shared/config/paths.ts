@@ -10,6 +10,7 @@ export const routes = {
   race: '/races-view/:raceId',
   adminRequests: '/admin/requests',
   admin: '/admin',
+  adminCollection: '/admin/collection',
   agentReview: '/agent-review',
 } as const;
 

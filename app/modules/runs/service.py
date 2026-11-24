@@ -40,8 +40,9 @@ async def start_run(source_code: SourceCode, event_code: str) -> dict:
         if active:
             raise RunConflict(active['id'])
         run_id = await repo.create(source['id'], event_code)
-        lock = f"pilot:{run_id}"
-        await pilot_collect_task.configure(connection=conn, lock=lock, queueing_lock=lock).defer_async(run_id=run_id)
+        await pilot_collect_task.configure(
+            connection=conn, lock=f"collection-source:{source['id']}", queueing_lock=f"pilot:{run_id}",
+        ).defer_async(run_id=run_id)
         return {'run_id': run_id, 'status': 'queued'}
 
 

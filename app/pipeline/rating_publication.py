@@ -6,13 +6,18 @@ from app.pipeline.errors import PilotRejected
 from app.services.rating_service import recalculate_rating_sync
 
 
-def publish_rating(connection, run_id: int, *, as_of: date | None = None) -> int:
+def publish_rating(
+    connection, run_id: int, *, as_of: date | None = None, affected_sports: set[str] | None = None,
+    require_running: bool = True,
+) -> int | None:
     repository = RatingPublicationRepository(connection)
     previous_id, existing_id, legacy = repository.prepare(run_id)
     if existing_id is not None:
         return existing_id
-    summary = recalculate_rating_sync(connection, as_of=as_of, commit=False)
+    summary = recalculate_rating_sync(connection, as_of=as_of, commit=False, affected_sports=affected_sports)
     count = summary["athletes_rated"]
+    if not count and not require_running and previous_id is None and not legacy:
+        return None
     if not count:
         raise PilotRejected("Cannot publish an empty running rating")
     comparable = repository.comparable_count(previous_id, summary)

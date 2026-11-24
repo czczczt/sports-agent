@@ -21,7 +21,7 @@ from app.core.database import async_postgres_url
 from app.recipe_agent.collection import collect_source
 from app.recipe_agent.repository import RecipeRepository
 from app.recipe_agent.service import run_repair
-from app.services.privacy_service import purge_expired_raw_records
+from app.services.privacy_service import purge_expired_bulk_drafts, purge_expired_raw_records
 from app.services.rating_service import recalculate_rating_sync
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(name)s] %(levelname)s: %(message)s")
@@ -74,6 +74,24 @@ async def pilot_collect_task(context: procrastinate.JobContext, run_id: int) -> 
     return await collect_event(run_id, final_attempt=context.job.attempts >= 3)
 
 
+@procrastinate_app.task(
+    name="app.worker.bulk_discover_task", queue="bulk-collect", pass_context=True,
+    retry=procrastinate.RetryStrategy(max_attempts=3, wait=60),
+)
+async def bulk_discover_task(context: procrastinate.JobContext, batch_id: int, source_id: int) -> None:
+    from app.modules.bulk_collection.collection import collect_catalog
+    await collect_catalog(batch_id, source_id, final_attempt=context.job.attempts >= 3)
+
+
+@procrastinate_app.task(
+    name="app.worker.bulk_event_task", queue="bulk-collect", pass_context=True,
+    retry=procrastinate.RetryStrategy(max_attempts=3, wait=60),
+)
+async def bulk_event_task(context: procrastinate.JobContext, draft_id: int) -> None:
+    from app.modules.bulk_collection.collection import collect_draft
+    await collect_draft(draft_id, final_attempt=context.job.attempts >= 3)
+
+
 async def enqueue_recipe_repair(repo: RecipeRepository, repair_id: int) -> None:
     lock = f"recipe-repair:{repair_id}"
     try:
@@ -100,7 +118,7 @@ async def enqueue_recipe_collection(repo: RecipeRepository, source_id: int) -> N
 @procrastinate_app.task(name="app.worker.recover_recipe_jobs", queue="maintenance")
 async def recover_recipe_jobs(timestamp: int) -> None:
     manager = procrastinate_app.job_manager
-    for task in (recipe_repair_task, collect_source_task, pilot_collect_task):
+    for task in (recipe_repair_task, collect_source_task, pilot_collect_task, bulk_discover_task, bulk_event_task):
         stalled_jobs = await manager.get_stalled_jobs(task_name=task.name, seconds_since_heartbeat=60)
         for job in stalled_jobs:
             try:
@@ -112,22 +130,37 @@ async def recover_recipe_jobs(timestamp: int) -> None:
 @procrastinate_app.periodic(cron="0 3 * * *")  # Every night at 03:00 UTC
 @procrastinate_app.task(name="app.worker.daily_cleanup_raw_task", queue="maintenance")
 async def daily_cleanup_raw_task() -> dict[str, Any]:
-    """Daily maintenance task to clean up raw payloads older than RAW_TTL_DAYS (SPEC §12)."""
+    """Purge raw snapshots and staged participant data older than RAW_TTL_DAYS."""
     engine = create_async_engine(async_postgres_url(DATABASE_URL))
     try:
-        async with AsyncSession(engine) as session, session.begin():
-            purged = await purge_expired_raw_records(session)
-        logger.info("Daily cleanup finished. Purged %d records.", purged)
-        return {"purged": purged}
+        async with AsyncSession(engine) as session:
+            async with session.begin():
+                purged = await purge_expired_raw_records(session)
+            async with session.begin():
+                purged_drafts = await purge_expired_bulk_drafts(session)
+        logger.info("Daily cleanup finished. Purged %d raw records and %d draft payloads.", purged, purged_drafts)
+        return {"purged": purged, "purged_drafts": purged_drafts}
     finally:
         await engine.dispose()
 
 
 async def run_worker() -> None:
     async with procrastinate_app.open_async():
-        await procrastinate_app.run_worker_async(
-            queues=["default", "collect", "rebuild", "maintenance", "agent"]
-        )
+        regular = asyncio.create_task(procrastinate_app.run_worker_async(
+            queues=["default", "collect", "rebuild", "maintenance", "agent"],
+        ))
+        bulk = asyncio.create_task(procrastinate_app.run_worker_async(
+            queues=["bulk-collect"], concurrency=3, install_signal_handlers=False,
+        ))
+        try:
+            done, _ = await asyncio.wait((regular, bulk), return_when=asyncio.FIRST_COMPLETED)
+            for worker in done:
+                worker.result()
+        finally:
+            for worker in (regular, bulk):
+                if not worker.done():
+                    worker.cancel()
+            await asyncio.gather(regular, bulk, return_exceptions=True)
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ import json
 import re
 from datetime import date
 from math import ceil
-from time import monotonic, sleep
+from time import sleep
 
 import requests
 from bs4 import BeautifulSoup
@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 from app.pipeline.errors import PilotRejected
 from app.pipeline.validation import validate_event
 from parser_running.http_cache import UA
+from parser_running.request_pacing import pace_request
 
 BASE_URL = "https://results.zone"
 _SPORT = {"running": "run", "trail": "trail", "skiing": "ski", "triathlon": "triathlon"}
@@ -139,12 +140,8 @@ def fetch_event(event_code: str) -> dict:
         raise PilotRejected("Invalid Results.zone event code")
     with requests.Session() as session:
         session.headers.update(UA)
-        next_request = 0.0
-
         def get(path):
-            nonlocal next_request
-            sleep(max(0, next_request - monotonic()))
-            next_request = monotonic() + 1
+            pace_request(BASE_URL, 1, sleep=sleep)
             response = session.get(BASE_URL + path, timeout=(5, 25), allow_redirects=False)
             response.raise_for_status()
             if response.status_code != 200:

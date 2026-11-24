@@ -805,6 +805,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/collection/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sources */
+        get: operations["get_sources_api_admin_collection_sources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/collection/batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Batches */
+        get: operations["get_batches_api_admin_collection_batches_get"];
+        put?: never;
+        /** Start Batch */
+        post: operations["start_batch_api_admin_collection_batches_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/collection/batches/{batch_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Batch */
+        get: operations["get_batch_api_admin_collection_batches__batch_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/collection/batches/{batch_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Batch */
+        post: operations["approve_batch_api_admin_collection_batches__batch_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/status": {
         parameters: {
             query?: never;
@@ -1545,6 +1614,31 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** ApprovalRequest */
+        ApprovalRequest: {
+            /** Draft Ids */
+            draft_ids: number[];
+            /** Resolutions */
+            resolutions?: components["schemas"]["RaceResolution"][];
+            /** Preview Revision */
+            preview_revision: string;
+        };
+        /** ApprovalResult */
+        ApprovalResult: {
+            /** Approved Draft Ids */
+            approved_draft_ids: number[];
+            /** Pending Draft Ids */
+            pending_draft_ids: number[];
+            /** Published Races */
+            published_races: number;
+            /** Rating Version Id */
+            rating_version_id: number | null;
+            /**
+             * Publication Status
+             * @enum {string}
+             */
+            publication_status: "pending" | "published" | "failed";
+        };
         /** AssessmentResponse */
         AssessmentResponse: {
             /** Athlete Id */
@@ -1693,6 +1787,53 @@ export interface components {
              */
             token_type: string;
             user: components["schemas"]["UserOut"];
+        };
+        /** BatchCreated */
+        BatchCreated: {
+            /** Id */
+            id: number;
+        };
+        /** BatchDetail */
+        BatchDetail: {
+            /** Id */
+            id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Sources */
+            sources: components["schemas"]["SourceProgress"][];
+            /** Drafts */
+            drafts: components["schemas"]["DraftSummary"][];
+            /** Events */
+            events: components["schemas"]["EventPreview"][];
+            /** Preview Revision */
+            preview_revision: string;
+            /**
+             * Publication Status
+             * @enum {string}
+             */
+            publication_status: "pending" | "published" | "failed";
+            /** Publication Error */
+            publication_error: string | null;
+        };
+        /** BatchRequest */
+        BatchRequest: {
+            /** Sources */
+            sources: components["schemas"]["SourceCode"][];
+            /** Starts */
+            starts?: components["schemas"]["KnownStart"][];
+        };
+        /** BatchSummary */
+        BatchSummary: {
+            /** Id */
+            id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** Body_import_athletes_roster_api_admin_athletes_import_post */
         Body_import_athletes_roster_api_admin_athletes_import_post: {
@@ -1850,6 +1991,31 @@ export interface components {
             /** Count */
             count: number;
         };
+        /** DraftSummary */
+        DraftSummary: {
+            /** Id */
+            id: number;
+            source: components["schemas"]["SourceCode"];
+            /** Event Code */
+            event_code: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "ready" | "failed" | "approved" | "unchanged";
+            /** Error */
+            error: string | null;
+            /** Title */
+            title?: string | null;
+            /** Date */
+            date?: string | null;
+            /** City */
+            city?: string | null;
+            /** Participants */
+            participants?: number | null;
+            /** Is New */
+            is_new?: boolean | null;
+        };
         /** DynamicsPoint */
         DynamicsPoint: {
             /** Date */
@@ -1932,6 +2098,27 @@ export interface components {
             /** Actual Event Id */
             actual_event_id: number;
         };
+        /** EventPreview */
+        EventPreview: {
+            /** Key */
+            key: string;
+            /** Draft Ids */
+            draft_ids: number[];
+            /** Title */
+            title: string;
+            /** Date */
+            date: string | null;
+            /** City */
+            city: string | null;
+            /** Source */
+            source: string;
+            /** Participants */
+            participants: number;
+            /** Is New */
+            is_new: boolean;
+            /** Races */
+            races: components["schemas"]["RacePreview"][];
+        };
         /** EventSeriesAttachRequest */
         EventSeriesAttachRequest: {
             /** Series Id */
@@ -1962,6 +2149,12 @@ export interface components {
             issue_id: number;
             /** Status */
             status: string;
+        };
+        /** KnownStart */
+        KnownStart: {
+            source: components["schemas"]["SourceCode"];
+            /** Event Code */
+            event_code: string;
         };
         /** LoginRequest */
         LoginRequest: {
@@ -2116,6 +2309,39 @@ export interface components {
             /** Total */
             total?: number | null;
         };
+        /** ProtocolSummary */
+        ProtocolSummary: {
+            /** Key */
+            key: string;
+            /** Draft Id */
+            draft_id: number | null;
+            /** Source */
+            source: string;
+            /** Title */
+            title: string;
+            /** Date */
+            date: string | null;
+            /** City */
+            city: string | null;
+            /** Url */
+            url: string | null;
+            /** Race Name */
+            race_name: string | null;
+            /** Distance M */
+            distance_m: number | null;
+            /** Sport */
+            sport: string | null;
+            /** Relay */
+            relay: boolean;
+            /** Participants */
+            participants: number;
+            /** Is Final */
+            is_final: boolean | null;
+            /** Published */
+            published: boolean;
+            /** Planned */
+            planned: boolean;
+        };
         /** QueueStatus */
         QueueStatus: {
             /** Status */
@@ -2183,6 +2409,27 @@ export interface components {
             /** Sber Finishers Count */
             sber_finishers_count?: number | null;
         };
+        /** RacePreview */
+        RacePreview: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Distance M */
+            distance_m: number | null;
+            /** Sport */
+            sport: string | null;
+            /** Relay */
+            relay: boolean;
+            /** Participants */
+            participants: number;
+            /** Warning */
+            warning: string | null;
+            /** Preferred Protocol Key */
+            preferred_protocol_key: string | null;
+            /** Protocols */
+            protocols: components["schemas"]["ProtocolSummary"][];
+        };
         /** RaceProtocolItem */
         RaceProtocolItem: {
             /** Result Id */
@@ -2240,6 +2487,13 @@ export interface components {
             chip_time_s?: number | null;
             /** Gun Time S */
             gun_time_s?: number | null;
+        };
+        /** RaceResolution */
+        RaceResolution: {
+            /** Race Key */
+            race_key: string;
+            /** Protocol Key */
+            protocol_key: string;
         };
         /** RatingFormulaResponse */
         RatingFormulaResponse: {
@@ -2618,6 +2872,27 @@ export interface components {
          * @enum {string}
          */
         SourceCode: "russiarunning" | "timerman" | "legkovrace" | "pionercup" | "probeg" | "ironstar" | "grom" | "russialoppet" | "myrunstats" | "resultszone" | "myfinish" | "toplist" | "tristats" | "orgeo" | "racetime";
+        /** SourceProgress */
+        SourceProgress: {
+            code: components["schemas"]["SourceCode"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "completed" | "failed" | "unsupported" | "disabled";
+            /** Error */
+            error: string | null;
+        };
+        /** SourceSummary */
+        SourceSummary: {
+            code: components["schemas"]["SourceCode"];
+            /** Label */
+            label: string;
+            /** Automatic */
+            automatic: boolean;
+            /** Enabled */
+            enabled: boolean;
+        };
         /** StartRepair */
         StartRepair: {
             /** Source Id */
@@ -4451,6 +4726,183 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminSummaryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sources_api_admin_collection_sources_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_batches_api_admin_collection_batches_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_batch_api_admin_collection_batches_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_batch_api_admin_collection_batches__batch_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                batch_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_batch_api_admin_collection_batches__batch_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                batch_id: number;
+            };
+            cookie?: {
+                auth_token?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalResult"];
                 };
             };
             /** @description Validation Error */

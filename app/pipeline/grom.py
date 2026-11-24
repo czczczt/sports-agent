@@ -2,13 +2,14 @@
 
 import re
 from datetime import date
-from time import monotonic, sleep
+from time import sleep
 
 import requests
 
 from app.pipeline.errors import PilotRejected
 from parser_running.grom import BASE, GromConnector
 from parser_running.http_cache import UA
+from parser_running.request_pacing import pace_request
 
 
 def fetch_event(event_code: str) -> dict:
@@ -18,12 +19,8 @@ def fetch_event(event_code: str) -> dict:
     with requests.Session() as session:
         session.headers.update(UA)
 
-        next_request = 0.0
-
         def get(_source, url):
-            nonlocal next_request
-            sleep(max(0, next_request - monotonic()))
-            next_request = monotonic() + 0.5
+            pace_request(url, sleep=sleep)
             response = session.get(url, timeout=(5, 15), allow_redirects=False)
             response.raise_for_status()
             if response.status_code != 200:

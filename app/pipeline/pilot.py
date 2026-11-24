@@ -63,6 +63,7 @@ async def collect_event(run_id: int, *, final_attempt: bool = True) -> dict:
             raise ValueError(f'Unknown pilot run: {run_id}')
         if run['status'] in ('succeeded', 'failed'):
             return {'run_id': run_id, 'status': run['status']}
+        await repo.claim_collection_source(run['source_id'])
         phase = 'fetching'
         try:
             await repo.phase(run_id, 'fetching')

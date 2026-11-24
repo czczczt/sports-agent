@@ -181,7 +181,10 @@ async def recalculate_rating(session: Any, *, as_of: Any = None, formula_version
     return await RatingRepository(session).recalculate_rating(as_of=as_of, formula_version=formula_version)
 
 
-def recalculate_rating_sync(conn: Any = None, *, as_of: Any = None, formula_version: str = FORMULA_VERSION, commit: bool = True) -> dict[str, Any]:
+def recalculate_rating_sync(
+    conn: Any = None, *, as_of: Any = None, formula_version: str = FORMULA_VERSION,
+    commit: bool = True, affected_sports: set[str] | None = None,
+) -> dict[str, Any]:
     """Синхронный запуск пересчёта для CLI/фоновых скриптов через psycopg."""
     import json
     import statistics
@@ -199,6 +202,17 @@ def recalculate_rating_sync(conn: Any = None, *, as_of: Any = None, formula_vers
 
     try:
         cur = conn.cursor()
+        sport_definitions = [
+            ("run", formula_version, ["run"]),
+            ("ski", "ski-v1", ["ski", "biathlon"]),
+            ("triathlon", "triathlon-v1", ["triathlon"]),
+            ("trail", "trail-v1", ["trail"]),
+        ]
+        scoring_groups = {"run"} if affected_sports is None else affected_sports
+        scoring_sports = [
+            sport for group, _, sports in sport_definitions if group in scoring_groups for sport in sports
+        ]
+        scoring_versions = [version for group, version, _ in sport_definitions if group in scoring_groups]
         end_date = as_of or date.today()
         start_date = end_date - timedelta(days=RATING_PERIOD_DAYS)
         start_str = start_date.isoformat()
@@ -208,10 +222,19 @@ def recalculate_rating_sync(conn: Any = None, *, as_of: Any = None, formula_vers
         cur.execute("""
             DELETE FROM rating_score s USING result r, race ra, competition c
             WHERE s.result_id=r.id AND r.race_id=ra.id AND ra.competition_id=c.id
-              AND s.formula_version = %s
-              AND (r.collection_review OR COALESCE(ra.sport_type, c.sport_type, 'run') <> 'run'
-                   OR ra.race_type = 'relay')
-        """, (formula_version,))
+              AND (
+                  ra.superseded_by_race_id IS NOT NULL
+                  OR (s.formula_version = ANY(%s) AND (
+                      r.collection_review OR ra.race_type = 'relay'
+                      OR s.formula_version <> CASE COALESCE(ra.sport_type, c.sport_type, ra.sport, 'run')
+                          WHEN 'run' THEN %s WHEN 'ski' THEN 'ski-v1' WHEN 'biathlon' THEN 'ski-v1'
+                          WHEN 'triathlon' THEN 'triathlon-v1' WHEN 'trail' THEN 'trail-v1' END
+                  ))
+              )
+        """, (
+            scoring_versions,
+            formula_version,
+        ))
 
         cur.execute("SELECT distance_class, gender, value, unit, year FROM rating_norm")
         norms = {
@@ -221,18 +244,19 @@ def recalculate_rating_sync(conn: Any = None, *, as_of: Any = None, formula_vers
 
         cur.execute("""
             SELECT r.id, r.race_id, r.status, r.duplicate_of, r.gender, r.chip_time_s,
-                   r.gun_time_s, r.distance_km, r.position, r.position_gender,
-                   ra.distance_type, ra.discipline, ra.sport, ra.scoring_class,
-                   ra.elevation_gain_m, ra.is_rl_series, ra.special,
-                   c.date_begin, a.id AS athlete_id
+                   CASE WHEN COALESCE(ra.sport_type, c.sport_type, ra.sport, 'run') <> 'run'
+                        THEN COALESCE(r.gun_time_s, r.official_time_s) ELSE r.gun_time_s END,
+                   COALESCE(r.distance_km, ra.distance_km_raw), r.position, r.position_gender,
+                   ra.distance_type, ra.discipline, COALESCE(ra.sport_type, c.sport_type, ra.sport, 'run'),
+                   COALESCE(ra.scoring_class, ra.source_distance_class),
+                   ra.elevation_gain_m, ra.is_rl_series, ra.special, c.date_begin
             FROM result r
             JOIN race ra ON ra.id = r.race_id
             JOIN competition c ON c.id = ra.competition_id
-            LEFT JOIN result_athlete link ON link.result_id = r.id
-            LEFT JOIN athlete a ON a.id = link.athlete_id
-            WHERE COALESCE(ra.sport_type, c.sport_type, 'run') = 'run'
+            WHERE COALESCE(ra.sport_type, c.sport_type, ra.sport, 'run') = ANY(%s)
               AND NOT r.collection_review AND ra.race_type IS DISTINCT FROM 'relay'
-        """)
+              AND ra.superseded_by_race_id IS NULL
+        """, (scoring_sports,))
         rows = cur.fetchall()
 
         # Group stats per (race_id, gender)
@@ -242,7 +266,7 @@ def recalculate_rating_sync(conn: Any = None, *, as_of: Any = None, formula_vers
             rk = (race_id, gender)
             if rk not in race_stats:
                 race_stats[rk] = {"times": [], "count": 0}
-            if status == "FIN":
+            if status == "FIN" and row[3] is None:
                 race_stats[rk]["count"] += 1
                 t_val = chip_s if chip_s is not None else gun_s
                 if isinstance(t_val, (int, float)) and t_val > 0:
@@ -260,7 +284,7 @@ def recalculate_rating_sync(conn: Any = None, *, as_of: Any = None, formula_vers
             (
                 rid, race_id, status, dup, gender, chip_s, gun_s, dist_km,
                 pos, pos_gender, dist_type, disc, sport, scoring_class,
-                elevation_m, is_rl_series, special, dbegin, aid,
+                elevation_m, is_rl_series, special, dbegin,
             ) = row
             rk = (race_id, gender)
             stats = race_stats.get(rk, {})
@@ -310,13 +334,7 @@ def recalculate_rating_sync(conn: Any = None, *, as_of: Any = None, formula_vers
                 breakdown_json = EXCLUDED.breakdown_json
         """, score_rows)
 
-        # Multi-sport aggregation for rating_entry and rating_snapshot
-        sport_definitions = [
-            ("run", "run-v1", "(ra.sport = 'run' OR ra.sport IS NULL)"),
-            ("ski", "ski-v1", "ra.sport IN ('ski', 'biathlon')"),
-            ("triathlon", "triathlon-v1", "ra.sport = 'triathlon'"),
-            ("trail", "trail-v1", "ra.sport = 'trail'"),
-        ]
+        # Aggregate each affected rating using its own formula.
 
         rl_map = {}
         try:
@@ -326,8 +344,10 @@ def recalculate_rating_sync(conn: Any = None, *, as_of: Any = None, formula_vers
             pass
 
         run_aggregates = []
-        for sp, f_ver, sp_where in sport_definitions:
-            cur.execute(f"""
+        for sp, f_ver, sports in sport_definitions:
+            if affected_sports is not None and sp not in affected_sports:
+                continue
+            cur.execute("""
                 SELECT a.id AS athlete_id, SUM(s.points) AS points,
                        MAX(s.points) AS best_points, COUNT(*) AS starts_count
                 FROM athlete a
@@ -338,10 +358,12 @@ def recalculate_rating_sync(conn: Any = None, *, as_of: Any = None, formula_vers
                 JOIN competition c ON c.id = ra.competition_id
                 WHERE s.points IS NOT NULL
                   AND c.date_begin BETWEEN %s AND %s
-                  AND {sp_where}
+                  AND COALESCE(ra.sport_type, c.sport_type, ra.sport, 'run') = ANY(%s)
+                  AND ra.superseded_by_race_id IS NULL
+                  AND s.formula_version = %s
                 GROUP BY a.id
                 ORDER BY points DESC, best_points DESC, starts_count DESC, a.id ASC
-            """, (start_date, end_date))
+            """, (start_date, end_date, sports, f_ver))
             sp_rows = cur.fetchall()
 
             processed = []
@@ -398,21 +420,22 @@ def recalculate_rating_sync(conn: Any = None, *, as_of: Any = None, formula_vers
             except Exception:
                 pass
 
-        cur.execute("""
-            DELETE FROM running_athlete_rating
-            WHERE formula_version = %s AND period_start = %s AND period_end = %s
-        """, (formula_version, start_str, end_str))
+        if "run" in scoring_groups:
+            cur.execute("""
+                DELETE FROM running_athlete_rating
+                WHERE formula_version = %s AND period_start = %s AND period_end = %s
+            """, (formula_version, start_str, end_str))
 
-        rating_rows = [
-            (agg[0], formula_version, start_str, end_str, agg[1], agg[2], agg[3], rank)
-            for rank, agg in enumerate(run_aggregates, 1)
-        ]
-        cur.executemany("""
-            INSERT INTO running_athlete_rating (
-                athlete_id, formula_version, period_start, period_end,
-                points, best_points, starts_count, rank
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, rating_rows)
+            rating_rows = [
+                (agg[0], formula_version, start_str, end_str, agg[1], agg[2], agg[3], rank)
+                for rank, agg in enumerate(run_aggregates, 1)
+            ]
+            cur.executemany("""
+                INSERT INTO running_athlete_rating (
+                    athlete_id, formula_version, period_start, period_end,
+                    points, best_points, starts_count, rank
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, rating_rows)
 
         if commit:
             conn.commit()

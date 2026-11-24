@@ -71,6 +71,11 @@ export const routes: RouteObject[] = [
         handle: handle({ section: 'admin' }),
       },
       {
+        path: routePaths.adminCollection,
+        lazy: () => import('@/pages/admin-collection'),
+        handle: handle({ section: 'collection' }),
+      },
+      {
         path: routePaths.agentReview,
         lazy: () => import('@/pages/agent-review'),
         handle: handle({ section: 'agent' }),

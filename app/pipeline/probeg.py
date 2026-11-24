@@ -3,8 +3,6 @@
 import hashlib
 import math
 import re
-import threading
-import time
 from datetime import date
 from urllib.parse import urlsplit
 
@@ -13,6 +11,7 @@ from bs4 import BeautifulSoup
 
 from app.pipeline.errors import PilotRejected
 from parser_running.normalize import km_from_name, ru_date, to_seconds
+from parser_running.request_pacing import pace_request
 
 BASE_URL = "https://probeg.org"
 _DATE = r"\d{1,2}\s+[а-яё]+\s+\d{4}"
@@ -24,8 +23,6 @@ _STATUS = {
     "dsq": "DSQ", "dq": "DSQ", "дисквалификация": "DSQ",
     "nc": "NC", "лап": "LAP", "lap": "LAP",
 }
-_REQUEST_LOCK = threading.Lock()
-_next_request = 0.0
 
 
 def _text(node):
@@ -44,12 +41,7 @@ def _path_id(link, kind):
 
 
 def _page(session, path):
-    # Each process also serializes fetches across threads. The worker gives
-    # the source its own queue lock across processes.
-    global _next_request
-    with _REQUEST_LOCK:
-        time.sleep(max(0, _next_request - time.monotonic()))
-        _next_request = time.monotonic() + 1
+    pace_request(BASE_URL, 1)
     with session.get(f"{BASE_URL}{path}", timeout=(5, 20), allow_redirects=False, stream=True) as response:
         response.raise_for_status()
         if response.status_code != 200:

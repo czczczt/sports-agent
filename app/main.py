@@ -16,6 +16,7 @@ from app.api.admin_users import router as admin_users_router
 from app.api.athletes import router as athletes_router
 from app.api.auth import get_current_user
 from app.api.auth import router as auth_router
+from app.api.bulk_collection import router as bulk_collection_router
 from app.api.events import router as events_router
 from app.api.health import router as health_router
 from app.api.races import router as races_router
@@ -75,6 +76,7 @@ for domain_router in (
     admin_settings_router,
     admin_sources_router,
     admin_summary_router,
+    bulk_collection_router,
     status_router,
     runs_router,
 ):

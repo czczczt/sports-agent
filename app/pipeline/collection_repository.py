@@ -42,25 +42,41 @@ def _link_athlete(con, result_id, row, event_year):
                 (result_id, athlete_id))
 
 
-def save_event(connection, source_id: int, event: dict) -> int:
+def save_event(
+    connection, source_id: int, event: dict, *, selected_race_ids: set[str] | None = None,
+    defer_event_update: bool = False, reconcile: bool = True,
+) -> int:
     """Upsert verified rows preserving result IDs and links; never commit or close."""
     con = connection
     comp = event["competition"]
-    competition_id = store.save_competition(con, source_id, comp)
-    con.execute(
-        """UPDATE competition SET primary_protocol_url = %s,
-                  sport_type = %s, sport = COALESCE(%s, sport) WHERE id = %s""",
-        (comp.get("canonical_url"), comp.get("sport"), comp.get("sport"), competition_id),
-    )
+    existing_competition = None
+    if defer_event_update:
+        existing_competition = con.execute(
+            "SELECT id FROM competition WHERE source_id=%s AND external_id=%s",
+            (source_id, str(comp["external_id"])),
+        ).fetchone()
+    if existing_competition:
+        competition_id = existing_competition[0]
+    else:
+        competition_id = store.save_competition(con, source_id, comp)
+        con.execute(
+            """UPDATE competition SET primary_protocol_url = %s,
+                      sport_type = %s, sport = COALESCE(%s, sport) WHERE id = %s""",
+            (comp.get("canonical_url"), comp.get("sport"), comp.get("sport"), competition_id),
+        )
     prior_races = {row[0] for row in con.execute(
-        """SELECT external_id FROM race WHERE competition_id=%s
+        """SELECT external_id FROM race WHERE competition_id=%s AND superseded_by_race_id IS NULL
            AND (race_type='individual' OR sport_type IS NOT NULL)
            AND (is_final_protocol=TRUE OR (source_url IS NOT NULL AND is_final_protocol IS NULL))""",
         (competition_id,)).fetchall()}
-    incoming_races = {str(item['race']['external_id']) for item in event['races']}
+    incoming_races = {str(item["race"]["external_id"]) for item in event["races"]}
     if prior_races - incoming_races:
         raise PilotRejected("Source event dropped previously stored final distances")
-    for item in event["races"]:
+    races = [
+        item for item in event["races"]
+        if selected_race_ids is None or str(item["race"]["external_id"]) in selected_race_ids
+    ]
+    for item in races:
         race, rows = item["race"], item["rows"]
         race_id = store.save_race(con, competition_id, race)
         effective_elevation = con.execute(
@@ -117,5 +133,6 @@ def save_event(connection, source_id: int, event: dict) -> int:
             raise PilotRejected("Source protocol cannot reconcile previously stored legacy participants")
     for issue in event.get("review_items", []):
         record_issue(con, source_id, competition_id, issue["kind"], issue["external_ref"])
-    reconcile_duplicates(con, competition_id)
-    return len(event["races"])
+    if reconcile:
+        reconcile_duplicates(con, competition_id)
+    return len(races)

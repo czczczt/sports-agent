@@ -160,6 +160,7 @@ class EventsWebRepository(ReadRepository):
                 WHERE c.series_id = :series_id
                   AND c.id != :event_id
                   AND (c.status = 'done' OR c.status IS NULL)
+                  AND EXISTS (SELECT 1 FROM web_event active WHERE active.id=c.id)
                   AND (CAST(:date_begin AS text) IS NULL OR c.date_begin < CAST(:date_begin AS date))
                 ORDER BY c.date_begin DESC NULLS LAST, c.id DESC
                 LIMIT 1
@@ -175,6 +176,7 @@ class EventsWebRepository(ReadRepository):
                 FROM competition c
                 WHERE c.id != :event_id
                   AND (c.status = 'done' OR c.status IS NULL)
+                  AND EXISTS (SELECT 1 FROM web_event active WHERE active.id=c.id)
                   AND search_text(c.name) LIKE search_text(:pattern)
                   AND (CAST(:date_begin AS text) IS NULL OR c.date_begin < CAST(:date_begin AS date))
                 ORDER BY c.date_begin DESC NULLS LAST, c.id DESC
@@ -196,6 +198,7 @@ class EventsWebRepository(ReadRepository):
                 JOIN result_athlete l ON l.result_id = r.id
                 JOIN athlete a ON a.id = l.athlete_id
                 WHERE ra.competition_id = :past_id
+                  AND ra.superseded_by_race_id IS NULL
                   AND a.employee_status IN ('presumed', 'confirmed')
                 """,
                 {"past_id": past_id},
@@ -209,6 +212,7 @@ class EventsWebRepository(ReadRepository):
                 JOIN result_athlete l ON l.result_id = r.id
                 JOIN athlete a ON a.id = l.athlete_id
                 WHERE ra.competition_id = :past_id
+                  AND ra.superseded_by_race_id IS NULL
                   AND a.employee_status IN ('presumed', 'confirmed')
                 GROUP BY ra.id, ra.name
                 ORDER BY count DESC, ra.id ASC
