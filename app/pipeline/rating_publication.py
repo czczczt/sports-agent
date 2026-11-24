@@ -1,15 +1,17 @@
 """Publish an immutable running rating within the caller's transaction."""
+from datetime import date
+
 from app.modules.rating.publication_repository import RatingPublicationRepository
 from app.pipeline.errors import PilotRejected
 from app.services.rating_service import recalculate_rating_sync
 
 
-def publish_rating(connection, run_id: int) -> int:
+def publish_rating(connection, run_id: int, *, as_of: date | None = None) -> int:
     repository = RatingPublicationRepository(connection)
     previous_id, existing_id, legacy = repository.prepare(run_id)
     if existing_id is not None:
         return existing_id
-    summary = recalculate_rating_sync(connection, commit=False)
+    summary = recalculate_rating_sync(connection, as_of=as_of, commit=False)
     count = summary["athletes_rated"]
     if not count:
         raise PilotRejected("Cannot publish an empty running rating")
