@@ -1,9 +1,34 @@
-.filters {
-  margin-bottom: var(--space-16px);
+.sections {
+  align-self: flex-start;
+}
+
+.sections,
+.choices {
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+.sections button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8px);
+  min-height: 42px;
+}
+.filters,
+.filterGroup {
   display: flex;
-  gap: var(--space-10px);
   align-items: center;
   flex-wrap: wrap;
+}
+.filters {
+  gap: var(--space-16px) var(--space-28px);
+}
+.filterGroup {
+  gap: var(--space-8px) var(--space-12px);
+}
+.choices button {
+  min-height: 36px;
 }
 
 .list {
@@ -13,6 +38,10 @@
 }
 
 .card {
+  display: grid;
+  gap: var(--space-16px);
+  min-width: 0;
+  overflow-wrap: anywhere;
   background: var(--surface);
 }
 
@@ -100,7 +129,7 @@
 }
 
 .reject {
-  color: var(--palette-ef4444);
+  color: var(--status-error);
 }
 
 .message {
@@ -136,39 +165,32 @@
   justify-content: flex-end;
   margin-top: var(--space-4px);
 }
-
-.segment {
-  display: inline-flex;
-  align-items: center;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 3px;
-  gap: 2px;
+.actions,
+.reportActions {
+  flex-wrap: wrap;
 }
 
-.segmentBtn {
-  appearance: none;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--text-muted);
-  padding: var(--space-6px) var(--space-14px);
-  font: 500 13px/1.2 var(--font-body);
-  border-radius: calc(var(--radius-sm) - 2px);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
-}
-
-.segmentBtn:hover {
-  color: var(--text-primary);
-  background: var(--brand-soft);
-}
-
-.segmentBtnActive {
-  color: var(--brand-on-fill) !important;
-  background: var(--brand-fill) !important;
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+@media (max-width: 36rem) {
+  .choices button {
+    padding-inline: var(--space-9px);
+  }
+  .sections {
+    flex-direction: column;
+    align-self: stretch;
+  }
+  .sections button {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .filterGroup {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .fieldRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .candidates :global(.chip) {
+    white-space: normal;
+    flex-wrap: wrap;
+  }
 }

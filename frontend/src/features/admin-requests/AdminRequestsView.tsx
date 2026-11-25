@@ -1,5 +1,6 @@
 import { useAuth } from '@/shared/session';
 import { EmptyState, ErrorState, Icon, Loader } from '@/shared/ui';
+import { sportTitle } from '@/shared/lib';
 import { useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 import { AccessCard } from './AccessCard';
@@ -7,6 +8,23 @@ import styles from './AdminRequestsView.module.css';
 import { ReportCard } from './ReportCard';
 import { VerifyQueue } from './VerifyQueue';
 import { useModeration } from './useModeration';
+
+const sections = [
+  { value: 'access', label: 'Заявки на доступ', icon: 'user' },
+  { value: 'reports', label: 'Обращения', icon: 'flag' },
+  { value: 'unverified', label: 'Очередь «не проверен»', icon: 'trophy' },
+] as const;
+
+const statuses = {
+  access: { pending: 'Ожидают', active: 'Одобренные', rejected: 'Отклонённые', all: 'Все' },
+  reports: {
+    new: 'Новые',
+    accepted: 'Принятые',
+    resolved: 'Выполненные',
+    rejected: 'Отклонённые',
+    all: 'Все',
+  },
+};
 
 export function AdminRequestsView(): React.JSX.Element {
   const { user, isAdmin, openAuthModal } = useAuth();
@@ -45,21 +63,9 @@ export function AdminRequestsView(): React.JSX.Element {
     );
   }
 
-  const setTab = (tab: typeof currentTab) => {
+  const setFilter = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams);
-    next.set('tab', tab);
-    setSearchParams(next);
-  };
-
-  const setAccessStatusFilter = (st: string) => {
-    const next = new URLSearchParams(searchParams);
-    next.set('access_status', st);
-    setSearchParams(next);
-  };
-
-  const setReportsStatusFilter = (st: string) => {
-    const next = new URLSearchParams(searchParams);
-    next.set('report_status', st);
+    next.set(key, value);
     setSearchParams(next);
   };
 
@@ -67,88 +73,43 @@ export function AdminRequestsView(): React.JSX.Element {
     <>
       <div className="page-head">
         <div className="page-head__text">
-          <h1 className="h1 h1-sm">
-            Модерация заявок
+          <div className="row">
+            <h1 className="h1 h1-sm">Модерация заявок</h1>
             {user?.role === 'captain' && (
-              <span className="chip chip--sm chip--brand" style={{ marginLeft: 8 }}>
-                Капитан ({user.captain_sports?.join(', ') || 'вид не назначен'})
+              <span className="chip chip--sm chip--brand">
+                Капитан ({user.captain_sports?.map(sportTitle).join(', ') || 'вид не назначен'})
               </span>
             )}
-          </h1>
+          </div>
           <p className="lead">Регистрация, обращения спортсменов и проверка сотрудников в топе рейтинга.</p>
         </div>
-
-        <div className={styles.segment}>
+      </div>
+      <div className={`rating-segment ${styles.sections}`} role="group" aria-label="Раздел модерации">
+        {sections.map(({ value, label, icon }) => (
           <button
+            key={value}
             type="button"
-            aria-pressed={currentTab === 'access'}
-            className={[styles.segmentBtn, currentTab === 'access' ? styles.segmentBtnActive : ''].join(' ')}
-            onClick={() => setTab('access')}
+            aria-pressed={currentTab === value}
+            onClick={() => setFilter('tab', value)}
           >
-            Заявки на доступ
+            <Icon name={icon} />
+            {label}
           </button>
-          <button
-            type="button"
-            aria-pressed={currentTab === 'reports'}
-            className={[styles.segmentBtn, currentTab === 'reports' ? styles.segmentBtnActive : ''].join(' ')}
-            onClick={() => setTab('reports')}
-          >
-            Обращения
-          </button>
-          <button
-            type="button"
-            aria-pressed={currentTab === 'unverified'}
-            className={[styles.segmentBtn, currentTab === 'unverified' ? styles.segmentBtnActive : ''].join(' ')}
-            onClick={() => setTab('unverified')}
-          >
-            Очередь «не проверен»
-          </button>
-        </div>
+        ))}
       </div>
 
-      {currentTab === 'access' && (
-        <div className={['filters-bar', styles.filters].join(' ')}>
-          <span className="small muted">Статус:</span>
-          <div className={styles.segment}>
-            {[
-              { val: 'pending', label: 'Ожидают' },
-              { val: 'active', label: 'Одобренные' },
-              { val: 'rejected', label: 'Отклонённые' },
-              { val: 'all', label: 'Все' },
-            ].map((f) => (
+      {currentTab !== 'unverified' && (
+        <div className={styles.filterGroup} role="group" aria-label="Статус">
+          <span className="small muted">Статус</span>
+          <div className={`rating-segment ${styles.choices}`}>
+            {Object.entries(statuses[currentTab]).map(([value, label]) => (
               <button
-                key={f.val}
+                key={value}
                 type="button"
-                aria-pressed={accessFilter === f.val}
-                className={[styles.segmentBtn, accessFilter === f.val ? styles.segmentBtnActive : ''].join(' ')}
-                onClick={() => setAccessStatusFilter(f.val)}
+                aria-pressed={(currentTab === 'access' ? accessFilter : reportsFilter) === value}
+                onClick={() => setFilter(currentTab === 'access' ? 'access_status' : 'report_status', value)}
               >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {currentTab === 'reports' && (
-        <div className={['filters-bar', styles.filters].join(' ')}>
-          <span className="small muted">Статус:</span>
-          <div className={styles.segment}>
-            {[
-              { val: 'new', label: 'Новые' },
-              { val: 'accepted', label: 'Принятые' },
-              { val: 'resolved', label: 'Выполненные' },
-              { val: 'rejected', label: 'Отклонённые' },
-              { val: 'all', label: 'Все' },
-            ].map((f) => (
-              <button
-                key={f.val}
-                type="button"
-                aria-pressed={reportsFilter === f.val}
-                className={[styles.segmentBtn, reportsFilter === f.val ? styles.segmentBtnActive : ''].join(' ')}
-                onClick={() => setReportsStatusFilter(f.val)}
-              >
-                {f.label}
+                {label}
               </button>
             ))}
           </div>

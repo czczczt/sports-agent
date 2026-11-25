@@ -1,0 +1,102 @@
+.dialog {
+  width: min(36rem, calc(100% - 24px));
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  overflow: visible;
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+.dialog::backdrop {
+  background: rgb(0 0 0 / 60%);
+  backdrop-filter: blur(3px);
+}
+body:has(.dialog[open]) {
+  overflow: hidden;
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+.header,
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12px);
+  padding: var(--space-16px) var(--space-24px);
+}
+.header {
+  border-bottom: 1px solid var(--border);
+}
+.mark,
+.close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+}
+.mark {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
+.close {
+  margin-left: auto;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.close:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+.body {
+  display: grid;
+  gap: var(--space-16px);
+  padding: var(--space-20px) var(--space-24px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.body :global(.input) {
+  min-height: 44px;
+  background: var(--surface-2);
+}
+.pair,
+.distance {
+  display: grid;
+  gap: var(--space-12px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.distance {
+  grid-template-columns: minmax(0, 2fr) minmax(5rem, 1fr);
+}
+.body textarea {
+  padding-block: var(--space-10px);
+  resize: vertical;
+  font-family: inherit;
+}
+.actions {
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+}
+@media (max-width: 30rem) {
+  .header,
+  .actions,
+  .body {
+    padding: var(--space-14px);
+  }
+  .pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mark {
+    display: none;
+  }
+  .actions button {
+    flex: 1 1 auto;
+  }
+}

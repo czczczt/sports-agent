@@ -93,7 +93,7 @@ export function DateRangePicker({ from, to, onChange }: Props): React.JSX.Elemen
 
     const onDocClick = (e: MouseEvent) => {
       const cell = e.target instanceof Element && e.target.closest('.air-datepicker-cell.-day-.-selected-');
-      if (cell && dp.selectedDates[0] && dp.selectedDates.length === 1) {
+      if (cell && dp.$datepicker.contains(cell) && dp.selectedDates[0] && dp.selectedDates.length === 1) {
         const d = dp.selectedDates[0];
         dp.selectDate([d, d]);
         dp.hide();

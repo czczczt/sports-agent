@@ -17,5 +17,5 @@ export const NAV_ITEMS: NavItem[] = [
   { section: 'search', to: paths.search, label: 'Найти себя', icon: 'user', mobile: true },
   { section: 'admin', to: paths.adminRequests, label: 'Заявки', icon: 'flag', mobile: false },
   { section: 'agent', to: paths.agentReview, label: 'Правки агента', icon: 'spark', mobile: false },
-  { section: 'status', to: paths.status, label: 'Статус', icon: 'spark', mobile: false },
+  { section: 'status', to: paths.status, label: 'Статус', icon: 'pulse', mobile: false },
 ];

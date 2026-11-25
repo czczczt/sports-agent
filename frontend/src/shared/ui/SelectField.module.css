@@ -1,0 +1,77 @@
+.trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-10px);
+  min-width: 0;
+  text-align: start;
+  cursor: pointer;
+}
+.trigger span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trigger svg {
+  color: var(--text-muted);
+  transform: rotate(90deg);
+}
+.trigger[aria-expanded='true'] {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -1px;
+}
+.trigger[aria-expanded='true'] svg {
+  color: var(--brand-text);
+  transform: rotate(-90deg);
+}
+.list {
+  position: fixed;
+  z-index: 1050;
+  margin: 0;
+  padding: var(--space-4px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  scrollbar-width: thin;
+}
+.list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12px);
+  width: 100%;
+  min-height: 40px;
+  padding: var(--space-8px) var(--space-12px);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: start;
+  font: 500 15px/1.35 var(--font-body);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.list button[aria-selected='true'] {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
+.list button[data-active] {
+  box-shadow: inset 0 0 0 1px var(--focus-ring);
+}
+@media (hover: hover) {
+  .list button:hover {
+    background: var(--surface-2);
+  }
+  .list button[aria-selected='true']:hover {
+    background: var(--brand-soft);
+  }
+}
+@media (max-width: 760px), (pointer: coarse) {
+  .trigger,
+  .list button {
+    min-height: 44px;
+  }
+}

@@ -4,6 +4,7 @@ import { useAuth } from '@/shared/session';
 import { Icon, Loader } from '@/shared/ui';
 import { Link, Outlet, ScrollRestoration, useMatches } from 'react-router-dom';
 import { AuthControls } from './AuthControls';
+import { MobileMenu } from './MobileMenu';
 import { ThemeControls } from './ThemeControls';
 
 export interface RouteHandle {
@@ -46,17 +47,15 @@ export function AppLayout(): React.JSX.Element {
         </a>
         <header className="app-header">
           <div className="app-header__inner">
-            <div className="app-header__left">
-              <span className="brand">
-                <span className="brand__mark" aria-hidden="true">
-                  <Icon name="logo" />
-                </span>
-                <span className="brand__name">
-                  Рейтинг <br className="br" />
-                  спортсменов
-                </span>
+            <span className="brand">
+              <span className="brand__mark" aria-hidden="true">
+                <Icon name="logo" />
               </span>
-            </div>
+              <span className="brand__name">
+                Рейтинг <br />
+                спортсменов
+              </span>
+            </span>
             <div className="app-header__right">
               <ThemeControls />
             </div>
@@ -84,29 +83,36 @@ export function AppLayout(): React.JSX.Element {
       </a>
       <header className="app-header">
         <div className="app-header__inner">
-          <div className="app-header__left">
-            <Link to={paths.search} className="brand">
-              <span className="brand__mark" aria-hidden="true">
-                <Icon name="logo" />
-              </span>
-              <span className="brand__name">
-                Рейтинг <br className="br" />
-                спортсменов
-              </span>
-            </Link>
-            {user && (
-              <nav className="top-nav" aria-label="Разделы">
-                {visibleNavItems.map((item) => (
-                  <Link key={item.section} to={item.to} aria-current={current(item.section)}>
-                    {item.label}
-                  </Link>
-                ))}
-              </nav>
-            )}
-          </div>
+          <Link to={paths.search} className="brand">
+            <span className="brand__mark" aria-hidden="true">
+              <Icon name="logo" />
+            </span>
+            <span className="brand__name">
+              Рейтинг <br />
+              спортсменов
+            </span>
+          </Link>
+          {user && (
+            <nav className="top-nav" aria-label="Разделы">
+              {visibleNavItems.map((item) => (
+                <Link key={item.section} to={item.to} aria-current={current(item.section)}>
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          )}
           <div className="app-header__right">
             <ThemeControls />
-            <AuthControls />
+            {user ? (
+              <>
+                <div className="desktop-account">
+                  <AuthControls />
+                </div>
+                <MobileMenu items={visibleNavItems.filter((item) => !item.mobile)} section={section} />
+              </>
+            ) : (
+              <AuthControls />
+            )}
           </div>
         </div>
       </header>

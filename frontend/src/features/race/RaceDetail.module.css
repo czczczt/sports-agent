@@ -41,3 +41,6 @@
 .table {
   min-width: 760px;
 }
+.raceData[aria-busy='true'] {
+  opacity: 0.65;
+}

@@ -9,12 +9,21 @@ import { RaceStatistics } from './RaceStatistics';
 
 interface RaceDetailProps {
   data: RacePageData;
+  activeRaceId: number;
+  updating: boolean;
   athleteId: number | null;
   search: string;
   onSearch: (value: string) => void;
 }
 
-export function RaceDetail({ data, athleteId, search, onSearch }: RaceDetailProps): React.JSX.Element {
+export function RaceDetail({
+  data,
+  activeRaceId,
+  updating,
+  athleteId,
+  search,
+  onSearch,
+}: RaceDetailProps): React.JSX.Element {
   const { race, event, results, competition } = data;
   const finCount = competition ? competition.total_finishers : results.length;
   const place = event?.place || event?.address;
@@ -23,7 +32,7 @@ export function RaceDetail({ data, athleteId, search, onSearch }: RaceDetailProp
     <>
       {event && <BackLink to={paths.event(event.id)}>{event.title}</BackLink>}
 
-      <section className="card card--clip">
+      <section className={`card card--clip ${styles.raceData}`} aria-busy={updating}>
         <div className="finish-flag" />
         <div className={styles.header}>
           <div className="chips">
@@ -72,14 +81,14 @@ export function RaceDetail({ data, athleteId, search, onSearch }: RaceDetailProp
       {event && event.races.length > 1 && (
         <DistancePills
           label="Дистанции старта"
-          activeId={race.id}
+          activeId={activeRaceId}
           items={event.races.map((r) => ({ id: r.id, label: r.name_raw, to: paths.race(r.id, athleteId) }))}
         />
       )}
 
       <div className="track-divider" />
 
-      <div className="cols">
+      <div className={`cols ${styles.raceData}`} aria-busy={updating}>
         <RaceStatistics data={data} search={search} />
         <RaceProtocol data={data} athleteId={athleteId} search={search} onSearch={onSearch} />
       </div>

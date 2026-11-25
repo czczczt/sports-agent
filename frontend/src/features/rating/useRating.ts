@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { ratingApi } from './api';
 
 export const ratingKey = (
@@ -16,6 +16,7 @@ export function useRating(
 ) {
   return useQuery({
     queryKey: ratingKey(sport, asOf, gender, athleteId),
+    placeholderData: keepPreviousData,
     queryFn: ({ signal }) =>
       ratingApi.page({ sport, as_of: asOf, gender, athlete_id: athleteId }, signal),
   });

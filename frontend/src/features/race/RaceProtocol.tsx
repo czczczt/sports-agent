@@ -20,7 +20,7 @@ export function RaceProtocol({ data, athleteId, search, onSearch }: RaceProtocol
       <div className="card__head">
         <h2 className="h2">Протокол</h2>
         <ProtocolSearch
-          key={search}
+          key={`${race.id}:${search}`}
           initial={search}
           onSearch={onSearch}
           resetTo={paths.race(race.id, athleteId)}

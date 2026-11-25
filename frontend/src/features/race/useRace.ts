@@ -18,5 +18,7 @@ export function useRace(
     queryKey: raceKey(raceId, search, athleteId, employeesOnly),
     queryFn: ({ signal }) =>
       racesApi.page(raceId, { search, athlete_id: athleteId, employees_only: employeesOnly }, signal),
+    placeholderData: (previous) =>
+      previous?.event?.races.some((race) => race.id === raceId) ? previous : undefined,
   });
 }

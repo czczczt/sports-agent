@@ -89,9 +89,8 @@ export function VerifyQueue() {
   const topN = z.coerce.number().int().min(1).max(100).catch(10).parse(params.get('top_n'));
   const fallbackSport = captainSports[0] ?? 'run';
   const rawSport = params.get('sport') || (isCaptain && captainSports.length > 0 ? fallbackSport : 'run');
-  const sport = isCaptain && captainSports.length > 0 && !captainSports.includes(rawSport)
-    ? fallbackSport
-    : rawSport;
+  const sport =
+    isCaptain && captainSports.length > 0 && !captainSports.includes(rawSport) ? fallbackSport : rawSport;
 
   const setFilter = (name: string, value: string) => {
     const next = new URLSearchParams(params);
@@ -114,34 +113,36 @@ export function VerifyQueue() {
   });
   return (
     <>
-      <div className={['filters-bar', styles.filters].join(' ')}>
-        <span className="small muted">Топ-N (на вид × пол)</span>
-        <div className={styles.segment}>
-          {[10, 20, 50].map((n) => (
-            <button
-              type="button"
-              key={n}
-              aria-pressed={topN === n}
-              className={[styles.segmentBtn, topN === n ? styles.segmentBtnActive : ''].join(' ')}
-              onClick={() => setFilter('top_n', String(n))}
-            >
-              {n}
-            </button>
-          ))}
+      <div className={styles.filters}>
+        <div className={styles.filterGroup} role="group" aria-label="Размер топа">
+          <span className="small muted">Топ-N (на вид × пол)</span>
+          <div className={`rating-segment ${styles.choices}`}>
+            {[10, 20, 50].map((n) => (
+              <button
+                type="button"
+                key={n}
+                aria-pressed={topN === n}
+                onClick={() => setFilter('top_n', String(n))}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
         </div>
-        <span className="small muted">Вид спорта</span>
-        <div className={styles.segment}>
-          {Object.entries(availableSports).map(([value, label]) => (
-            <button
-              type="button"
-              key={value}
-              aria-pressed={sport === value}
-              className={[styles.segmentBtn, sport === value ? styles.segmentBtnActive : ''].join(' ')}
-              onClick={() => setFilter('sport', value)}
-            >
-              {label}
-            </button>
-          ))}
+        <div className={styles.filterGroup} role="group" aria-label="Вид спорта">
+          <span className="small muted">Вид спорта</span>
+          <div className={`rating-segment ${styles.choices}`}>
+            {Object.entries(availableSports).map(([value, label]) => (
+              <button
+                type="button"
+                key={value}
+                aria-pressed={sport === value}
+                onClick={() => setFilter('sport', value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       {decision.error && (
