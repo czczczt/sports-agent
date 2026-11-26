@@ -29,6 +29,8 @@ def fetch_event(event_code: str, *, source: str = "russiarunning") -> dict:
         sport = SPORTS.get(str(raw.get("disciplineCode", default_sport)).casefold())
         if not raw.get("id") or not raw.get("title") or not sport:
             raise PilotRejected("Unknown or incomplete RR event")
+        if source == "russiarunning" and sport == "trail":
+            raise PilotRejected("RussiaRunning has no supported individual distances")
         if source == "russiarunning" and sport != "run":
             raise PilotRejected("The RussiaRunning pilot accepts running events")
         base = connector.base_url.removesuffix("/api")
@@ -39,12 +41,14 @@ def fetch_event(event_code: str, *, source: str = "russiarunning") -> dict:
             "address": raw.get("address"), "sport": sport, "url": url,
         }
         races = []
+        has_supported_race = False
         for race in connector.races(competition, event=raw):
             race_sport = SPORTS.get(str(race.get("sport") or sport).casefold())
             if not race_sport or race["race_type"] != "individual":
                 continue
             if source == "russiarunning" and race_sport != sport:
                 continue
+            has_supported_race = True
             options = connector.cli.race_options(race["external_id"])
             if options.get("isFinalProtocol") is not True:
                 continue
@@ -58,6 +62,10 @@ def fetch_event(event_code: str, *, source: str = "russiarunning") -> dict:
                 race["distance_km"] = None
             race.update(total_count=total, source_discipline=race.get("sport"), sport=race_sport)
             races.append({"race": race, "rows": rows})
+        if source == "russiarunning" and not races:
+            if not has_supported_race:
+                raise PilotRejected("RussiaRunning has no supported individual distances")
+            raise PilotRejected("RussiaRunning protocols are not marked final")
         event = {"competition": competition, "races": races}
         validate_event(event)
         return event

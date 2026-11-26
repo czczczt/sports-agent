@@ -65,8 +65,13 @@ export function CollectionForm({
                 <strong>{label}</strong>
               </label>
               <p className={`small muted ${styles.sourceMeta}`}>
-                {automatic ? 'Автопоиск доступен' : 'Автопоиск недоступен'}
-                {!enabled && ' · Площадка отключена в реестре'}
+                {!enabled
+                  ? 'Площадка отключена в реестре'
+                  : automatic
+                    ? 'Автопоиск доступен'
+                    : (codes[code] ?? '').trim()
+                      ? 'Сбор по коду старта'
+                      : 'Нужен код старта'}
               </p>
             </div>
           ))}

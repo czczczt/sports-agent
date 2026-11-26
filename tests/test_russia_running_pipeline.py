@@ -3,7 +3,91 @@ import asyncio
 from datetime import date, timedelta
 
 import psycopg
+import pytest
 import requests
+
+from app.pipeline.errors import PilotRejected
+
+
+class _FakeSession:
+    def close(self):
+        pass
+
+
+class _FakeRRClient:
+    def __init__(self, event, final_by_race):
+        self.cache = True
+        self.s = _FakeSession()
+        self._event = event
+        self._final_by_race = final_by_race
+
+    def get_event(self, event_code):
+        return self._event
+
+    def race_options(self, race_id):
+        return {"isFinalProtocol": self._final_by_race[race_id]}
+
+
+class _FakeRRConnector:
+    base_url = "https://results.russiarunning.com/api"
+
+    def __init__(self, event, final_by_race):
+        self.cli = _FakeRRClient(event, final_by_race)
+
+    def races(self, competition, event=None):
+        competition["_rr_event_id"] = event["id"]
+        return event["races"]
+
+    def results(self, competition, race, options=None):
+        race["is_final"] = options.get("isFinalProtocol") is True
+        return [{"external_participant_id": race["external_id"]}], 1
+
+
+def _fetch_fixture(monkeypatch, races, final_by_race=None, discipline="run"):
+    import app.pipeline.russia_running as pipeline
+
+    event = {"id": "event", "title": "Fixture", "beginDate": date.today().isoformat(),
+             "disciplineCode": discipline, "races": races}
+    connector = _FakeRRConnector(event, final_by_race or {})
+    monkeypatch.setattr(pipeline, "RRConnector", lambda source: connector)
+    monkeypatch.setattr(pipeline, "validate_event", lambda fetched: None)
+    return pipeline.fetch_event("fixture")
+
+
+@pytest.mark.parametrize("races", [
+    [],
+    [{"external_id": "relay", "race_type": "relay", "sport": "run", "distance_km": 5}],
+    [{"external_id": "trail", "race_type": "individual", "sport": "trail", "distance_km": 10}],
+])
+def test_fetch_event_reports_no_supported_individual_distances(monkeypatch, races):
+    with pytest.raises(PilotRejected, match="^RussiaRunning has no supported individual distances$"):
+        _fetch_fixture(monkeypatch, races)
+
+
+def test_fetch_event_preserves_final_protocol_missing_distance_diagnostic(monkeypatch):
+    race = {"external_id": "missing", "race_type": "individual", "sport": "run", "distance_km": None}
+    with pytest.raises(PilotRejected, match="^Missing RussiaRunning distance$"):
+        _fetch_fixture(monkeypatch, [race], {"missing": True})
+
+
+def test_fetch_event_reports_when_all_supported_protocols_are_preliminary(monkeypatch):
+    race = {"external_id": "five", "race_type": "individual", "sport": "run", "distance_km": 5}
+    with pytest.raises(PilotRejected, match="^RussiaRunning protocols are not marked final$"):
+        _fetch_fixture(monkeypatch, [race], {"five": False})
+
+
+def test_fetch_event_keeps_final_protocol_when_another_is_preliminary(monkeypatch):
+    races = [
+        {"external_id": "five", "race_type": "individual", "sport": "run", "distance_km": 5},
+        {"external_id": "ten", "race_type": "individual", "sport": "run", "distance_km": 10},
+    ]
+    event = _fetch_fixture(monkeypatch, races, {"five": False, "ten": True})
+    assert [item["race"]["external_id"] for item in event["races"]] == ["ten"]
+
+
+def test_fetch_event_reports_trail_event_as_unsupported(monkeypatch):
+    with pytest.raises(PilotRejected, match="^RussiaRunning has no supported individual distances$"):
+        _fetch_fixture(monkeypatch, [], discipline="trail")
 
 
 def test_pipeline_preserves_protocol_and_publication(pilot_client, migrated_url, monkeypatch):

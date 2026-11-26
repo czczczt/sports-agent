@@ -160,10 +160,11 @@ test('запускает сбор, восстанавливает предпро
   await expect(page.getByRole('checkbox', { name: 'RussiaRunning' })).toBeChecked();
   await expect(page.getByRole('checkbox', { name: 'Results.Zone' })).toBeChecked();
   await expect(page.getByRole('checkbox', { name: 'Grom' })).toBeChecked();
-  await expect(page.getByText('Автопоиск недоступен', { exact: true })).toHaveCount(2);
+  await expect(page.getByText('Нужен код старта', { exact: true })).toHaveCount(2);
   await page.getByRole('checkbox', { name: 'Grom' }).uncheck();
   await page.getByText('Указать известные коды стартов').click();
   await page.getByLabel('Коды стартов · Results.Zone').fill('fall-2026, fall-2026');
+  await expect(page.getByText('Сбор по коду старта', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Обновить данные', exact: true }).click();
   await expect(page).toHaveURL(/batch=9/);
   await expect(page.getByText('В работе', { exact: true }).first()).toBeVisible();
@@ -213,4 +214,63 @@ test('капитан видит отказ в доступе, запросы к 
   await expect(page.getByText('Требуются права администратора', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Обновление данных' })).toHaveCount(0);
   expect(accessedCollectionApi).toBe(false);
+});
+
+test('известные ограничения RussiaRunning не отображаются как ошибка источника', async ({ page }) => {
+  await page.route(`${baseUrl}/sources`, (route) => route.fulfill({ json: sources }));
+  await page.route(`${baseUrl}/batches`, (route) =>
+    route.fulfill({ json: [{ id: 9, created_at: createdAt }] }),
+  );
+  await page.route(`${baseUrl}/batches/9`, (route) =>
+    route.fulfill({
+      json: {
+        id: 9,
+        created_at: createdAt,
+        preview_revision: 'revision-0',
+        publication_status: 'pending',
+        publication_error: null,
+        sources: [
+          {
+            code: 'russiarunning',
+            status: 'failed',
+            error: 'legacy: No final source protocols',
+          },
+        ],
+        drafts: [
+          {
+            id: 1,
+            source: 'russiarunning',
+            event_code: 'legacy',
+            title: 'Старый запуск',
+            status: 'failed',
+            error: 'No final source protocols',
+          },
+          {
+            id: 2,
+            source: 'russiarunning',
+            event_code: 'preliminary',
+            title: 'Предварительный протокол',
+            status: 'failed',
+            error: 'RussiaRunning protocols are not marked final',
+          },
+        ],
+        events: [],
+      },
+    }),
+  );
+
+  await page.goto('/admin/collection?batch=9');
+
+  const progress = page.getByRole('region', { name: 'Ход сбора' });
+  await expect(progress.getByText('Ошибка', { exact: true })).toHaveCount(0);
+  await expect(progress.getByText('1 без доступного итогового протокола')).toBeVisible();
+  await expect(progress.getByText('1 с предварительным протоколом')).toBeVisible();
+  await progress.getByText('Старты (2)').click();
+  await expect(progress.getByText('Нет доступного итогового протокола', { exact: true })).toBeVisible();
+  await expect(
+    progress.getByText(
+      'RussiaRunning не пометил протокол как итоговый. Старт можно проверить повторно позже.',
+    ),
+  ).toBeVisible();
+  await expect(progress.getByText('No final source protocols')).toHaveCount(0);
 });
