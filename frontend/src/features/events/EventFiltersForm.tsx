@@ -1,4 +1,5 @@
 import { SOURCE_KEYS, sourceName } from '@/shared/lib';
+import { SelectField } from '@/shared/ui';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { DateRangePicker } from './DateRangePicker';
@@ -12,6 +13,11 @@ interface EventFiltersFormProps {
   onApply: (f: EventFilters) => void;
   onReset: () => void;
 }
+
+const sourceOptions = [
+  { value: '', label: 'Все площадки' },
+  ...SOURCE_KEYS.map((value) => ({ value, label: sourceName(value) })),
+];
 
 export function EventFiltersForm({
   initial,
@@ -51,17 +57,13 @@ export function EventFiltersForm({
           Город
           <input className="input input--sm" type="text" {...register('city')} placeholder="Москва" />
         </label>
-        <label className="field">
-          Площадка
-          <select className="input input--sm" {...register('source')}>
-            <option value="">Все площадки</option>
-            {SOURCE_KEYS.map((key) => (
-              <option key={key} value={key}>
-                {sourceName(key)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SelectField
+          label="Площадка"
+          name="source"
+          options={sourceOptions}
+          value={watch('source')}
+          onChange={(value) => setValue('source', value, { shouldDirty: true })}
+        />
         <div className={['row', styles.actions].join(' ')}>
           <button type="submit" className={['btn btn--primary btn--stretch-mobile', styles.button].join(' ')}>
             Применить

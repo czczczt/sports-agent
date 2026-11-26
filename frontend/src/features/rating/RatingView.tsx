@@ -1,7 +1,7 @@
 import { paths } from '@/shared/config';
 import { dateRu, parseId } from '@/shared/lib';
 import { useAuth } from '@/shared/session';
-import { AsyncView } from '@/shared/ui';
+import { AsyncView, DateInput } from '@/shared/ui';
 import { Link, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 import { RatingBoard } from './RatingBoard';
@@ -42,7 +42,7 @@ export function RatingView(): React.JSX.Element {
     } else {
       next.delete(key);
     }
-    setParams(next);
+    setParams(next, { preventScrollReset: true });
   };
 
   const sportLink = (sp: string) => {
@@ -84,6 +84,7 @@ export function RatingView(): React.JSX.Element {
               key={s.id}
               className={[layout.ratingSport, sport === s.id ? layout.ratingSportActive : ''].join(' ')}
               to={sportLink(s.id)}
+              preventScrollReset
             >
               {s.label}
             </Link>
@@ -111,19 +112,17 @@ export function RatingView(): React.JSX.Element {
 
         {isCaptainOrAdmin && (
           <div className={layout.asOfFilter}>
-            <label htmlFor="as-of-input">Срез на дату:</label>
-            <input
+            <label htmlFor="as-of-input">Срез на дату</label>
+            <DateInput
               id="as-of-input"
-              type="date"
-              className={layout.asOfInput}
+              calendarLabel="Открыть календарь среза"
               value={asOf || ''}
-              onChange={(e) => updateParam('as_of', e.target.value || null)}
+              onChange={(value) => updateParam('as_of', value)}
             />
             {asOf && (
               <button
                 type="button"
-                className="btn-link"
-                style={{ fontSize: '12px', cursor: 'pointer' }}
+                className="btn btn--sm btn--ghost"
                 onClick={() => updateParam('as_of', null)}
               >
                 Сбросить

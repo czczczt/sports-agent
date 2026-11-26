@@ -1,5 +1,6 @@
 import type { AgentReviewPage as AgentReviewData } from '@/shared/api';
 import { sourceName } from '@/shared/lib';
+import { SelectField } from '@/shared/ui';
 import { useState, type FormEvent } from 'react';
 import layout from './AgentReviewView.module.css';
 
@@ -20,32 +21,23 @@ export function ReviewFilters({ data, status, source, onApply }: ReviewFiltersPr
   };
   return (
     <form className={layout.reviewFilters} onSubmit={submit}>
-      <label className="field">
-        Статус
-        <select name="status" className="input input--sm" value={st} onChange={(e) => setSt(e.target.value)}>
-          {statuses.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="field">
-        Площадка
-        <select
-          name="source"
-          className="input input--sm"
-          value={src}
-          onChange={(e) => setSrc(e.target.value)}
-        >
-          <option value="">все</option>
-          {(data?.sources ?? []).map((s) => (
-            <option key={s} value={s}>
-              {sourceName(s)}
-            </option>
-          ))}
-        </select>
-      </label>
+      <SelectField
+        label="Статус"
+        name="status"
+        value={st}
+        onChange={setSt}
+        options={statuses.map((value) => ({ value, label: value }))}
+      />
+      <SelectField
+        label="Площадка"
+        name="source"
+        value={src}
+        onChange={setSrc}
+        options={[
+          { value: '', label: 'Все площадки' },
+          ...(data?.sources ?? []).map((value) => ({ value, label: sourceName(value) })),
+        ]}
+      />
       <button className="btn btn--primary">Показать</button>
     </form>
   );

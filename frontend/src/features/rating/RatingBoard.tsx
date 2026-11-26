@@ -34,7 +34,7 @@ export function RatingBoard({ data, athleteId, loading }: RatingBoardProps): Rea
   }, [athleteId, loading]);
 
   return (
-    <div className={layout.ratingLayout}>
+    <div className={layout.ratingLayout} aria-busy={loading}>
       <section className={layout.ratingBoard}>
         {data.rows.length ? (
           <>

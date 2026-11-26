@@ -1,19 +1,40 @@
 import type { components } from '@/shared/api';
 import { useAuth } from '@/shared/session';
+import { DateInput, Icon, SelectField } from '@/shared/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { eventsApi } from './api';
+import styles from './PlanEventModal.module.css';
 
 interface PlanEventModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+const sportLabels: Record<string, string> = {
+  run: 'Бег',
+  ski: 'Лыжи',
+  triathlon: 'Триатлон',
+  trail: 'Трейл',
+};
+
 export function PlanEventModal({ isOpen, onClose }: PlanEventModalProps): React.JSX.Element | null {
   const { isAdmin, captainSports } = useAuth();
   const queryClient = useQueryClient();
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
-  const allowedSports = isAdmin ? ['run', 'ski', 'triathlon', 'trail'] : captainSports.length ? captainSports : ['run'];
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!isOpen || !dialog) return;
+    dialog.showModal();
+    return () => dialog.close();
+  }, [isOpen]);
+
+  const allowedSports = isAdmin
+    ? ['run', 'ski', 'triathlon', 'trail']
+    : captainSports.length
+      ? captainSports
+      : ['run'];
 
   const [title, setTitle] = useState('');
   const [sport, setSport] = useState(allowedSports[0] || 'run');
@@ -65,53 +86,42 @@ export function PlanEventModal({ isOpen, onClose }: PlanEventModalProps): React.
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-        background: 'rgba(0, 0, 0, 0.65)',
-        backdropFilter: 'blur(4px)',
+    <dialog
+      ref={dialogRef}
+      className={styles.dialog}
+      aria-labelledby="plan-event-title"
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
       }}
       onPointerDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div
-        className="card"
-        style={{
-          width: '100%',
-          maxWidth: '520px',
-          padding: '24px',
-          background: 'var(--surface)',
-          borderRadius: '12px',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h2 className="h2" style={{ margin: 0 }}>Запланировать старт</h2>
-          <button type="button" className="btn btn--sm btn--ghost" onClick={onClose}>✕</button>
-        </div>
+      <form onSubmit={handleSubmit} className={styles.form}>
+        <header className={styles.header}>
+          <span className={styles.mark}>
+            <Icon name="calendar" />
+          </span>
+          <h2 className="h2" id="plan-event-title">
+            Запланировать старт
+          </h2>
+          <button type="button" className={styles.close} onClick={onClose} aria-label="Закрыть окно">
+            <Icon name="close" />
+          </button>
+        </header>
+        <div className={styles.body}>
+          {errorMsg && (
+            <div className="auth-error" role="alert">
+              {errorMsg}
+            </div>
+          )}
 
-        {errorMsg && (
-          <div className="auth-error" style={{ marginBottom: '16px' }}>
-            {errorMsg}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="modal-form">
           <label className="field">
             <span className="field__label">Название старта *</span>
             <input
               type="text"
-              className="field__input"
+              className="input input--sm"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Например: Московский Марафон"
@@ -119,27 +129,20 @@ export function PlanEventModal({ isOpen, onClose }: PlanEventModalProps): React.
             />
           </label>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <label className="field">
-              <span className="field__label">Вид спорта</span>
-              <select
-                className="field__input"
-                value={sport}
-                onChange={(e) => setSport(e.target.value)}
-              >
-                {allowedSports.map((s) => (
-                  <option key={s} value={s}>
-                    {s === 'run' ? 'Бег' : s === 'ski' ? 'Лыжи' : s === 'triathlon' ? 'Триатлон' : 'Трейл'}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className={styles.pair}>
+            <SelectField
+              label="Вид спорта"
+              name="sport"
+              value={sport}
+              onChange={setSport}
+              options={allowedSports.map((value) => ({ value, label: sportLabels[value] ?? value }))}
+            />
 
             <label className="field">
               <span className="field__label">Город</span>
               <input
                 type="text"
-                className="field__input"
+                className="input input--sm"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 placeholder="Москва"
@@ -147,46 +150,46 @@ export function PlanEventModal({ isOpen, onClose }: PlanEventModalProps): React.
             </label>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <label className="field">
-              <span className="field__label">Дата начала *</span>
-              <input
-                type="date"
-                className="field__input"
+          <div className={styles.pair}>
+            <div className="field">
+              <label htmlFor="plan-start-date">Дата начала *</label>
+              <DateInput
+                id="plan-start-date"
+                calendarLabel="Открыть календарь даты начала"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={setStartDate}
                 required
               />
-            </label>
+            </div>
 
-            <label className="field">
-              <span className="field__label">Дата окончания</span>
-              <input
-                type="date"
-                className="field__input"
+            <div className="field">
+              <label htmlFor="plan-end-date">Дата окончания</label>
+              <DateInput
+                id="plan-end-date"
+                calendarLabel="Открыть календарь даты окончания"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                onChange={setEndDate}
               />
-            </label>
+            </div>
           </div>
 
           <label className="field">
             <span className="field__label">Локация / Адрес</span>
             <input
               type="text"
-              className="field__input"
+              className="input input--sm"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               placeholder="Лужники"
             />
           </label>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
+          <div className={styles.distance}>
             <label className="field">
               <span className="field__label">Планируемая дистанция</span>
               <input
                 type="text"
-                className="field__input"
+                className="input input--sm"
                 value={raceName}
                 onChange={(e) => setRaceName(e.target.value)}
                 placeholder="42.2 км"
@@ -197,7 +200,7 @@ export function PlanEventModal({ isOpen, onClose }: PlanEventModalProps): React.
               <input
                 type="number"
                 step="0.1"
-                className="field__input"
+                className="input input--sm"
                 value={distanceKm !== undefined ? distanceKm : ''}
                 onChange={(e) => setDistanceKm(e.target.value ? parseFloat(e.target.value) : undefined)}
                 placeholder="42.2"
@@ -208,24 +211,23 @@ export function PlanEventModal({ isOpen, onClose }: PlanEventModalProps): React.
           <label className="field">
             <span className="field__label">Заметка</span>
             <textarea
-              className="field__input"
+              className="input input--sm"
               rows={2}
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Примечание к планируемому старту"
             />
           </label>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-            <button type="button" className="btn btn--secondary" onClick={onClose} disabled={mutation.isPending}>
-              Отмена
-            </button>
-            <button type="submit" className="btn btn--primary" disabled={mutation.isPending}>
-              {mutation.isPending ? 'Сохранение...' : 'Запланировать'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </div>
+        <footer className={styles.actions}>
+          <button type="button" className="btn btn--ghost" onClick={onClose} disabled={mutation.isPending}>
+            Отмена
+          </button>
+          <button type="submit" className="btn btn--primary" disabled={mutation.isPending}>
+            {mutation.isPending ? 'Сохранение...' : 'Запланировать'}
+          </button>
+        </footer>
+      </form>
+    </dialog>
   );
 }

@@ -1,13 +1,90 @@
 """Exercise Wave 2 through the collection API and PostgreSQL worker."""
 import asyncio
+import json
 from datetime import date, timedelta
+from typing import Any
 
 import procrastinate
 import psycopg
+import pytest
 import requests
 
-from app.pipeline import pilot, sources
+from app.pipeline import pilot, sources, toplist
 from app.worker import pilot_collect_task
+
+
+def test_toplist_worker_keeps_dnf_and_result_ids_on_repeat(
+    pilot_client, migrated_url: str, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event_id, distance_id = 7, 11
+    published_dnf = False
+
+    def external(session: requests.Session, url: str, **kwargs: Any) -> requests.Response:
+        total = 50 + int(published_dnf)
+        if url == f"{toplist.BASE}/api/race/{event_id}":
+            payload = {
+                "id": event_id, "kindOfSport": {"id": 10}, "name": "Fixture trail",
+                "beginDate": "2025-07-06", "resultsCount": total,
+                "distances": [{"id": distance_id, "length": 7.5, "climb": 150, "resultsCount": total}],
+            }
+        else:
+            assert url == f"{toplist.BASE}/api/competition/{event_id}/{distance_id}"
+            params = kwargs["params"]
+            offset = params["from"]
+            assert params == {"from": offset, "length": 50, "sort": "position"}
+            assert offset in range(0, total, 50)
+            rows = [{
+                "id": index, "raceId": event_id, "raceDistanceId": distance_id,
+                "raceNumber": index, "resultStatus": {"name": "-" if index <= 50 else "DNF"},
+                "position": index, "raceResult": "00:32:33" if index <= 50 else None,
+                "resultType": "time", "rating": 6274.66 if index == 1 else None,
+                "athlete": {"surname": "Тест", "name": f"Участник {index}", "gender": {"id": 1}},
+            } for index in range(offset + 1, min(offset + 50, total) + 1)]
+            payload = {"from": offset, "length": 50, "total": total, "competition": rows}
+        response = requests.Response()
+        response.status_code = 200
+        response._content = json.dumps(payload).encode()
+        return response
+
+    async def consume() -> None:
+        app = procrastinate.App(connector=procrastinate.PsycopgConnector(conninfo=migrated_url))
+        app.task(name=pilot_collect_task.name, queue="collect", pass_context=True)(pilot_collect_task.func)
+        async with app.open_async():
+            await app.run_worker_async(queues=["collect"], wait=False)
+
+    def import_protocol() -> dict[str, tuple[int, str, str, int | None, float | None, float | None]]:
+        response = pilot_client.post("/api/v1/runs", json={
+            "kind": "collect", "source": "toplist", "event_code": str(event_id),
+        })
+        assert response.status_code == 202, response.text
+        asyncio.run(consume())
+        run = pilot_client.get(f"/api/v1/runs/{response.json()['run_id']}").json()
+        assert run["status"] == "succeeded", run
+        with psycopg.connect(migrated_url) as connection:
+            assert connection.execute(
+                "SELECT elevation_gain_m FROM race WHERE external_id=%s", (str(distance_id),),
+            ).fetchall() == [(150,)]
+            rows = connection.execute("""
+                SELECT external_participant_id, id, status, bib, position,
+                       official_time_s, toplist_points
+                FROM result
+            """).fetchall()
+        assert len(rows) == len({row[0] for row in rows})
+        return {external_id: tuple(fields) for external_id, *fields in rows}
+
+    monkeypatch.setattr(pilot, "DATABASE_URL", migrated_url)
+    monkeypatch.setattr(requests.Session, "get", external)
+    monkeypatch.setattr(toplist, "sleep", lambda _: None)
+    assert pilot_client.post("/api/auth/login", json={"username": "admin", "password": "admin"}).status_code == 200
+
+    initial = import_protocol()
+    assert len(initial) == 50
+    assert initial["1"][1:] == ("FIN", "1", 1, 1953, 6274.66)
+    published_dnf = True
+    after = import_protocol()
+    assert after["51"][1:] == ("DNF", "51", None, None, None)
+    assert {key: value for key, value in after.items() if key != "51"} == initial
+    assert import_protocol() == after
 
 
 def test_trail_collection_stores_reference_points_and_requests_missing_elevation(

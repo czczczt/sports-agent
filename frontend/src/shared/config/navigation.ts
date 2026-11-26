@@ -24,5 +24,5 @@ export const NAV_ITEMS: NavItem[] = [
     icon: 'spark',
     mobile: true,
   },
-  { section: 'status', to: paths.status, label: 'Статус', icon: 'spark', mobile: false },
+  { section: 'status', to: paths.status, label: 'Статус', icon: 'pulse', mobile: false },
 ];

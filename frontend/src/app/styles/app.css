@@ -9,17 +9,6 @@
   display: contents;
 }
 
-/*
- * Нижняя панель на телефоне: в theme.css она свёрстана на 2 колонки, а пунктов 3 —
- * третий («Найти себя») уезжал на вторую строку за край экрана. Колонки по числу пунктов
- * (config/navigation.ts, mobile: true), поэтому новый пункт тоже встанет в ряд.
- */
-.bottom-nav {
-  grid-template-columns: none;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-}
-
 /* ---------- Найти себя ---------- */
 a.chip--run {
   text-decoration: none;
@@ -201,6 +190,34 @@ a.chip--run:hover {
   color: var(--text-muted);
   display: flex;
 }
+.date-field__box:has(.date-field__trigger) .input {
+  cursor: text;
+  padding-right: 44px;
+}
+.date-field__trigger {
+  position: absolute;
+  inset: 1px 1px 1px auto;
+  width: 40px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+}
+.date-field__trigger:hover,
+.date-field__trigger:focus-within {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
+.date-field__trigger:focus-within {
+  outline: 2px solid var(--focus-ring);
+}
+.date-field__trigger input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
 .month-label {
   padding: var(--space-14px) var(--space-16px) var(--space-6px);
   text-transform: uppercase;
@@ -308,7 +325,7 @@ a.chip--run:hover {
   color: var(--text-muted);
 }
 .user-badge__name {
-  max-width: 140px;
+  max-width: 8em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

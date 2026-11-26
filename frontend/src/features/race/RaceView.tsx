@@ -32,7 +32,14 @@ export function RaceView({ raceId }: RaceViewProps): React.JSX.Element {
       notFound={<NotFound title="Дистанция не найдена" backTo={paths.events} backLabel="Старты" />}
     >
       {(data) => (
-        <RaceDetail key={raceId} data={data} athleteId={athleteId} search={search} onSearch={setSearch} />
+        <RaceDetail
+          data={data}
+          activeRaceId={raceId}
+          updating={query.isPlaceholderData}
+          athleteId={athleteId}
+          search={search}
+          onSearch={setSearch}
+        />
       )}
     </AsyncView>
   );

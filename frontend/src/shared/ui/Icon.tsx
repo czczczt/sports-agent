@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react';
 
 const ICONS = {
+  check: <path d="m4 12 5 5L20 6" />,
+  refresh: <path d="M20 4v6h-6M20 10a8 8 0 1 0 0 5" />,
+  menu: <path d="M4 6h16M4 12h16M4 18h16" />,
+  pulse: <path d="M2 12h5l3-8 4 16 3-8h5" />,
   logo: <path d="M4 20v-7h5v7M9 20V7h6v13M15 20v-5h5v5" />,
   back: <path d="M15 6l-6 6 6 6" />,
   calendar: (
