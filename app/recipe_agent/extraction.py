@@ -51,6 +51,20 @@ def compact_html(html: str) -> str:
     return str(soup.body or soup)[:PROMPT_SAMPLE_LENGTH]
 
 
+def table_structure(html: str) -> str:
+    soup = BeautifulSoup(compact_html(html), "lxml")
+    selector_attributes = {"id", "class", "data-field", "data-clock", "data-purpose", "itemprop"}
+    tables = soup.find_all("table", limit=3)
+    for table in tables:
+        for text in table.find_all(string=True):
+            text.extract()
+        for element in [table, *table.find_all()]:
+            element.attrs = {
+                name: value for name, value in element.attrs.items() if name in selector_attributes
+            }
+    return "".join(map(str, tables))[:2000]
+
+
 def extract(recipe: RecipeProposal, html: str) -> list[ResultRow]:
     # Crawl4AI imports LiteLLM even for CSS-only extraction.
     os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")

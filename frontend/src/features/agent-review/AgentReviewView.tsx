@@ -38,10 +38,15 @@ export function AgentReviewView(): React.JSX.Element {
         <div className="page-head__text">
           <h1 className="h1 h1-sm">Правки агента</h1>
           <p className="lead">
-            Сгенерированные ИИ-агентом решения и адаптеры для сбора протоколов соревнований, ожидающие
-            проверки человеком.
+            Ход восстановления сбора протоколов и решения, которые требуют проверки оператора.
           </p>
         </div>
+      </div>
+      <RecipeReviewPanel />
+      <section aria-labelledby="adapter-review-title">
+        <h2 className="h2" id="adapter-review-title">
+          Проверка адаптеров
+        </h2>
         <ReviewFilters
           key={`${status}|${source}`}
           data={data}
@@ -49,16 +54,14 @@ export function AgentReviewView(): React.JSX.Element {
           source={source}
           onApply={(st, src) => setParams(src ? { status: st, source: src } : { status: st }, KEEP_SCROLL)}
         />
-      </div>
-
-      {error && !data ? (
-        <ErrorState error={error} onRetry={reload} />
-      ) : !data ? (
-        <Loader />
-      ) : (
-        <ReviewList data={data} status={status} />
-      )}
-      <RecipeReviewPanel />
+        {error && !data ? (
+          <ErrorState error={error} onRetry={reload} />
+        ) : !data ? (
+          <Loader />
+        ) : (
+          <ReviewList data={data} status={status} />
+        )}
+      </section>
     </>
   );
 }

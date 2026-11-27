@@ -1,3 +1,5 @@
+import logging
+from asyncio import to_thread
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any
@@ -8,14 +10,15 @@ from psycopg import AsyncConnection
 from psycopg.rows import dict_row
 
 from app.config import Settings, settings
-from app.recipe_agent.contracts import ProtocolSample
-from app.recipe_agent.extraction import GoldenCase, Sample
-from app.recipe_agent.graph import Proposal, RepairState, build_graph
+from app.recipe_agent.contracts import ProtocolSample, RecipeProposal
+from app.recipe_agent.extraction import GoldenCase, Sample, compact_html, table_structure
+from app.recipe_agent.graph import Proposal, RepairState, build_graph, check_samples
 from app.recipe_agent.provider import ModelProposal, create_model, request_recipe
-from app.recipe_agent.repository import RecipeRepository
+from app.recipe_agent.repository import RecipeRepository, SnapshotUnavailable
 
 CHECKPOINT_SETUP_LOCK = 220260621
 ScheduleCollection = Callable[[RecipeRepository, int], Awaitable[None]]
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -46,6 +49,7 @@ async def run_repair(
         repair = await repo.get_repair(repair_id)
         if repair["status"] != "running":
             return repair["status"]
+        active = await repo.active(repair["source_id"])
 
         async def samples() -> list[Sample]:
             return [
@@ -59,11 +63,40 @@ async def run_repair(
             return await repo.golden_cases(repair["source_id"])
 
         async def request_model(
-            html: list[str],
+            inputs: list[Sample],
             previous: dict[str, Any] | None,
             errors: list[str],
+            token_budget: int,
         ) -> ModelProposal:
-            return await request_recipe(create_model(config), html, previous, errors)
+            html = await to_thread(lambda: [compact_html(sample.html) for sample in inputs])
+            previous_sample = None
+            if active:
+                current_ids = {sample.raw_id for sample in inputs}
+                for body in active["samples"]:
+                    reference = ProtocolSample.model_validate(body)
+                    if reference.raw_id in current_ids:
+                        continue
+                    try:
+                        previous_sample = await repo.snapshot(repair["source_id"], reference)
+                    except SnapshotUnavailable:
+                        logger.info("Previous recipe sample %s unavailable for the trial", reference.raw_id)
+                        continue
+                    break
+
+            async def test_recipe(candidate: RecipeProposal) -> list[str]:
+                errors = await to_thread(check_samples, candidate, inputs)
+                if previous_sample is not None:
+                    previous_errors = await to_thread(check_samples, candidate, [previous_sample])
+                    errors.extend(f"Прежняя вёрстка: {error}" for error in previous_errors)
+                return errors
+
+            return await request_recipe(
+                create_model(config), html, previous, errors,
+                test_recipe=test_recipe if previous is not None else None,
+                token_budget=token_budget,
+                base_selector=active["body"]["baseSelector"] if active else None,
+                previous_layout=await to_thread(table_structure, previous_sample.html) if previous_sample else None,
+            )
 
         # The checkpointer owns its versioned schema and runs some DDL outside a transaction.
         async with AsyncPostgresSaver.from_conn_string(config.database_url) as saver:
@@ -89,18 +122,23 @@ async def run_repair(
             }
             snapshot = await graph.aget_state(graph_config)
             review = repair["review"]
+            graph_input: RepairState | Command | None
+            resume_graph = True
             if not snapshot.values:
-                active = await repo.active(repair["source_id"])
-                initial_state: RepairState = {
+                graph_input = {
                     "base_version_id": active["id"] if active else None,
+                    "base_selector": active["body"]["baseSelector"] if active else None,
                     "candidate": active["body"] if active else None,
                 }
-                await graph.ainvoke(initial_state, graph_config)
-            elif snapshot.interrupts:
-                if review and review["id"] != snapshot.values.get("review_id"):
-                    await graph.ainvoke(Command(resume=review), graph_config)
-            elif snapshot.next:
-                await graph.ainvoke(None, graph_config)
+            elif snapshot.interrupts and review and review["id"] != snapshot.values.get("review_id"):
+                graph_input = Command(resume=review)
+            else:
+                graph_input = None
+                resume_graph = bool(snapshot.next and not snapshot.interrupts)
+            if resume_graph:
+                async for progress in graph.astream(graph_input, graph_config, stream_mode="values"):
+                    if "__interrupt__" not in progress:
+                        await repo.save_progress(repair_id, progress)
             snapshot = await graph.aget_state(graph_config)
             state = dict(snapshot.values)
             status = "waiting" if snapshot.interrupts else state["outcome"]

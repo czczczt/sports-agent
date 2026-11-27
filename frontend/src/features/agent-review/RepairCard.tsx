@@ -1,6 +1,7 @@
 import type { RepairReview as Repair, ReviewDecision } from '@/shared/api';
 import { useState, type FormEvent } from 'react';
 import { z } from 'zod';
+import styles from './AgentReviewView.module.css';
 import { useRepairDecision } from './useRepairs';
 
 const recipeInput = z
@@ -34,6 +35,24 @@ const recipeInput = z
   .strict();
 
 type Action = ReviewDecision['action'];
+
+const statusLabels: Record<string, string> = {
+  running: 'Агент работает',
+  waiting: 'Нужно решение оператора',
+  activated: 'Рецепт активирован',
+  unchanged: 'Текущий рецепт прошёл проверки',
+  rejected: 'Рецепт отклонён',
+  stale: 'Активный рецепт уже сменился',
+};
+
+const attemptLabels: Record<Repair['attempts'][number]['step'], string> = {
+  trial: 'Агент запустил пробное извлечение',
+  sample: 'Проверка на проблемном протоколе',
+  golden: 'Проверка на эталонных протоколах',
+  generate: 'Агент предложил первый рецепт',
+  repair: 'Агент представил исправленный рецепт',
+  unavailable: 'Работа приостановлена',
+};
 
 interface RepairCardProps {
   repair: Repair;
@@ -75,11 +94,54 @@ export function RepairCard({ repair }: RepairCardProps): React.JSX.Element {
         {repair.source_name ?? `Источник #${repair.source_id}`} · ремонт #{repair.id}
       </h3>
       {repair.issue_id !== null && <p className="muted">Инцидент #{repair.issue_id}</p>}
-      {repair.status === 'running' ? (
-        <p role="status">В очереди или выполняется</p>
-      ) : (
+      <p role="status">{statusLabels[repair.status] ?? repair.status}</p>
+      {repair.attempts.length > 0 && (
+        <ol className={styles.repairTimeline} aria-label="Ход ремонта">
+          {repair.attempts.map((attempt, index) => (
+            <li key={index}>
+              {attemptLabels[attempt.step]} · {attempt.errors.length ? 'есть ошибки' : 'успешно'}
+              {attempt.errors.length > 0 && (
+                <ul>
+                  {attempt.errors.map((message) => (
+                    <li key={message}>{message}</li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+      {repair.golden_total > 0 && (
+        <p>
+          Эталонных протоколов совпало: {repair.golden_passed} из {repair.golden_total}
+        </p>
+      )}
+      {repair.tokens_used > 0 && <p className="muted">Токенов использовано: {repair.tokens_used}</p>}
+      {repair.status === 'activated' && (
+        <p role="status">
+          Версия {repair.recipe_version} ·{' '}
+          {repair.collection_pending
+            ? 'Воркер возобновляет сбор'
+            : `Сохранено строк по этой версии: ${repair.saved_rows}`}
+        </p>
+      )}
+      {repair.base_selector &&
+        typeof repair.candidate?.baseSelector === 'string' &&
+        repair.base_selector !== repair.candidate.baseSelector && (
+          <dl className={styles.selectorDiff}>
+            <dt>Исходный селектор</dt>
+            <dd>
+              <code>{repair.base_selector}</code>
+            </dd>
+            <dt>Селектор после ремонта</dt>
+            <dd>
+              <code>{repair.candidate.baseSelector}</code>
+            </dd>
+          </dl>
+        )}
+      {repair.status === 'waiting' ? (
         <form onSubmit={(event) => void decide('edit', event)}>
-          {repair.errors.length > 0 && (
+          {repair.attempts.length === 0 && repair.errors.length > 0 && (
             <ul>
               {repair.errors.map((message) => (
                 <li key={message}>{message}</li>
@@ -123,6 +185,13 @@ export function RepairCard({ repair }: RepairCardProps): React.JSX.Element {
             </button>
           </div>
         </form>
+      ) : (
+        repair.candidate && (
+          <details>
+            <summary>Рецепт JSON</summary>
+            <pre className={styles.recipeCode}>{proposal}</pre>
+          </details>
+        )
       )}
     </article>
   );

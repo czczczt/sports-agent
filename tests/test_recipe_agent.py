@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import json
 import logging
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -31,9 +32,10 @@ from app.recipe_agent.extraction import (
     Sample,
     extract,
     protocol_digest,
+    table_structure,
 )
-from app.recipe_agent.graph import build_graph
-from app.recipe_agent.provider import ModelProposal, propose
+from app.recipe_agent.graph import build_graph, check_samples
+from app.recipe_agent.provider import ModelProposal, propose, request_recipe
 from app.recipe_agent.repository import RecipeConflict, RecipeRepository
 from app.recipe_agent.service import repository, run_repair
 from app.worker import enqueue_recipe_collection, enqueue_recipe_repair
@@ -86,6 +88,10 @@ def test_css_extracts_correct_timing_and_bib() -> None:
     with pytest.raises(InvalidProtocol, match="gun_time_s"):
         extract(recipe("#old tr"), html("old", "16:75"))
 
+    outline = table_structure(html("old"))
+    assert 'class="gun"' in outline
+    assert "16:35" not in outline and "Иван Иванов" not in outline and "007" not in outline
+
 
 @pytest.mark.asyncio
 async def test_model_reports_missing_place_field(
@@ -109,6 +115,52 @@ async def test_model_reports_missing_place_field(
 
 
 @pytest.mark.asyncio
+async def test_repair_agent_uses_trial_feedback_before_submitting() -> None:
+    broken = recipe("#old tr")
+    fixed = recipe("tr")
+    model = AsyncMock(spec=BaseChatModel)
+    model.ainvoke.side_effect = [
+        AIMessage(content=json.dumps({"action": action, "recipe": candidate.model_dump()}))
+        for action, candidate in [("test", broken), ("test", fixed), ("submit", fixed)]
+    ]
+    input_sample = Sample(4, html("new"), "gun", 1)
+
+    async def test_candidate(candidate: RecipeProposal) -> list[str]:
+        return check_samples(candidate, [input_sample])
+
+    result = await request_recipe(
+        model, [input_sample.html], broken.model_dump(), [], test_recipe=test_candidate,
+    )
+    assert result.recipe == fixed
+    assert len(result.trials) == 2
+    assert "пустой протокол" in result.trials[0][0]
+    assert result.trials[1] == ()
+    messages = model.ainvoke.await_args.args[0]
+    feedback = [json.loads(messages[index].content) for index in (3, 5)]
+    assert [item["passed"] for item in feedback] == [False, True]
+
+    model.ainvoke.side_effect = None
+    model.ainvoke.return_value = AIMessage(
+        content=json.dumps({"action": "submit", "recipe": fixed.model_dump()}),
+    )
+    early_submission = await request_recipe(
+        model, [input_sample.html], broken.model_dump(), [], test_recipe=test_candidate,
+    )
+    assert early_submission.recipe == fixed
+    assert early_submission.trials == ((),)
+
+    model.ainvoke.return_value = AIMessage(
+        content=json.dumps({"action": "submit", "recipe": broken.model_dump()}),
+    )
+    failed_submission = await request_recipe(
+        model, [input_sample.html], broken.model_dump(), [], test_recipe=test_candidate,
+    )
+    assert failed_submission.recipe is None
+    assert len(failed_submission.trials) == 2
+    assert all("пустой протокол" in errors[0] for errors in failed_submission.trials)
+
+
+@pytest.mark.asyncio
 async def test_golden_rejects_valid_looking_wrong_time_and_accepts_human_edit() -> None:
     previous = recipe("#old tr")
     correct = recipe("tr")
@@ -124,7 +176,7 @@ async def test_golden_rejects_valid_looking_wrong_time_and_accepts_human_edit() 
     calls = 0
 
     async def propose(
-        _html: object, _previous: object, errors: list[str]
+        _samples: list[Sample], _previous: object, errors: list[str], _budget: int
     ) -> ModelProposal:
         nonlocal calls
         calls += 1
@@ -218,7 +270,7 @@ def test_postgres_resume_and_result_lineage(migrated_url: str, tmp_path: Path) -
             return ModelProposal(original, 100, 100)
 
         async def repair_model(*_args: object) -> ModelProposal:
-            return ModelProposal(repaired, 100, 100)
+            return ModelProposal(repaired, 100, 100, trials=((),))
 
         async with repository(config) as repo:
             await repo.replace_golden(
@@ -313,6 +365,13 @@ def test_postgres_resume_and_result_lineage(migrated_url: str, tmp_path: Path) -
         }
 
         async with repository(config) as repo:
+            [review] = await repo.review_queue(second_id)
+            assert review["recipe_version"] == 2
+            assert review["saved_rows"] == 1
+            assert review["state"]["golden_total"] == 3
+            assert [attempt["step"] for attempt in review["state"]["attempts"]] == [
+                "sample", "trial", "repair", "sample", "golden",
+            ]
             result = await repo.one(
                 """
                 SELECT r.gun_time_s, v.version, v.status FROM result r

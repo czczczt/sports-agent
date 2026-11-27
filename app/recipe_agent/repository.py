@@ -227,22 +227,35 @@ class RecipeRepository:
             raise RecipeNotFound("Ремонт не найден")
         return repair
 
-    async def review_queue(self) -> list[dict[str, Any]]:
+    async def review_queue(self, repair_id: int | None = None) -> list[dict[str, Any]]:
         return await (
             await self.connection.execute(
                 """
-            SELECT r.id, r.source_id, r.issue_id, r.status, r.state, s.name AS source_name
+            SELECT r.id, r.source_id, r.issue_id, r.status, r.state, s.name AS source_name,
+                   v.version AS recipe_version,
+                   (SELECT count(*) FROM result WHERE recipe_id = v.id) AS saved_rows,
+                   (v.status IS NOT DISTINCT FROM 'active' AND EXISTS (
+                       SELECT 1 FROM procrastinate_jobs job
+                       WHERE job.lock = 'recipe-collect:' || r.source_id
+                         AND job.status IN ('todo', 'doing')
+                   )) AS collection_pending
             FROM recipe_repair r JOIN source s ON s.id = r.source_id
-            WHERE r.status IN ('waiting', 'running')
-            ORDER BY r.id DESC
+            LEFT JOIN recipe_version v ON v.repair_id = r.id
+            WHERE (%s::bigint IS NULL OR r.id = %s)
+            ORDER BY (r.status IN ('waiting', 'running')) DESC, r.id DESC
             LIMIT 200
-            """
+            """,
+                (repair_id, repair_id),
             )
         ).fetchall()
 
     async def active(self, source_id: int) -> dict[str, Any] | None:
         return await self.one(
-            "SELECT id, body FROM recipe_version WHERE source_id = %s AND status = 'active'",
+            """
+            SELECT v.id, v.body, r.samples
+            FROM recipe_version v JOIN recipe_repair r ON r.id = v.repair_id
+            WHERE v.source_id = %s AND v.status = 'active'
+            """,
             (source_id,),
         )
 
@@ -250,6 +263,12 @@ class RecipeRepository:
         await self.connection.execute(
             "UPDATE recipe_repair SET review = %s, status = 'running', updated_at = now() WHERE id = %s",
             (Jsonb(review), repair_id),
+        )
+
+    async def save_progress(self, repair_id: int, state: dict[str, Any]) -> None:
+        await self.connection.execute(
+            "UPDATE recipe_repair SET state = %s, updated_at = now() WHERE id = %s AND status = 'running'",
+            (Jsonb(state), repair_id),
         )
 
     async def finish(

@@ -12,7 +12,6 @@ from app.recipe_agent.extraction import (
     GoldenCase,
     InvalidProtocol,
     Sample,
-    compact_html,
     extract,
     protocol_digest,
     validate_protocol,
@@ -23,13 +22,14 @@ from app.recipe_agent.repository import SnapshotUnavailable
 MAX_REPAIRS = 3
 TOKEN_BUDGET = 15000
 Proposal = Callable[
-    [list[str], dict[str, Any] | None, list[str]],
+    [list[Sample], dict[str, Any] | None, list[str], int],
     Awaitable[ModelProposal],
 ]
 
 
 class RepairState(TypedDict, total=False):
     base_version_id: int | None
+    base_selector: str | None
     candidate: dict[str, Any] | None
     proposed: bool
     repairs: int
@@ -40,6 +40,7 @@ class RepairState(TypedDict, total=False):
     sample_errors: list[str]
     passed: bool
     golden_passed: int
+    golden_total: int
     outcome: str
     reviewer: str
     review_id: str
@@ -57,15 +58,13 @@ def build_graph(
 ) -> CompiledStateGraph:
     async def ask_model(state: RepairState, repair: bool) -> RepairState:
         try:
-            html = await samples()
+            inputs = await samples()
         except SnapshotUnavailable as exc:
             return _unavailable(state, str(exc))
-        excerpts = await asyncio.to_thread(
-            lambda: [compact_html(sample.html) for sample in html]
-        )
         try:
+            used = state.get("tokens_in", 0) + state.get("tokens_out", 0)
             response = await propose(
-                excerpts, state.get("candidate"), state.get("errors", [])
+                inputs, state.get("candidate"), state.get("errors", []), TOKEN_BUDGET - used
             )
         except ProviderUnavailable as exc:
             return _unavailable(state, str(exc))
@@ -92,6 +91,7 @@ def build_graph(
             "golden_passed": 0,
             "attempts": [
                 *state.get("attempts", []),
+                *({"step": "trial", "errors": list(errors)} for errors in response.trials),
                 {
                     "step": "repair" if repair else "generate",
                     "tokens_in": response.tokens_in,
@@ -114,7 +114,7 @@ def build_graph(
         except SnapshotUnavailable as exc:
             return {"sample_errors": [str(exc)], "halt_repairs": True}
         # Keep participant rows out of the durable checkpoint.
-        errors = await asyncio.to_thread(_sample_errors, recipe, inputs)
+        errors = await asyncio.to_thread(check_samples, recipe, inputs)
         return {"sample_errors": errors}
 
     def validate_contract(state: RepairState) -> RepairState:
@@ -127,7 +127,11 @@ def build_graph(
         except SnapshotUnavailable as exc:
             return _unavailable(state, str(exc))
         errors, count = await asyncio.to_thread(_golden_errors, recipe, cases)
-        return {**_record_check(state, "golden", errors), "golden_passed": count}
+        return {
+            **_record_check(state, "golden", errors),
+            "golden_passed": count,
+            "golden_total": len(cases),
+        }
 
     def escalate_human(state: RepairState) -> RepairState:
         response = interrupt(
@@ -240,7 +244,7 @@ def _unavailable(state: RepairState, error: str) -> RepairState:
     }
 
 
-def _sample_errors(recipe: RecipeProposal, samples: list[Sample]) -> list[str]:
+def check_samples(recipe: RecipeProposal, samples: list[Sample]) -> list[str]:
     errors = []
     for sample in samples:
         try:

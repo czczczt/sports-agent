@@ -9,7 +9,7 @@ export function RecipeReviewPanel(): React.JSX.Element {
     <section aria-labelledby="recipe-review-title">
       <div className="page-head">
         <h2 className="h2" id="recipe-review-title">
-          Рецепты извлечения
+          Агент восстановления сбора
         </h2>
         <button type="button" className="btn" onClick={() => void reload()}>
           Обновить
@@ -17,7 +17,7 @@ export function RecipeReviewPanel(): React.JSX.Element {
       </div>
       {error && <ErrorState error={error} onRetry={reload} />}
       {loading && !data && <Loader />}
-      {!loading && data?.length === 0 && <p className="muted">Открытых ремонтов нет.</p>}
+      {!loading && data?.length === 0 && <p className="muted">Запусков ремонта пока нет.</p>}
       {data?.map((repair) => (
         <RepairCard key={repair.id} repair={repair} />
       ))}

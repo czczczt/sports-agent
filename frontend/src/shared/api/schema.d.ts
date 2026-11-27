@@ -2658,6 +2658,16 @@ export interface components {
             /** User Id */
             user_id: number;
         };
+        /** RepairAttempt */
+        RepairAttempt: {
+            /**
+             * Step
+             * @enum {string}
+             */
+            step: "trial" | "sample" | "golden" | "generate" | "repair" | "unavailable";
+            /** Errors */
+            errors: string[];
+        };
         /** RepairReview */
         RepairReview: {
             /** Id */
@@ -2678,6 +2688,22 @@ export interface components {
             errors: string[];
             /** Can Approve */
             can_approve: boolean;
+            /** Attempts */
+            attempts: components["schemas"]["RepairAttempt"][];
+            /** Golden Passed */
+            golden_passed: number;
+            /** Golden Total */
+            golden_total: number;
+            /** Tokens Used */
+            tokens_used: number;
+            /** Recipe Version */
+            recipe_version: number | null;
+            /** Base Selector */
+            base_selector: string | null;
+            /** Saved Rows */
+            saved_rows: number;
+            /** Collection Pending */
+            collection_pending: boolean;
         };
         /** ReportCreateRequest */
         ReportCreateRequest: {

@@ -9,7 +9,9 @@ export function useRepairs() {
     queryKey: repairsKey(),
     queryFn: ({ signal }) => responseData(client.GET('/api/agent-review/recipes', { signal })),
     refetchInterval: (query) =>
-      query.state.data?.some((repair) => repair.status === 'running') ? 5000 : false,
+      query.state.data?.some((repair) => repair.status === 'running' || repair.collection_pending)
+        ? 2000
+        : 5000,
   });
 }
 export function useRepairDecision(id: number) {

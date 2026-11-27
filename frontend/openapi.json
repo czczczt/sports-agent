@@ -10733,6 +10733,35 @@
         ],
         "title": "RegistrationResponse"
       },
+      "RepairAttempt": {
+        "properties": {
+          "step": {
+            "type": "string",
+            "enum": [
+              "trial",
+              "sample",
+              "golden",
+              "generate",
+              "repair",
+              "unavailable"
+            ],
+            "title": "Step"
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "step",
+          "errors"
+        ],
+        "title": "RepairAttempt"
+      },
       "RepairReview": {
         "properties": {
           "id": {
@@ -10791,6 +10820,55 @@
           "can_approve": {
             "type": "boolean",
             "title": "Can Approve"
+          },
+          "attempts": {
+            "items": {
+              "$ref": "#/components/schemas/RepairAttempt"
+            },
+            "type": "array",
+            "title": "Attempts"
+          },
+          "golden_passed": {
+            "type": "integer",
+            "title": "Golden Passed"
+          },
+          "golden_total": {
+            "type": "integer",
+            "title": "Golden Total"
+          },
+          "tokens_used": {
+            "type": "integer",
+            "title": "Tokens Used"
+          },
+          "recipe_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipe Version"
+          },
+          "base_selector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Selector"
+          },
+          "saved_rows": {
+            "type": "integer",
+            "title": "Saved Rows"
+          },
+          "collection_pending": {
+            "type": "boolean",
+            "title": "Collection Pending"
           }
         },
         "type": "object",
@@ -10802,7 +10880,15 @@
           "status",
           "candidate",
           "errors",
-          "can_approve"
+          "can_approve",
+          "attempts",
+          "golden_passed",
+          "golden_total",
+          "tokens_used",
+          "recipe_version",
+          "base_selector",
+          "saved_rows",
+          "collection_pending"
         ],
         "title": "RepairReview"
       },

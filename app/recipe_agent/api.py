@@ -1,5 +1,5 @@
 from collections.abc import AsyncIterator, Callable, Coroutine
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import uuid4
 
 import psycopg
@@ -53,6 +53,11 @@ async def get_repository() -> AsyncIterator[RecipeRepository]:
 RepositoryDep = Annotated[RecipeRepository, Depends(get_repository)]
 
 
+class RepairAttempt(BaseModel):
+    step: Literal["trial", "sample", "golden", "generate", "repair", "unavailable"]
+    errors: list[str]
+
+
 class RepairReview(BaseModel):
     id: int
     issue_id: int | None
@@ -62,6 +67,14 @@ class RepairReview(BaseModel):
     candidate: dict[str, Any] | None
     errors: list[str]
     can_approve: bool
+    attempts: list[RepairAttempt]
+    golden_passed: int
+    golden_total: int
+    tokens_used: int
+    recipe_version: int | None
+    base_selector: str | None
+    saved_rows: int
+    collection_pending: bool
 
 
 def review_item(repair: dict[str, Any]) -> dict[str, Any]:
@@ -75,6 +88,14 @@ def review_item(repair: dict[str, Any]) -> dict[str, Any]:
         "candidate": state.get("candidate"),
         "errors": state.get("errors", []),
         "can_approve": repair["status"] == "waiting" and state.get("passed", False),
+        "attempts": state.get("attempts", []),
+        "golden_passed": state.get("golden_passed", 0),
+        "golden_total": state.get("golden_total", 0),
+        "tokens_used": state.get("tokens_in", 0) + state.get("tokens_out", 0),
+        "recipe_version": repair.get("recipe_version"),
+        "base_selector": state.get("base_selector"),
+        "saved_rows": repair.get("saved_rows", 0),
+        "collection_pending": repair.get("collection_pending", False),
     }
 
 
@@ -87,7 +108,10 @@ async def list_repairs(_: AdminDep, repo: RepositoryDep) -> list[dict[str, Any]]
 async def get_repair(
     repair_id: PositiveId, _: AdminDep, repo: RepositoryDep
 ) -> dict[str, Any]:
-    return review_item(await repo.get_repair(repair_id))
+    rows = await repo.review_queue(repair_id)
+    if not rows:
+        raise RecipeNotFound("Ремонт не найден")
+    return review_item(rows[0])
 
 
 @router.put("/sources/{source_id}/golden")
