@@ -47,7 +47,7 @@ export function AppLayout(): React.JSX.Element {
         </a>
         <header className="app-header">
           <div className="app-header__inner">
-            <span className="brand">
+            <Link to={paths.search} className="brand">
               <span className="brand__mark" aria-hidden="true">
                 <Icon name="logo" />
               </span>
@@ -55,7 +55,7 @@ export function AppLayout(): React.JSX.Element {
                 Рейтинг <br />
                 спортсменов
               </span>
-            </span>
+            </Link>
             <div className="app-header__right">
               <ThemeControls />
             </div>

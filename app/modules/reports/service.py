@@ -5,6 +5,9 @@ class ReportsService:
     async def commit(self):
         await self.repository.session.commit()
 
+    async def find_pending_link_claim(self, user_id):
+        return await self.repository.find_pending_link_claim(user_id)
+
     async def create(
         self, kind, user_id, athlete_id, result_id, event_id, url, message
     ):

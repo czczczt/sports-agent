@@ -18,7 +18,6 @@ export function ProtocolListRow({ r, isMe }: ProtocolListRowProps): React.JSX.El
       <div className={styles.name}>
         <div className={['row', styles.identity].join(' ')}>
           <AthleteName r={r} className="list-row__title" />
-          {isMe && <span className={['small strong', styles.currentAthlete].join(' ')}>это вы</span>}
         </div>
         <div className="list-row__meta num">
           {r.pace_formatted}

@@ -1,5 +1,5 @@
 import { paths } from '@/shared/config';
-import { athleteMeta, initials, plural } from '@/shared/lib';
+import { athleteMeta, formatFullName, initials, plural } from '@/shared/lib';
 import { AsyncView, EmptyState, Icon } from '@/shared/ui';
 import { Link } from 'react-router-dom';
 import styles from './SearchResults.module.css';
@@ -29,10 +29,11 @@ export function SearchResults({ lastName, birthYear }: SearchResultsProps): Reac
             <div className="grid-cards">
               {candidates.map((cand) => {
                 const meta = athleteMeta(cand);
-                const fullName =
+                const rawFullName =
                   cand.middle_name && !cand.display_name.includes(cand.middle_name)
                     ? `${cand.display_name} ${cand.middle_name}`
                     : cand.display_name;
+                const fullName = formatFullName(rawFullName);
                 return (
                   <div key={cand.id} className="card card--pad candidate-card">
                     <div className="row candidate-card__head">

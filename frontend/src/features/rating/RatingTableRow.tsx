@@ -1,6 +1,6 @@
 import type { RatingRow } from '@/shared/api';
 import { paths } from '@/shared/config';
-import { fixed1 } from '@/shared/lib';
+import { fixed1, formatFullName } from '@/shared/lib';
 import { Link } from 'react-router-dom';
 import layout from './RatingView.module.css';
 
@@ -35,7 +35,7 @@ export function RatingTableRow({ row, isMe, plainPlace = false }: RatingTableRow
       </td>
       <td>
         <Link to={paths.athlete(row.athlete_id)} className={layout.ratingAthlete}>
-          {row.display_name}
+          {formatFullName(row.display_name)}
         </Link>
         <span className={layout.ratingBirth}>{row.birth_year || 'год не указан'}</span>
       </td>

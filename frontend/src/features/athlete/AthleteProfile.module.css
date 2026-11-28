@@ -2,6 +2,29 @@
   flex-wrap: nowrap;
   gap: var(--space-20px);
   min-width: 0;
+  flex: 1 1 auto;
+}
+
+.claimActions {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.claimSentBtn,
+.claimSentBtn:hover {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  cursor: default;
+  filter: none;
+  opacity: 0.85;
+}
+
+.ownProfileBadge,
+.ownProfileBadge:hover {
+  cursor: default;
+  pointer-events: none;
+  filter: none;
 }
 
 .name {

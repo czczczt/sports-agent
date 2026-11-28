@@ -1,5 +1,6 @@
 import type { RaceProtocolItem } from '@/shared/api';
 import { paths } from '@/shared/config';
+import { formatFullName } from '@/shared/lib';
 import { Link } from 'react-router-dom';
 
 interface AthleteNameProps {
@@ -8,11 +9,12 @@ interface AthleteNameProps {
 }
 
 export function AthleteName({ r, className }: AthleteNameProps): React.JSX.Element {
+  const displayName = formatFullName(r.full_name_raw);
   return r.athlete_id ? (
     <Link to={paths.athlete(r.athlete_id)} className={className}>
-      {r.full_name_raw}
+      {displayName}
     </Link>
   ) : (
-    <span className={className}>{r.full_name_raw}</span>
+    <span className={className}>{displayName}</span>
   );
 }

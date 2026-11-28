@@ -1,19 +1,56 @@
 import { KEEP_SCROLL } from '@/shared/hooks';
 import { useAuth } from '@/shared/session';
-import { ErrorState, Icon, Loader } from '@/shared/ui';
+import { EmptyState, ErrorState, Icon, Loader } from '@/shared/ui';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { RecipeReviewPanel } from './RecipeReviewPanel';
-import { ReviewFilters } from './ReviewFilters';
+import { z } from 'zod';
+import styles from './AgentReviewView.module.css';
+import { RepairCard } from './RepairCard';
 import { ReviewList } from './ReviewList';
 import { useAgentReview } from './useAgentReview';
+import { useRepairs } from './useRepairs';
+
+const tabs = [
+  { value: 'waiting', label: 'Ждут решения' },
+  { value: 'all', label: 'Все' },
+  { value: 'activated', label: 'Активированы' },
+  { value: 'rejected', label: 'Отклонены' },
+] as const;
+
+type TabValue = (typeof tabs)[number]['value'];
+
+function matchesTab(status: string, tab: TabValue): boolean {
+  if (tab === 'all') return true;
+  if (tab === 'waiting') return status === 'waiting' || status === 'running';
+  if (tab === 'activated') return status === 'activated' || status === 'unchanged';
+  if (tab === 'rejected') return status === 'rejected' || status === 'stale';
+  return true;
+}
 
 export function AgentReviewView(): React.JSX.Element {
   const { isAdmin, openAuthModal } = useAuth();
   const [params, setParams] = useSearchParams();
-  const status = params.get('status') || 'proposed';
-  const source = params.get('source') || '';
+  const [pinnedIds, setPinnedIds] = useState<Set<number>>(() => new Set());
+  const tab = z
+    .enum(['waiting', 'all', 'activated', 'rejected'])
+    .catch('waiting')
+    .parse(params.get('tab'));
 
-  const { data, error, refetch: reload } = useAgentReview(status, source, isAdmin);
+  const pinRepair = (id: number) => {
+    setPinnedIds((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  };
+
+  const { data: legacyData, refetch: reloadLegacy } = useAgentReview(
+    tab === 'waiting' ? 'proposed' : tab,
+    '',
+    isAdmin,
+  );
+  const { data: repairs, error, isFetching, refetch: reloadRepairs } = useRepairs();
 
   if (!isAdmin) {
     return (
@@ -32,36 +69,80 @@ export function AgentReviewView(): React.JSX.Element {
     );
   }
 
+  // Строгая сортировка по убыванию ID (#22, #21, #20...) во всех вкладках
+  const sortedRepairs = [...(repairs ?? [])].sort((a, b) => b.id - a.id);
+  const filteredRepairs = sortedRepairs.filter(
+    (r) => matchesTab(r.status, tab) || (tab === 'waiting' && pinnedIds.has(r.id)),
+  );
+  const counts: Record<TabValue, number> = {
+    waiting: sortedRepairs.filter((r) => matchesTab(r.status, 'waiting')).length,
+    all: sortedRepairs.length,
+    activated: sortedRepairs.filter((r) => matchesTab(r.status, 'activated')).length,
+    rejected: sortedRepairs.filter((r) => matchesTab(r.status, 'rejected')).length,
+  };
+
+  const legacyItemsCount = legacyData?.items.length ?? 0;
+  const isEmpty = filteredRepairs.length === 0 && legacyItemsCount === 0;
+
   return (
     <>
       <div className="page-head">
         <div className="page-head__text">
           <h1 className="h1 h1-sm">Правки агента</h1>
           <p className="lead">
-            Ход восстановления сбора протоколов и решения, которые требуют проверки оператора.
+            Восстановление сбора протоколов, проверка JSON-рецептов на эталонах и инциденты.
           </p>
         </div>
+        <button
+          type="button"
+          className="btn"
+          disabled={isFetching}
+          onClick={() => {
+            void reloadRepairs();
+            void reloadLegacy();
+          }}
+        >
+          {isFetching ? 'Обновление…' : 'Обновить'}
+        </button>
       </div>
-      <RecipeReviewPanel />
-      <section aria-labelledby="adapter-review-title">
-        <h2 className="h2" id="adapter-review-title">
-          Проверка адаптеров
-        </h2>
-        <ReviewFilters
-          key={`${status}|${source}`}
-          data={data}
-          status={status}
-          source={source}
-          onApply={(st, src) => setParams(src ? { status: st, source: src } : { status: st }, KEEP_SCROLL)}
+
+      <div className={styles.tabBar}>
+        <div className="rating-segment" role="group" aria-label="Статус ремонтов">
+          {tabs.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={tab === value}
+              onClick={() => {
+                setPinnedIds(new Set());
+                setParams({ tab: value }, KEEP_SCROLL);
+              }}
+            >
+              {label} ({counts[value]})
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {error && !repairs ? (
+        <ErrorState error={error} onRetry={reloadRepairs} />
+      ) : !repairs ? (
+        <Loader text="Загрузка ремонтов…" />
+      ) : isEmpty ? (
+        <EmptyState
+          title="Задач в этой вкладке нет"
+          text="Выберите вкладку «Все» или запустите проверку агента."
         />
-        {error && !data ? (
-          <ErrorState error={error} onRetry={reload} />
-        ) : !data ? (
-          <Loader />
-        ) : (
-          <ReviewList data={data} status={status} />
-        )}
-      </section>
+      ) : (
+        <div className={styles.repairList}>
+          {filteredRepairs.map((repair) => (
+            <RepairCard key={repair.id} repair={repair} onDecide={() => pinRepair(repair.id)} />
+          ))}
+          {legacyData && legacyItemsCount > 0 && (
+            <ReviewList data={legacyData} status={tab} hideEmpty />
+          )}
+        </div>
+      )}
     </>
   );
 }

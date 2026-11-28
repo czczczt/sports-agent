@@ -47,6 +47,14 @@ async def create_report(
             detail=f"Недопустимый тип заявки: {payload.kind}. Допустимые: {', '.join(sorted(VALID_KINDS))}",
         )
 
+    if payload.kind == "link_me":
+        existing = await conn.find_pending_link_claim(current_user.id)
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="У вас уже есть активная заявка на привязку профиля",
+            )
+
     row = await conn.create(
         payload.kind,
         current_user.id,
@@ -86,7 +94,7 @@ async def list_reports(
     Список всех заявок (только для капитанов и администраторов, SPEC v1.3 §8.4, §11).
     Поддерживает фильтр по статусу (new, accepted, rejected, etc.).
     """
-    if status_filter:
+    if status_filter and status_filter != "all":
         rows = await conn.list_by_status(status_filter)
     else:
         rows = await conn.list_all()

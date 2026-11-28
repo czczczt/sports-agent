@@ -6,7 +6,7 @@ from app.pipeline.duplicates import reconcile_duplicates
 from app.pipeline.errors import PilotRejected
 from app.pipeline.operator_issues import check_elevation, record_issue
 from parser_running import store
-from parser_running.normalize import is_sber_club
+from parser_running.normalize import format_display_name, is_sber_club
 
 
 def norm_name(name):
@@ -33,9 +33,10 @@ def _link_athlete(con, result_id, row, event_year):
     if matches:
         athlete_id = matches[0][0]
     elif is_sber_club(row.get("club_raw")):
+        display_name = format_display_name(name) or name
         athlete_id = con.execute("""INSERT INTO athlete(display_name,name_key,gender,birth_year,city,region,club,employee_status)
             VALUES (%s,%s,%s,%s,%s,%s,%s,'presumed') RETURNING id""",
-            (name, key, row.get("gender"), year, row.get("city"), row.get("region"), row.get("club_raw"))).fetchone()[0]
+            (display_name, key, row.get("gender"), year, row.get("city"), row.get("region"), row.get("club_raw"))).fetchone()[0]
     else:
         return
     con.execute("INSERT INTO result_athlete(result_id,athlete_id) VALUES (%s,%s) ON CONFLICT DO NOTHING",

@@ -34,6 +34,9 @@ data/
 *.bak
 *.sqlite
 *.sqlite3
+*.dump
+*.sql
+*.sql.gz
 
 # Логи и кэш тестов
 *.log

@@ -1,4 +1,5 @@
 from app.core.repository import ReadRepository
+from parser_running.normalize import format_display_name
 
 
 class AccessRequestsRepository(ReadRepository):
@@ -109,10 +110,10 @@ class AccessRequestsRepository(ReadRepository):
         )
 
     async def create_athlete_from_user(self, user_row) -> int:
-        first = (user_row["first_name"] or "").strip()
-        last = (user_row["last_name"] or "").strip()
-        middle = (user_row["middle_name"] or "").strip() or None
-        display = f"{last} {first}".strip() or user_row["username"]
+        first = format_display_name(user_row["first_name"])
+        last = format_display_name(user_row["last_name"])
+        middle = format_display_name(user_row["middle_name"]) or None
+        display = format_display_name(f"{last} {first}".strip()) or user_row["username"]
         import re
 
         tokens = sorted(re.findall(r"[a-zа-я0-9]+", display.lower().replace("ё", "е")))

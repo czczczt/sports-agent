@@ -1,6 +1,6 @@
 import type { AccessRequestItem } from '@/shared/api';
 import { paths } from '@/shared/config';
-import { dateRu, dateTimeRu } from '@/shared/lib';
+import { dateRu, dateTimeRu, formatFullName } from '@/shared/lib';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './AdminRequestsView.module.css';
@@ -75,7 +75,7 @@ export function AccessCard({ req }: AccessCardProps): React.JSX.Element {
                 target="_blank"
                 className={styles.candidateLink}
               >
-                {req.candidate_athlete_name}
+                {formatFullName(req.candidate_athlete_name)}
               </Link>{' '}
               (ID: {req.candidate_athlete_id})
             </span>

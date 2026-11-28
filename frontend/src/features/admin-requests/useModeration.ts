@@ -15,13 +15,12 @@ export function useModeration(
 ) {
   const access = useQuery({
     queryKey: [...keys.access, accessFilter],
-    queryFn: ({ signal }) =>
-      adminApi.accessRequests(accessFilter === 'all' ? undefined : accessFilter, signal),
+    queryFn: ({ signal }) => adminApi.accessRequests(accessFilter, signal),
     enabled: enabled && tab === 'access',
   });
   const reports = useQuery({
     queryKey: [...keys.reports, reportFilter],
-    queryFn: ({ signal }) => adminApi.reports(reportFilter === 'all' ? undefined : reportFilter, signal),
+    queryFn: ({ signal }) => adminApi.reports(reportFilter, signal),
     enabled: enabled && tab === 'reports',
   });
   return {

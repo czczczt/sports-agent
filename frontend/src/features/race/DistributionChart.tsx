@@ -6,9 +6,10 @@ import { useCallback } from 'react';
 
 interface DistributionChartProps {
   competition: CompetitionDistribution;
+  isOwnProfile?: boolean;
 }
 
-export function DistributionChart({ competition }: DistributionChartProps): React.JSX.Element {
+export function DistributionChart({ competition, isOwnProfile = false }: DistributionChartProps): React.JSX.Element {
   const canvasRef = useChart(
     useCallback((): ChartConfiguration => {
       const bins = competition.distribution_bins;
@@ -45,7 +46,12 @@ export function DistributionChart({ competition }: DistributionChartProps): Reac
             tooltip: {
               callbacks: {
                 title: (items) => bins[items[0]?.dataIndex ?? -1]?.label ?? '',
-                afterLabel: (item) => (isMine(bins[item.dataIndex]) ? 'Здесь ваш финиш' : ''),
+                afterLabel: (item) =>
+                  isMine(bins[item.dataIndex])
+                    ? isOwnProfile
+                      ? 'Здесь ваш финиш'
+                      : 'Здесь финиш спортсмена'
+                    : '',
               },
             },
           },
@@ -62,7 +68,7 @@ export function DistributionChart({ competition }: DistributionChartProps): Reac
           },
         },
       };
-    }, [competition]),
+    }, [competition, isOwnProfile]),
   );
 
   return (

@@ -14,7 +14,6 @@ export function AuthControls(): React.JSX.Element {
             <Icon name="user" className="icon-sm" />
           </span>
           <span className="user-badge__name">{user.display_name}</span>
-          {user.role === 'admin' && <span className="chip chip--sm chip--brand">админ</span>}
         </div>
         <button
           type="button"

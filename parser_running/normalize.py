@@ -112,3 +112,22 @@ def km_to_m(km) -> int | None:
 GENDER_RR = {0: "M", 1: "F"}  # RR API: gender 0 = Мужчины, 1 = Женщины (проверяется в checks)
 # RR API: enum из JS сайта {Finish:0, DNF:1, DSQ:2, DNS:3, NC:4, LAP:5}; NC — не уложился в лимит
 STATUS_RR = {0: "FIN", 1: "DNF", 2: "DSQ", 3: "DNS", 4: "NC", 5: "LAP"}
+
+
+def format_display_name(name: str | None) -> str:
+    """Нормализует регистр ФИО для отображения: убирает КАПС и сплошной нижний регистр,
+    сохраняя смешанный регистр ('McDonald', 'de la Cruz') и дефисы ('Иванов-Петров')."""
+    cleaned = " ".join((name or "").split())
+    if not cleaned:
+        return ""
+    all_lower = cleaned.islower()
+
+    def _fix_part(part: str) -> str:
+        if part.isupper() or (all_lower and part.islower()):
+            return part[:1].upper() + part[1:].lower()
+        return part
+
+    words = []
+    for word in cleaned.split(" "):
+        words.append("-".join(_fix_part(sub) for sub in word.split("-")))
+    return " ".join(words)

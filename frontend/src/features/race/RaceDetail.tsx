@@ -89,7 +89,7 @@ export function RaceDetail({
       <div className="track-divider" />
 
       <div className={`cols ${styles.raceData}`} aria-busy={updating}>
-        <RaceStatistics data={data} search={search} />
+        <RaceStatistics data={data} athleteId={athleteId} />
         <RaceProtocol data={data} athleteId={athleteId} search={search} onSearch={onSearch} />
       </div>
     </>

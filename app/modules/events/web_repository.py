@@ -57,10 +57,12 @@ class EventsWebRepository(ReadRepository):
     ):
         clauses = ["r.race_id=:id", "r.duplicate_of IS NULL"]
         params = {"id": race_id, "limit": limit, "offset": offset}
+        visible_emp = (
+            "a.id IS NOT NULL AND a.is_hidden IS NOT TRUE "
+            "AND (a.employee_status IS NULL OR a.employee_status != 'not_employee')"
+        )
         if employees_only:
-            clauses.append(
-                "a.id IS NOT NULL AND (a.employee_status IS NULL OR a.employee_status != 'not_employee')"
-            )
+            clauses.append(visible_emp)
         if search:
             number = re.sub(r"^[№#\s]+", "", search.strip()).lower().replace("ё", "е")
             params["bib"] = number
@@ -68,38 +70,38 @@ class EventsWebRepository(ReadRepository):
             for index, word in enumerate(re.findall(r"[a-zа-я0-9]+", number)):
                 key = f"word{index}"
                 name_clauses.append(
-                    f"(strpos(a.name_key,:{key})>0 OR (a.id IS NOT NULL AND (a.employee_status IS NULL OR a.employee_status != 'not_employee') AND strpos(search_text(r.full_name_raw),:{key})>0))"
+                    f"(({visible_emp} AND strpos(a.name_key,:{key})>0) OR ({visible_emp} AND strpos(search_text(r.full_name_raw),:{key})>0))"
                 )
                 params[key] = word
             name_match = " AND ".join(name_clauses) or "false"
             clauses.append(
-                f"((a.id IS NOT NULL AND (a.employee_status IS NULL OR a.employee_status != 'not_employee') AND search_text(r.bib)=:bib) OR ({name_match}))"
+                f"(({visible_emp} AND search_text(r.bib)=:bib) OR ({name_match}))"
             )
         where = " AND ".join(clauses)
         return await self.rows(
             f"""
             SELECT r.id AS result_id,
                    CASE
-                       WHEN a.id IS NOT NULL AND (a.employee_status IS NULL OR a.employee_status != 'not_employee') THEN r.athlete_id
+                       WHEN {visible_emp} THEN r.athlete_id
                        ELSE NULL
                    END AS athlete_id,
                    CASE
-                       WHEN a.id IS NOT NULL AND (a.employee_status IS NULL OR a.employee_status != 'not_employee') THEN r.bib
+                       WHEN {visible_emp} THEN r.bib
                        ELSE NULL
                    END AS bib,
                    CASE
-                       WHEN a.id IS NOT NULL AND (a.employee_status IS NULL OR a.employee_status != 'not_employee') THEN COALESCE(r.full_name_raw, 'Участник')
+                       WHEN {visible_emp} THEN COALESCE(r.full_name_raw, 'Участник')
                        ELSE 'Участник'
                    END AS full_name_raw,
                    r.gender, r.age, r.birth_year,
                    CASE
-                       WHEN a.id IS NOT NULL AND (a.employee_status IS NULL OR a.employee_status != 'not_employee') THEN r.club_raw
+                       WHEN {visible_emp} THEN r.club_raw
                        ELSE NULL
                    END AS club_raw,
                    r.place_abs, r.place_gender, r.chip_time_s, r.gun_time_s, r.status,
                    timing.official_time_s, timing_race.place_by,
                    CASE
-                       WHEN a.id IS NOT NULL AND (a.employee_status IS NULL OR a.employee_status != 'not_employee') THEN sc.points
+                       WHEN {visible_emp} THEN sc.points
                        ELSE NULL
                    END AS points
             FROM web_result r JOIN result timing ON timing.id=r.id

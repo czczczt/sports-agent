@@ -153,11 +153,14 @@ def build_graph(
         if decision.action == "edit" and decision.candidate is not None:
             return {
                 **result,
+                "reviewed": False,
+                "halt_repairs": True,
                 "candidate": decision.candidate.model_dump(exclude_none=True),
                 "proposed": True,
                 "passed": True,
                 "errors": [],
                 "golden_passed": 0,
+                "repairs": state.get("repairs", 0) + 1,
             }
         return result
 

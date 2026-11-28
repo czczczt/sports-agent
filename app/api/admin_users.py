@@ -29,7 +29,7 @@ class AdminUsersRepository(ReadRepository):
         if role:
             clauses.append("u.role = :role")
             params["role"] = role
-        if status_filter:
+        if status_filter and status_filter != "all":
             clauses.append("u.status = :status_filter")
             params["status_filter"] = status_filter
 

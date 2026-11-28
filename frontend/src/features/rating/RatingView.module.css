@@ -101,6 +101,12 @@
     padding: var(--space-10px) var(--space-16px);
     border-bottom: 1px solid var(--palette-1d2723);
   }
+  .ratingTable th:first-child,
+  .ratingTable td:first-child {
+    width: 1%;
+    white-space: nowrap;
+    padding-right: var(--space-8px);
+  }
   .ratingTable tr:hover {
     background: var(--surface-2);
   }

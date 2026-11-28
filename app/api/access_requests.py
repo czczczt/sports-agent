@@ -29,7 +29,7 @@ async def list_access_requests(
     Получить очередь заявок на доступ (SPEC v1.3 §8.6).
     Автоматически подбирает кандидата-спортсмена из таблицы athlete по ФИО и году/дате рождения.
     """
-    if status_filter:
+    if status_filter and status_filter != "all":
         rows = await conn.list_by_status(status_filter)
     else:
         rows = await conn.list_all()

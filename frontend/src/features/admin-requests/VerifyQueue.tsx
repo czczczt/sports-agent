@@ -1,6 +1,6 @@
 import type { VerifyQueueItem } from '@/shared/api';
 import { paths } from '@/shared/config';
-import { dateRu } from '@/shared/lib';
+import { dateRu, formatFullName } from '@/shared/lib';
 import { useAuth } from '@/shared/session';
 import { AsyncView, EmptyState } from '@/shared/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -29,7 +29,7 @@ function VerifyCard({
         <div>
           <span className="chip chip--sm chip--brand">#{item.rank}</span>{' '}
           <Link className={styles.athleteLink} to={paths.athlete(item.athlete_id)} target="_blank">
-            {item.display_name}
+            {formatFullName(item.display_name)}
           </Link>
           <div className="small muted">
             Вид спорта: {item.sport} · Пол: {item.gender || '—'} · Баллы: {item.points.toFixed(1)} · Стартов:{' '}

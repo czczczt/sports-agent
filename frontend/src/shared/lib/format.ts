@@ -92,6 +92,8 @@ export function athleteMeta(a: {
 }): string {
   let s = a.birth_date ? dateRu(a.birth_date) : a.birth_year ? String(a.birth_year) : 'год не указан';
   if (a.gender) s += ` · ${genderLabel(a.gender)}`;
+  if (a.city) s += ` · ${a.city}`;
+  if (a.club) s += ` · ${a.club}`;
   return s;
 }
 
@@ -128,5 +130,21 @@ const SPORT_TITLES: Record<string, string> = {
 export function sportTitle(sport?: string | null): string {
   if (!sport) return '';
   return SPORT_TITLES[sport.toLowerCase()] ?? sport;
+}
+
+export function formatFullName(name?: string | null): string {
+  if (!name) return '';
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((part) =>
+      part
+        .split('-')
+        .map((sub) =>
+          sub ? sub.charAt(0).toLocaleUpperCase('ru') + sub.slice(1).toLocaleLowerCase('ru') : '',
+        )
+        .join('-'),
+    )
+    .join(' ');
 }
 

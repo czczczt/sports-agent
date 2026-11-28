@@ -18,9 +18,11 @@ export function RecipeReviewPanel(): React.JSX.Element {
       {error && <ErrorState error={error} onRetry={reload} />}
       {loading && !data && <Loader />}
       {!loading && data?.length === 0 && <p className="muted">Запусков ремонта пока нет.</p>}
-      {data?.map((repair) => (
-        <RepairCard key={repair.id} repair={repair} />
-      ))}
+      <div style={{ display: 'grid', gap: '1rem' }}>
+        {data?.map((repair) => (
+          <RepairCard key={repair.id} repair={repair} />
+        ))}
+      </div>
     </section>
   );
 }

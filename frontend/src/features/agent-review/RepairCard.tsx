@@ -36,45 +36,61 @@ const recipeInput = z
 
 type Action = ReviewDecision['action'];
 
-const statusLabels: Record<string, string> = {
-  running: 'Агент работает',
-  waiting: 'Нужно решение оператора',
-  activated: 'Рецепт активирован',
-  unchanged: 'Текущий рецепт прошёл проверки',
-  rejected: 'Рецепт отклонён',
-  stale: 'Активный рецепт уже сменился',
+const statusMeta: Record<string, { label: string; chipClass: string }> = {
+  running: { label: 'Агент работает', chipClass: 'chip chip--sm chip--pending' },
+  waiting: { label: 'Ждёт решения', chipClass: 'chip chip--sm chip--pending' },
+  activated: { label: 'Рецепт активирован', chipClass: 'chip chip--sm chip--brand' },
+  unchanged: { label: 'Текущий рецепт актуален', chipClass: 'chip chip--sm chip--brand' },
+  rejected: { label: 'Отклонён', chipClass: 'chip chip--sm chip--error' },
+  stale: { label: 'Устарел', chipClass: 'chip chip--sm chip--error' },
 };
 
 const attemptLabels: Record<Repair['attempts'][number]['step'], string> = {
-  trial: 'Агент запустил пробное извлечение',
+  trial: 'Пробное извлечение',
   sample: 'Проверка на проблемном протоколе',
   golden: 'Проверка на эталонных протоколах',
-  generate: 'Агент предложил первый рецепт',
-  repair: 'Агент представил исправленный рецепт',
+  generate: 'Первичная генерация рецепта',
+  repair: 'Исправленный рецепт от агента',
   unavailable: 'Работа приостановлена',
 };
 
 interface RepairCardProps {
   repair: Repair;
+  onDecide?: () => void;
 }
 
-export function RepairCard({ repair }: RepairCardProps): React.JSX.Element {
+export function RepairCard({ repair, onDecide }: RepairCardProps): React.JSX.Element {
   const [edited, setEdited] = useState<string | null>(null);
   const [comment, setComment] = useState('');
   const decision = useRepairDecision(repair.id);
   const pending = decision.isPending;
   const [error, setError] = useState<string>();
+  const [feedback, setFeedback] = useState<string>();
   const proposal = JSON.stringify(repair.candidate ?? {}, null, 2);
+
+  const badge = statusMeta[repair.status] ?? {
+    label: repair.status,
+    chipClass: 'chip chip--sm chip--muted',
+  };
 
   const decide = async (action: Action, event?: FormEvent) => {
     event?.preventDefault();
     setError(undefined);
+    setFeedback(undefined);
     try {
       const input: unknown = action === 'edit' ? JSON.parse(edited ?? proposal) : undefined;
       const candidate = input === undefined ? undefined : recipeInput.parse(input);
+      onDecide?.();
       await decision.mutateAsync({ action, candidate, comment });
       setEdited(null);
       setComment('');
+      setFeedback(
+        action === 'approve'
+          ? 'Рецепт отправлен на активацию и повторный сбор.'
+          : action === 'edit'
+            ? 'JSON отправлен на перепроверку на эталонах.'
+            : 'Ремонт отклонён.',
+      );
     } catch (exc) {
       setError(
         exc instanceof SyntaxError
@@ -88,18 +104,30 @@ export function RepairCard({ repair }: RepairCardProps): React.JSX.Element {
     }
   };
 
-  return (
-    <article className="card">
-      <h3 className="h3">
-        {repair.source_name ?? `Источник #${repair.source_id}`} · ремонт #{repair.id}
-      </h3>
-      {repair.issue_id !== null && <p className="muted">Инцидент #{repair.issue_id}</p>}
-      <p role="status">{statusLabels[repair.status] ?? repair.status}</p>
+  const detailsContent = (
+    <>
+      {repair.base_selector &&
+        typeof repair.candidate?.baseSelector === 'string' &&
+        repair.base_selector !== repair.candidate.baseSelector && (
+          <dl className={styles.selectorDiff}>
+            <dt className="small muted">Исходный селектор</dt>
+            <dd>
+              <code>{repair.base_selector}</code>
+            </dd>
+            <dt className="small muted">Селектор после ремонта</dt>
+            <dd>
+              <code>{repair.candidate.baseSelector}</code>
+            </dd>
+          </dl>
+        )}
       {repair.attempts.length > 0 && (
         <ol className={styles.repairTimeline} aria-label="Ход ремонта">
           {repair.attempts.map((attempt, index) => (
-            <li key={index}>
-              {attemptLabels[attempt.step]} · {attempt.errors.length ? 'есть ошибки' : 'успешно'}
+            <li key={index} className="small">
+              {attemptLabels[attempt.step]} ·{' '}
+              <span className={attempt.errors.length ? 'muted' : ''}>
+                {attempt.errors.length ? 'есть ошибки' : 'успешно'}
+              </span>
               {attempt.errors.length > 0 && (
                 <ul>
                   {attempt.errors.map((message) => (
@@ -111,85 +139,117 @@ export function RepairCard({ repair }: RepairCardProps): React.JSX.Element {
           ))}
         </ol>
       )}
-      {repair.golden_total > 0 && (
-        <p>
-          Эталонных протоколов совпало: {repair.golden_passed} из {repair.golden_total}
-        </p>
-      )}
-      {repair.tokens_used > 0 && <p className="muted">Токенов использовано: {repair.tokens_used}</p>}
-      {repair.status === 'activated' && (
-        <p role="status">
-          Версия {repair.recipe_version} ·{' '}
-          {repair.collection_pending
-            ? 'Воркер возобновляет сбор'
-            : `Сохранено строк по этой версии: ${repair.saved_rows}`}
-        </p>
-      )}
-      {repair.base_selector &&
-        typeof repair.candidate?.baseSelector === 'string' &&
-        repair.base_selector !== repair.candidate.baseSelector && (
-          <dl className={styles.selectorDiff}>
-            <dt>Исходный селектор</dt>
-            <dd>
-              <code>{repair.base_selector}</code>
-            </dd>
-            <dt>Селектор после ремонта</dt>
-            <dd>
-              <code>{repair.candidate.baseSelector}</code>
-            </dd>
-          </dl>
-        )}
-      {repair.status === 'waiting' ? (
-        <form onSubmit={(event) => void decide('edit', event)}>
-          {repair.attempts.length === 0 && repair.errors.length > 0 && (
-            <ul>
-              {repair.errors.map((message) => (
-                <li key={message}>{message}</li>
-              ))}
-            </ul>
+    </>
+  );
+
+  return (
+    <article className="card card--pad">
+      <div className={styles.cardHeader}>
+        <div>
+          <h3 className="h3">
+            #{repair.id} · {repair.source_name ?? `Источник #${repair.source_id}`}
+          </h3>
+        </div>
+        <div className={styles.cardBadges}>
+          {repair.issue_id !== null && (
+            <span className="chip chip--sm chip--muted">Инцидент #{repair.issue_id}</span>
           )}
-          <label className="field">
-            Рецепт JSON
-            <textarea
-              className="input"
-              rows={8}
-              spellCheck={false}
-              value={edited ?? proposal}
-              onChange={(event) => setEdited(event.target.value)}
-            />
-          </label>
-          <label className="field">
-            Комментарий
-            <input
-              className="input"
-              value={comment}
-              maxLength={1000}
-              onChange={(event) => setComment(event.target.value)}
-            />
-          </label>
-          {error && <p role="alert">{error}</p>}
-          <div className="actions">
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={pending || !repair.can_approve}
-              onClick={() => void decide('approve')}
-            >
-              Активировать проверенный рецепт
-            </button>
-            <button type="submit" className="btn" disabled={pending || edited === null}>
-              Проверить правку
-            </button>
-            <button type="button" className="btn" disabled={pending} onClick={() => void decide('reject')}>
-              Отклонить
-            </button>
-          </div>
-        </form>
+          <span className={badge.chipClass} role="status">
+            {badge.label}
+          </span>
+        </div>
+      </div>
+
+      <div className={`small muted ${styles.metaRow}`}>
+        {repair.golden_total > 0 && (
+          <span>
+            Эталоны: {repair.golden_passed} / {repair.golden_total}
+          </span>
+        )}
+        {repair.tokens_used > 0 && <span>Токены: {repair.tokens_used}</span>}
+        {repair.status === 'activated' && (
+          <span>
+            Версия {repair.recipe_version ?? '—'} ·{' '}
+            {repair.collection_pending
+              ? 'Воркер возобновляет сбор'
+              : `Сохранено строк: ${repair.saved_rows}`}
+          </span>
+        )}
+      </div>
+
+      {feedback && (
+        <p className="small" role="status" style={{ marginBottom: '0.75rem' }}>
+          <strong>{feedback}</strong>
+          {repair.status === 'waiting' && repair.golden_total > 0
+            ? ` Результат: эталоны ${repair.golden_passed}/${repair.golden_total}${repair.errors.length ? ` · ошибки: ${repair.errors.join('; ')}` : ' · проверка пройдена'}.`
+            : repair.status === 'activated'
+              ? ` Готово: версия ${repair.recipe_version ?? '—'}, сохранено строк: ${repair.saved_rows}.`
+              : repair.status === 'rejected'
+                ? ' Отклонён.'
+                : ' Обновление статуса...'}
+        </p>
+      )}
+
+      {repair.status === 'waiting' ? (
+        <>
+          {detailsContent}
+          <form className={styles.formStack} onSubmit={(event) => void decide('edit', event)}>
+            {repair.attempts.length === 0 && repair.errors.length > 0 && (
+              <ul className="small">
+                {repair.errors.map((message) => (
+                  <li key={message}>{message}</li>
+                ))}
+              </ul>
+            )}
+            <label className="field">
+              <span>Рецепт JSON</span>
+              <textarea
+                className="input"
+                rows={8}
+                spellCheck={false}
+                value={edited ?? proposal}
+                onChange={(event) => setEdited(event.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>Комментарий</span>
+              <input
+                className="input"
+                value={comment}
+                maxLength={1000}
+                placeholder="Необязательно"
+                onChange={(event) => setComment(event.target.value)}
+              />
+            </label>
+            {error && (
+              <p className="small" role="alert">
+                {error}
+              </p>
+            )}
+            <div className="actions">
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={pending || !repair.can_approve}
+                onClick={() => void decide('approve')}
+              >
+                Активировать рецепт
+              </button>
+              <button type="submit" className="btn" disabled={pending}>
+                Перепроверить JSON
+              </button>
+              <button type="button" className="btn btn--ghost" disabled={pending} onClick={() => void decide('reject')}>
+                Отклонить
+              </button>
+            </div>
+          </form>
+        </>
       ) : (
-        repair.candidate && (
-          <details>
-            <summary>Рецепт JSON</summary>
-            <pre className={styles.recipeCode}>{proposal}</pre>
+        (repair.attempts.length > 0 || repair.candidate) && (
+          <details className={styles.detailsToggle}>
+            <summary className="small muted">Показать ход ремонта и JSON</summary>
+            {detailsContent}
+            {repair.candidate && <pre className={styles.recipeCode}>{proposal}</pre>}
           </details>
         )
       )}

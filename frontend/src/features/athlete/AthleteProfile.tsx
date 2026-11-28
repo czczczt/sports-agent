@@ -1,9 +1,11 @@
 import type { AthleteResultItem, AthleteSummary } from '@/shared/api';
 import { paths } from '@/shared/config';
-import { athleteMeta, dateRu, fixed1, initials, plural } from '@/shared/lib';
+import { athleteMeta, dateRu, fixed1, formatFullName, initials, plural } from '@/shared/lib';
+import { useAuth } from '@/shared/session';
 import { BackLink, Icon } from '@/shared/ui';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { AssessmentCard } from './AssessmentCard';
+import { athletesApi } from './api';
 import styles from './AthleteProfile.module.css';
 import { AthleteResults } from './AthleteResults';
 import { PaceChart } from './PaceChart';
@@ -16,11 +18,55 @@ interface AthleteProfileProps {
 export function AthleteProfile({ summary, results }: AthleteProfileProps): React.JSX.Element {
   const a = summary.athlete;
   const pbCount = summary.personal_bests.length;
+  const { isAuthenticated, user } = useAuth();
+  const cache = useQueryClient();
 
-  const fullName =
+  const rawFullName =
     a.middle_name && !a.display_name.includes(a.middle_name)
       ? `${a.display_name} ${a.middle_name}`
       : a.display_name;
+  const fullName = formatFullName(rawFullName);
+
+  const isOwnProfile = user?.athlete_id === a.id;
+  const hasLinkedAthlete = user?.athlete_id != null;
+
+  const myReportsQuery = useQuery({
+    queryKey: ['reports', 'my'],
+    queryFn: ({ signal }) => athletesApi.myReports(signal),
+    enabled: isAuthenticated && !hasLinkedAthlete,
+  });
+
+  const existingClaim = myReportsQuery.data?.find(
+    (r) =>
+      r.kind === 'link_me' &&
+      r.status !== 'accepted' &&
+      r.status !== 'resolved' &&
+      r.status !== 'rejected',
+  );
+
+  const claimMutation = useMutation({
+    mutationFn: () =>
+      athletesApi.claimMe(
+        a.id,
+        `Прошу привязать мой аккаунт к профилю спортсмена ${fullName} (ID ${a.id})`,
+      ),
+    onSuccess: () => {
+      cache.invalidateQueries({ queryKey: ['reports', 'my'] });
+    },
+    onError: (err) => {
+      if (err instanceof Error && 'status' in err && err.status === 409) {
+        cache.invalidateQueries({ queryKey: ['reports', 'my'] });
+      }
+    },
+  });
+
+  const isConflict =
+    claimMutation.isError &&
+    claimMutation.error instanceof Error &&
+    'status' in claimMutation.error &&
+    claimMutation.error.status === 409;
+
+  const claimSent = Boolean(existingClaim || claimMutation.isSuccess || isConflict);
 
   return (
     <>
@@ -41,6 +87,40 @@ export function AthleteProfile({ summary, results }: AthleteProfileProps): React
             <div className={['muted num', styles.meta].join(' ')}>{athleteMeta(a)}</div>
           </div>
         </div>
+
+        {isAuthenticated && isOwnProfile && (
+          <div className={styles.claimActions}>
+            <span className={['btn btn--primary btn--lg', styles.ownProfileBadge].join(' ')}>
+              Это вы
+            </span>
+          </div>
+        )}
+
+        {isAuthenticated && !isOwnProfile && !hasLinkedAthlete && (
+          <div className={styles.claimActions}>
+            <button
+              type="button"
+              className={
+                claimSent
+                  ? ['btn btn--lg', styles.claimSentBtn].join(' ')
+                  : 'btn btn--primary btn--lg'
+              }
+              disabled={claimSent || claimMutation.isPending || myReportsQuery.isLoading}
+              onClick={() => claimMutation.mutate()}
+            >
+              {claimSent
+                ? 'Заявка уже отправлена'
+                : claimMutation.isPending
+                  ? 'Отправка…'
+                  : 'Это я'}
+            </button>
+            {claimMutation.isError && !isConflict && (
+              <div className="small" style={{ color: 'var(--color-danger)', marginTop: 4 }}>
+                {claimMutation.error.message}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       <div className="cols">
@@ -153,8 +233,6 @@ export function AthleteProfile({ summary, results }: AthleteProfileProps): React
         </div>
 
         <div className="cols__main">
-          <AssessmentCard athleteId={a.id} />
-
           <AthleteResults results={results} athleteId={a.id} />
         </div>
       </div>

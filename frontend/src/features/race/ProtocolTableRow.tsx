@@ -3,7 +3,6 @@ import { fixed1, genderLabel, hms } from '@/shared/lib';
 import { StatusChip } from '@/shared/ui';
 import { ageText } from './ageText';
 import { AthleteName } from './AthleteName';
-import styles from './ProtocolTableRow.module.css';
 
 interface ProtocolTableRowProps {
   r: RaceProtocolItem;
@@ -17,12 +16,6 @@ export function ProtocolTableRow({ r, isMe }: ProtocolTableRowProps): React.JSX.
       <td className="num strong">{r.place_abs || '—'}</td>
       <td>
         <AthleteName r={r} className="cell-title" />
-        {isMe && (
-          <>
-            {' '}
-            <span className={['small strong', styles.currentAthlete].join(' ')}>это вы</span>
-          </>
-        )}
         <div className="cell-sub num">
           {r.bib ? `№ ${r.bib}` : ''}
           {r.bib && r.club_raw ? ' · ' : ''}

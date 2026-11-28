@@ -28,6 +28,7 @@ from app.models import (
     AdminAthleteUpdate,
     RosterImportResult,
 )
+from parser_running.normalize import format_display_name
 
 router = APIRouter(prefix="/admin/athletes", tags=["admin-athletes"])
 
@@ -99,10 +100,10 @@ class AdminAthletesRepository(ReadRepository):
         return await self.row(sql, {"athlete_id": athlete_id})
 
     async def create_athlete(self, data: AdminAthleteCreate) -> int:
-        first = data.first_name.strip()
-        last = data.last_name.strip()
-        middle = data.middle_name.strip() if data.middle_name else None
-        display = f"{last} {first}".strip()
+        first = format_display_name(data.first_name)
+        last = format_display_name(data.last_name)
+        middle = format_display_name(data.middle_name) or None
+        display = format_display_name(f"{last} {first}".strip())
         name_key = norm_name(display)
 
         parsed_bdate = None

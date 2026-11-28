@@ -5,9 +5,10 @@ import { ReviewCard } from './ReviewCard';
 interface ReviewListProps {
   data: AgentReviewData;
   status: string;
+  hideEmpty?: boolean;
 }
 
-export function ReviewList({ data, status }: ReviewListProps): React.JSX.Element {
+export function ReviewList({ data, status, hideEmpty = false }: ReviewListProps): React.JSX.Element {
   const items = data.items;
   return (
     <>
@@ -21,7 +22,7 @@ export function ReviewList({ data, status }: ReviewListProps): React.JSX.Element
         </div>
       )}
 
-      {!items.length && (
+      {!items.length && !hideEmpty && (
         <EmptyState
           title={`Предложений нет${status !== 'all' ? ` в статусе «${status}»` : ''}`}
           text="Все задачи проверены или находятся в других вкладках."

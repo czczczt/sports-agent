@@ -1,6 +1,6 @@
 import type { RatingPage as RatingPageData } from '@/shared/api';
 import { paths } from '@/shared/config';
-import { fixed1 } from '@/shared/lib';
+import { fixed1, formatFullName } from '@/shared/lib';
 import { Icon } from '@/shared/ui';
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
@@ -97,7 +97,7 @@ export function RatingBoard({ data, athleteId, loading }: RatingBoardProps): Rea
           <section className={layout.ratingSideCard}>
             <strong className={layout.ratingSideCardRank}>{me.rank}</strong>
             <p className={layout.ratingSideCardMuted}>
-              {me.display_name} · {fixed1(me.points)} балла
+              {formatFullName(me.display_name)} · {fixed1(me.points)} балла
             </p>
             <Link to={paths.athlete(me.athlete_id)} className={layout.ratingSideCardLink}>
               В профиль →

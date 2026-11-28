@@ -2,6 +2,19 @@ from app.core.repository import ReadRepository
 
 
 class ReportsRepository(ReadRepository):
+    async def find_pending_link_claim(self, user_id):
+        return await self.row(
+            """
+            SELECT id, athlete_id
+            FROM report
+            WHERE kind = 'link_me'
+              AND user_id = :user_id
+              AND status NOT IN ('accepted', 'resolved', 'rejected')
+            LIMIT 1
+        """,
+            {"user_id": user_id},
+        )
+
     async def create(
         self, kind, user_id, athlete_id, result_id, event_id, url, message
     ):

@@ -5,16 +5,41 @@ from app.core.repository import ReadRepository
 
 class AthletesWebRepository(ReadRepository):
     async def search_candidates(self, name, year, limit):
+        words = [w for w in name.split() if w]
+        if not words:
+            return []
+        clauses = [
+            "starts_count > 0",
+            "is_hidden = FALSE",
+            "(employee_status IS NULL OR employee_status != 'not_employee')",
+        ]
+        params = {"year": year, "limit": limit}
+        if len(words) == 1:
+            # Поиск только по фамилии: первое слово display_name (Фамилия) или совпадение с префиксом/подстрокой фамилии
+            # Исключаем поиск по личному имени (например, "Максим" не должен находить "Тихонов Максим")
+            clauses.append(
+                "strpos(lower(replace(split_part(trim(display_name), ' ', 1), 'ё', 'е')), :last_name) > 0"
+            )
+            params["last_name"] = words[0]
+        else:
+            # Введены фамилия + имя (в любом порядке): оба слова должны входить в спортсмена
+            for idx, word in enumerate(words):
+                param_name = f"word_{idx}"
+                clauses.append(f"strpos(name_key, :{param_name}) > 0")
+                params[param_name] = word
+
+        if year is not None:
+            clauses.append("birth_year = :year")
+        where = " AND ".join(clauses)
         return await self.rows(
-            """
+            f"""
             SELECT id, display_name, first_name, last_name, middle_name,
                    birth_date::text, birth_year, gender, city, region, club,
                    employee_status, is_hidden, starts_count, results_count
-            FROM athlete WHERE strpos(name_key, :name) > 0 AND starts_count > 0 AND is_hidden = FALSE
-              AND (CAST(:year AS integer) IS NULL OR birth_year = :year)
+            FROM athlete WHERE {where}
             ORDER BY starts_count DESC, results_count DESC, id LIMIT :limit
         """,
-            {"name": name, "year": year, "limit": limit},
+            params,
         )
 
     async def cached_assessment(self, athlete_id):
